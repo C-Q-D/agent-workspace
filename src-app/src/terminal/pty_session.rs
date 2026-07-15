@@ -428,6 +428,18 @@ pub(super) struct SpawnedPty {
     pty_master_fd: Option<i32>,
 }
 
+/// 控制 PTY 子进程是否叠加 PaneFlow 的 Agent Hook 与 MCP 集成环境。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum PtyIntegrationMode {
+    /// 只使用通用终端环境，适用于普通 PowerShell、Codex CLI 和 Claude Code CLI。
+    Plain,
+    /// 保持 Paneflow 原有的 Hook、MCP socket 和会话身份注入。
+    Paneflow {
+        /// 原 Paneflow workspace 标识；零表示脱离工作区。
+        workspace_id: u64,
+    },
+}
+
 const OSC7_MAX_PAYLOAD: usize = 4096;
 
 #[derive(Debug, Default)]
@@ -775,6 +787,40 @@ impl TerminalState {
         )
     }
 
+    /// 创建不带 Paneflow Agent Hook 与 MCP 集成的真实 PTY 终端。
+    ///
+    /// Windows 仍通过现有 shell 解析链选择 PowerShell，其他平台选择其默认 shell。
+    /// 调用会同步打开 PTY，因此 UI 应在后台执行该方法；返回错误表示 shell 或 PTY
+    /// 创建失败，且不会留下已提升的半成品终端。`surface_id` 是调用方提供的稳定
+    /// 终端标识，只传给底层 PTY 事件循环，不会写入子进程环境。
+    #[allow(dead_code)]
+    pub fn new_plain(
+        working_directory: Option<std::path::PathBuf>,
+        surface_id: u64,
+        initial_size: Option<(usize, usize)>,
+        user_env: Option<std::collections::HashMap<String, String>>,
+        signal_mask: Option<ForegroundSignalMask>,
+    ) -> anyhow::Result<Self> {
+        let params = Self::resolve_spawn_params_with_profile_and_integration(
+            working_directory,
+            surface_id,
+            initial_size,
+            user_env,
+            TerminalSurfaceProfile::Normal,
+            PtyIntegrationMode::Plain,
+        );
+        let (mut state, events_tx) = Self::new_pending_with_profile_and_shell_quoting(
+            params.cols,
+            params.rows,
+            params.profile,
+            params.shell_quoting,
+        );
+        let term = state.term.clone();
+        let spawned = Self::open_pty_and_eventloop(params, term, events_tx, signal_mask)?;
+        state.promote(spawned);
+        Ok(state)
+    }
+
     #[allow(dead_code)]
     pub fn new_with_profile(
         working_directory: Option<std::path::PathBuf>,
@@ -835,6 +881,25 @@ impl TerminalState {
         user_env: Option<std::collections::HashMap<String, String>>,
         profile: TerminalSurfaceProfile,
     ) -> SpawnParams {
+        Self::resolve_spawn_params_with_profile_and_integration(
+            working_directory,
+            surface_id,
+            initial_size,
+            user_env,
+            profile,
+            PtyIntegrationMode::Paneflow { workspace_id },
+        )
+    }
+
+    /// 解析 shell、环境、工作目录和初始网格，并按模式选择是否叠加 Agent 集成。
+    fn resolve_spawn_params_with_profile_and_integration(
+        working_directory: Option<std::path::PathBuf>,
+        surface_id: u64,
+        initial_size: Option<(usize, usize)>,
+        user_env: Option<std::collections::HashMap<String, String>>,
+        profile: TerminalSurfaceProfile,
+        integration: PtyIntegrationMode,
+    ) -> SpawnParams {
         // Fallback chain handled by `resolve_default_shell` (US-006):
         // Unix:    config → $SHELL → /bin/sh
         // Windows: config → pwsh.exe → powershell.exe → %ComSpec% →
@@ -871,11 +936,14 @@ impl TerminalState {
         } else {
             vec![]
         };
-        // Assemble the child environment (identity vars, TERM, AI-hook PATH
-        // prepend, user-env merge with protected keys). Pure function so the env
-        // contract stays unit-testable (the mockable `PtyBackend::spawn` seam is
-        // gone - EP-002 US-004).
-        let env = assemble_pty_env(env, workspace_id, surface_id, merged_env);
+        // 纯终端路径不加载 Hook 资产，也不生成 PaneFlow 会话身份；原有路径仍显式组合
+        // 完整集成环境，避免在本实验原子中改变现有 UI 行为。
+        let env = match integration {
+            PtyIntegrationMode::Plain => assemble_base_pty_env(env, merged_env),
+            PtyIntegrationMode::Paneflow { workspace_id } => {
+                assemble_pty_env(env, workspace_id, surface_id, merged_env)
+            }
+        };
         // U-026 + issue #11: when no cwd is explicit, avoid inheriting a GUI
         // launch cwd that is the filesystem root. Explicit root cwd requests
         // still arrive through `working_directory` and are preserved.
@@ -2589,6 +2657,29 @@ mod tests {
         assert_eq!((d.cols, d.rows), (120, 40));
     }
 
+    /// 纯终端解析入口必须保留调用方目录和尺寸，同时不生成 Agent 集成身份。
+    #[test]
+    fn plain_spawn_params_exclude_paneflow_identity() {
+        let cwd = std::env::temp_dir();
+        let params = TerminalState::resolve_spawn_params_with_profile_and_integration(
+            Some(cwd.clone()),
+            77,
+            Some((100, 30)),
+            None,
+            TerminalSurfaceProfile::Normal,
+            PtyIntegrationMode::Plain,
+        );
+
+        assert_eq!(params.cwd, cwd);
+        assert_eq!((params.cols, params.rows), (100, 30));
+        assert_eq!(params.surface_id, 77);
+        assert!(
+            params.env.keys().all(|key| !key.starts_with("PANEFLOW_")),
+            "纯终端参数不能注入 PaneFlow 身份：{:?}",
+            params.env
+        );
+    }
+
     #[cfg(unix)]
     #[test]
     fn capture_foreground_signal_mask_succeeds_on_unix() {
@@ -3444,6 +3535,39 @@ mod tests {
         assert!(
             found,
             "final PTY output must survive a fast shell exit before the overlay lands"
+        );
+    }
+
+    /// 纯终端入口必须启动真实 shell，并证明子进程没有收到 PaneFlow surface 身份。
+    #[test]
+    fn plain_terminal_echoes_without_paneflow_identity() {
+        let mut state = TerminalState::new_plain(None, 77, Some((80, 24)), None, None)
+            .expect("纯终端入口应能启动平台默认 shell");
+
+        std::thread::sleep(std::time::Duration::from_millis(250));
+        #[cfg(windows)]
+        let command = "if ($null -eq $env:PANEFLOW_SURFACE_ID) { Write-Output ('AGENTWORKSPACE_' + 'PLAIN_OK') } else { Write-Output ('AGENTWORKSPACE_' + 'IDENTITY_PRESENT') }\r\n";
+        #[cfg(unix)]
+        let command = "if [ -z \"${PANEFLOW_SURFACE_ID+x}\" ]; then echo AGENTWORKSPACE_''PLAIN_OK; else echo AGENTWORKSPACE_''IDENTITY_PRESENT; fi\n";
+        state.notifier.notify(command.as_bytes().to_vec());
+
+        let mut output = String::new();
+        for _ in 0..240 {
+            std::thread::sleep(std::time::Duration::from_millis(50));
+            state.sync();
+            output = state.extract_scrollback().unwrap_or_default();
+            if output.contains("AGENTWORKSPACE_PLAIN_OK") {
+                break;
+            }
+        }
+
+        assert!(
+            output.contains("AGENTWORKSPACE_PLAIN_OK"),
+            "纯终端没有返回预期标记，当前输出：\n{output}"
+        );
+        assert!(
+            !output.contains("AGENTWORKSPACE_IDENTITY_PRESENT"),
+            "纯终端不应继承 PaneFlow surface 身份"
         );
     }
 
