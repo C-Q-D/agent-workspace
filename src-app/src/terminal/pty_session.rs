@@ -2048,50 +2048,25 @@ mod title_filter_tests {
     }
 }
 
-/// Assemble the child PTY environment: PaneFlow identity vars, explicit TERM /
-/// locale / terminal-program identification, the AI-hook PATH prepend, and the
-/// user-env merge (a user var wins on collision EXCEPT the protected keys
-/// PaneFlow owns and `PANEFLOW_BIN_DIR` is re-prepended after any user PATH).
-/// Pure except for `inject_ai_hook_env` staging the shim
-/// binaries, so the env contract stays unit-testable now that the mockable
-/// `PtyBackend::spawn` seam is gone (EP-002 US-004). Mirrors Zed's
-/// `insert_zed_terminal_env`.
-fn assemble_pty_env(
+/// 组装所有交互式终端都需要的基础子进程环境。
+///
+/// 该函数只负责终端能力标识、UTF-8 locale、shell 层级和用户配置合并，不主动
+/// 注入 Hook、MCP socket 或 PaneFlow 会话身份。这样普通 PowerShell 与 Agent CLI
+/// 可以共享同一套安全的基础环境，集成功能则由 [`apply_paneflow_integration_env`]
+/// 明确叠加。
+fn assemble_base_pty_env(
     mut env: std::collections::HashMap<String, String>,
-    workspace_id: u64,
-    surface_id: u64,
     user_env: Option<std::collections::HashMap<String, String>>,
 ) -> std::collections::HashMap<String, String> {
-    // PaneFlow identity vars (AI-hook + MCP bridge integration).
-    // `0` is reserved for detached terminals such as discovered worktree Review
-    // terminals. Do not advertise a fake workspace id to the IPC hook.
-    if workspace_id != 0 {
-        env.insert("PANEFLOW_WORKSPACE_ID".into(), workspace_id.to_string());
-    }
-    env.insert("PANEFLOW_SURFACE_ID".into(), surface_id.to_string());
-    if let Some(socket_path) = paneflow_socket_path() {
-        env.insert("PANEFLOW_SOCKET_PATH".into(), socket_path);
-    }
-
-    // Propagate the opt-in hook-diagnostic log path explicitly so the whole
-    // chain (shell → shim → agent → ai-hook) appends to the same file even if
-    // a PTY backend ever clears the inherited env. No-op when unset.
-    if let Some(log_path) = std::env::var_os("PANEFLOW_HOOK_LOG")
-        .filter(|v| !v.is_empty())
-        .map(|v| v.to_string_lossy().into_owned())
-    {
-        env.insert("PANEFLOW_HOOK_LOG".into(), log_path);
-    }
-
-    // Explicit TERM so TUI apps detect capabilities correctly.
+    // 明确终端能力，避免 TUI 在继承环境不完整时降级。
     env.insert("TERM".into(), "xterm-256color".into());
 
-    // Ensure a UTF-8 locale in minimal environments (containers, etc.).
+    // 仅在宿主没有 LANG 时补充 UTF-8 locale，不覆盖用户已经选择的语言环境。
     if std::env::var("LANG").map_or(true, |v| v.is_empty()) {
         env.insert("LANG".into(), "en_US.UTF-8".into());
     }
 
-    // Standard terminal identification for capability detection.
+    // TERM_PROGRAM 属于终端产品标识，不是 Agent 集成身份。
     env.insert("TERM_PROGRAM".into(), "paneflow".into());
     env.insert(
         "TERM_PROGRAM_VERSION".into(),
@@ -2099,24 +2074,10 @@ fn assemble_pty_env(
     );
     env.insert("COLORTERM".into(), "truecolor".into());
 
-    // Reset SHLVL so the child shell starts fresh at 1. alacritty's `tty`
-    // inherits the parent environment (no `env_clear`), so unlike the old
-    // portable-pty `env_remove("SHLVL")` we must actively override the value
-    // PaneFlow itself inherited (typically >= 2 when launched from a terminal),
-    // which otherwise breaks nested-shell prompt detection (oh-my-zsh subshell
-    // banner, fish $SHLVL gating). "0" makes the shell initialize it to 1.
+    // alacritty 会继承父进程环境，因此显式把 SHLVL 置零，让新 shell 从 1 开始。
     env.insert("SHLVL".into(), "0".into());
 
-    // Cross-platform AI-hook PATH-prepend: stage the embedded shim binaries and
-    // prepend their dir to `$PATH` so `claude`/`codex` route through the shim.
-    // Silent-fail (the terminal still opens). Sets `PANEFLOW_BIN_DIR`.
-    inject_ai_hook_env(&mut env);
-
-    // Merge user-supplied env on top, EXCEPT the protected keys PaneFlow owns:
-    // TERM/COLORTERM/TERM_PROGRAM drive capability detection; SHLVL is reset so
-    // shells start fresh; the PANEFLOW_* identity vars are how the MCP bridge
-    // and the AI-hook shim find PaneFlow - letting a user clobber them would
-    // silently break those features.
+    // 合并用户环境，但终端能力字段和预留的集成身份不能被覆盖。
     if let Some(user_vars) = user_env {
         const PROTECTED: &[&str] = &[
             "TERM",
@@ -2130,18 +2091,10 @@ fn assemble_pty_env(
             "PANEFLOW_BIN_DIR",
         ];
         for (k, v) in user_vars {
-            // Windows env names are case-insensitive; normalise so a user
-            // `Path` cannot shadow inherited `PATH` and the protected-key check
-            // is not bypassed by casing.
+            // Windows 环境变量名不区分大小写，统一大写后再进行保留字段检查。
             #[cfg(windows)]
             let k = k.to_uppercase();
-            // Reject malformed env names (empty / `=` / NUL) and drop
-            // dynamic-loader-influencing keys (LD_* / DYLD_*) outright: an
-            // imported `session.json` surface env or the global `terminal.env`
-            // is untrusted, and these inject a bundled `.so` into the spawned
-            // shell (RCE). `PATH` is deliberately still mergeable here (a
-            // documented US-014 use case), but PANEFLOW_BIN_DIR is re-prepended
-            // after the merge so agent commands still route through the shim.
+            // 非法名称和动态加载器变量不得进入子进程，避免导入配置注入本地库。
             if !is_valid_env_name(&k) || is_forbidden_child_env_key(&k) {
                 continue;
             }
@@ -2153,8 +2106,50 @@ fn assemble_pty_env(
     }
 
     env.remove(CLAUDECODE_ENV);
-    reassert_paneflow_bin_dir_first(&mut env);
+    env
+}
 
+/// 在基础终端环境上叠加 PaneFlow 的 Agent Hook 与 MCP 集成身份。
+///
+/// `workspace_id == 0` 表示脱离工作区的终端，因此不会伪造 workspace 身份；surface
+/// 身份仍然保留。Hook 二进制提取失败时继续返回基础环境，终端启动不受影响。
+fn apply_paneflow_integration_env(
+    env: &mut std::collections::HashMap<String, String>,
+    workspace_id: u64,
+    surface_id: u64,
+) {
+    if workspace_id != 0 {
+        env.insert("PANEFLOW_WORKSPACE_ID".into(), workspace_id.to_string());
+    }
+    env.insert("PANEFLOW_SURFACE_ID".into(), surface_id.to_string());
+    if let Some(socket_path) = paneflow_socket_path() {
+        env.insert("PANEFLOW_SOCKET_PATH".into(), socket_path);
+    }
+
+    // 诊断日志路径属于可选集成配置，未设置时不创建空变量。
+    if let Some(log_path) = std::env::var_os("PANEFLOW_HOOK_LOG")
+        .filter(|v| !v.is_empty())
+        .map(|v| v.to_string_lossy().into_owned())
+    {
+        env.insert("PANEFLOW_HOOK_LOG".into(), log_path);
+    }
+
+    inject_ai_hook_env(env);
+    reassert_paneflow_bin_dir_first(env);
+}
+
+/// 组装当前 PaneFlow 默认路径使用的完整 PTY 环境。
+///
+/// 保留该兼容组合入口可以确保本原子只建立模块接缝，不改变现有终端的默认行为；
+/// 后续纯终端实验可以直接选择 [`assemble_base_pty_env`]。
+fn assemble_pty_env(
+    env: std::collections::HashMap<String, String>,
+    workspace_id: u64,
+    surface_id: u64,
+    user_env: Option<std::collections::HashMap<String, String>>,
+) -> std::collections::HashMap<String, String> {
+    let mut env = assemble_base_pty_env(env, user_env);
+    apply_paneflow_integration_env(&mut env, workspace_id, surface_id);
     env
 }
 
@@ -2924,6 +2919,22 @@ mod tests {
     // `tty::new`), so the env that the child inherits is asserted directly
     // against the pure `assemble_pty_env`.
     // -----------------------------------------------------------------
+
+    /// 基础终端环境不得自行注入 Agent Hook、MCP 或会话身份变量。
+    #[test]
+    fn base_pty_env_excludes_paneflow_integration() {
+        let mut user = HashMap::new();
+        user.insert("MY_CUSTOM_VAR".to_string(), "hello".to_string());
+
+        let env = assemble_base_pty_env(HashMap::new(), Some(user));
+
+        assert_eq!(env.get("TERM").map(String::as_str), Some("xterm-256color"));
+        assert_eq!(env.get("MY_CUSTOM_VAR").map(String::as_str), Some("hello"));
+        assert!(
+            env.keys().all(|key| !key.starts_with("PANEFLOW_")),
+            "基础终端环境不能包含 PaneFlow 集成变量：{env:?}"
+        );
+    }
 
     #[test]
     fn pty_spawn_injects_paneflow_bin_dir_and_prepends_path() {
