@@ -1,11 +1,8 @@
-//! GPUI view layer for a single terminal pane.
+//! 单个终端窗格的 GPUI 视图层。
 //!
-//! Holds the `TerminalView` struct, its constructor + event batch loop,
-//! IME wiring, URL hover detection, the `TerminalEvent` enum emitted to
-//! consumers (pane / app), and the `Render` impl that composes
-//! `TerminalElement` with the search overlay and copy-mode badge.
-//!
-//! Extracted from `terminal.rs` per US-016 of the src-app refactor PRD.
+//! 本文件负责 `TerminalView`、构造与事件批处理循环、IME、链接检测、
+//! 对外事件以及最终渲染组合。终端被放大布局隐藏时仍必须持续消费 PTY
+//! 事件并更新 VTE 状态，但会合并重绘请求，直到重新显示时只补一次重绘。
 
 use std::sync::{Arc, Mutex};
 
@@ -126,6 +123,58 @@ pub(super) struct HoverLinkCache {
     zones: Vec<HyperlinkZone>,
 }
 
+/// 终端视图的轻量重绘可见性状态。
+///
+/// 这里只控制 GPUI 重绘通知，不暂停 PTY 读取、VTE 解析、状态检测或 Agent
+/// 进程。这样隐藏窗格不会因持续输出反复唤醒渲染管线，同时重新显示时仍能
+/// 直接呈现完整的最新终端内容。
+#[derive(Debug, Clone, Copy)]
+struct RenderVisibility {
+    /// 当前终端是否在活动布局中可见。
+    visible: bool,
+    /// 隐藏期间是否发生过至少一次会改变画面的事件。
+    hidden_dirty: bool,
+}
+
+impl Default for RenderVisibility {
+    fn default() -> Self {
+        Self {
+            visible: true,
+            hidden_dirty: false,
+        }
+    }
+}
+
+impl RenderVisibility {
+    /// 记录一次画面变化，并返回调用方是否应立即请求重绘。
+    ///
+    /// 隐藏期间无论收到多少批输出都只保留一个脏标记，避免把输出频率直接
+    /// 放大为 UI 重绘频率。
+    fn record_change(&mut self) -> bool {
+        if self.visible {
+            true
+        } else {
+            self.hidden_dirty = true;
+            false
+        }
+    }
+
+    /// 切换可见性，并返回恢复显示时是否需要补发一次重绘。
+    fn set_visible(&mut self, visible: bool) -> bool {
+        if self.visible == visible {
+            return false;
+        }
+
+        self.visible = visible;
+        if visible && self.hidden_dirty {
+            self.hidden_dirty = false;
+            true
+        } else {
+            false
+        }
+    }
+}
+
 pub struct TerminalView {
     pub terminal: TerminalState,
     focus_handle: FocusHandle,
@@ -221,9 +270,28 @@ pub struct TerminalView {
     needs_initial_clear: Arc<std::sync::atomic::AtomicBool>,
     /// Last window size measured by `TerminalElement::build_layout`.
     terminal_window_size: Arc<Mutex<Option<TerminalWindowSize>>>,
+    /// 控制高频终端事件是否需要立即唤醒 GPUI 重绘。
+    render_visibility: RenderVisibility,
 }
 
 impl TerminalView {
+    /// 更新终端在当前布局中的可见性。
+    ///
+    /// 从隐藏恢复且期间画面发生变化时只补发一次通知；隐藏动作本身由上层
+    /// 布局变更负责重绘，因此这里不会额外触发一次无意义的绘制。
+    pub(crate) fn set_render_visible(&mut self, visible: bool, cx: &mut Context<Self>) {
+        if self.render_visibility.set_visible(visible) {
+            cx.notify();
+        }
+    }
+
+    /// 为终端内部变化请求重绘；隐藏终端只累计脏状态。
+    fn notify_terminal_change(&mut self, cx: &mut Context<Self>) {
+        if self.render_visibility.record_change() {
+            cx.notify();
+        }
+    }
+
     fn recorded_window_size(&self) -> Option<TerminalWindowSize> {
         *self
             .terminal_window_size
@@ -401,7 +469,7 @@ impl TerminalView {
                                 .write_output(spawn_error_message(&e).as_bytes());
                         }
                     }
-                    cx.notify();
+                    view.notify_terminal_change(cx);
                 });
             },
         )
@@ -600,7 +668,7 @@ impl TerminalView {
                                     }
                                 }
 
-                                cx.notify();
+                                view.notify_terminal_change(cx);
                             }
                         })
                     });
@@ -642,7 +710,7 @@ impl TerminalView {
                     );
                     if new_visible != view.cursor_visible {
                         view.cursor_visible = new_visible;
-                        cx.notify();
+                        view.notify_terminal_change(cx);
                     }
                 },
             )
@@ -703,6 +771,7 @@ impl TerminalView {
             ime_marked_text: String::new(),
             needs_initial_clear: Arc::new(std::sync::atomic::AtomicBool::new(true)),
             terminal_window_size: Arc::new(Mutex::new(None)),
+            render_visibility: RenderVisibility::default(),
         }
     }
 
@@ -1525,6 +1594,37 @@ fn resolve_cursor_visible(
 mod tests {
     use super::*;
     use crate::terminal::pty_session::strip_partial_ansi_tail;
+
+    /// 可见终端的画面变化必须立即请求重绘，保持原有交互响应速度。
+    #[test]
+    fn visible_terminal_change_requests_redraw_immediately() {
+        let mut visibility = RenderVisibility::default();
+
+        assert!(visibility.record_change());
+        assert!(visibility.record_change());
+    }
+
+    /// 模拟高吞吐隐藏终端：大量输出批次不得产生重绘，恢复时只补一次。
+    #[test]
+    fn hidden_output_batches_collapse_to_one_resume_redraw() {
+        let mut visibility = RenderVisibility::default();
+        assert!(!visibility.set_visible(false));
+
+        let hidden_redraws = (0..10_000).filter(|_| visibility.record_change()).count();
+
+        assert_eq!(hidden_redraws, 0);
+        assert!(visibility.set_visible(true));
+        assert!(!visibility.set_visible(true));
+    }
+
+    /// 没有画面变化的隐藏终端恢复时不应制造额外重绘。
+    #[test]
+    fn clean_hidden_terminal_does_not_request_resume_redraw() {
+        let mut visibility = RenderVisibility::default();
+
+        assert!(!visibility.set_visible(false));
+        assert!(!visibility.set_visible(true));
+    }
 
     // --- send_keystroke submission guard (US-005, orchestration-v2) ---
 

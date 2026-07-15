@@ -1,12 +1,7 @@
-//! Workspace - a named collection of terminal panes with a split layout.
+//! 工作区领域对象：管理具名终端窗格集合、分割布局与放大状态。
 //!
-//! Module layout (US-030 of the src-app refactor PRD):
-//! - [`git`] - git metadata probing (branch, diff stats, `.git` dir lookup)
-//! - [`ports`] - cross-platform TCP listening-port detection
-//!
-//! The [`Workspace`] struct and its constructors live in this `mod.rs`; git
-//! and port helpers are re-exported so external callers keep the flat
-//! `crate::workspace::*` API.
+//! 本模块同时维护放大布局的关键性能不变量：隐藏窗格继续运行并更新终端
+//! 状态，但不请求重绘；退出放大时统一恢复可见性，避免不同退出路径遗漏。
 
 mod git;
 pub mod pid_resolve;
@@ -228,10 +223,37 @@ impl Workspace {
         self.saved_layout.is_some()
     }
 
+    /// 将指定窗格放大，并同步更新所有终端的重绘可见性。
+    ///
+    /// 返回 `false` 表示工作区已处于放大状态、窗格不属于当前布局，或当前
+    /// 布局无法放大。该操作只改变布局和重绘策略，不暂停任何终端进程。
+    pub fn enter_zoom(&mut self, focused: Entity<Pane>, cx: &mut App) -> bool {
+        let Some(root) = self.root.as_ref() else {
+            return false;
+        };
+        if self.is_zoomed() || root.leaf_count() <= 1 || !root.contains_leaf(&focused) {
+            return false;
+        }
+
+        set_layout_terminal_render_visibility(root, Some(&focused), cx);
+        focused.update(cx, |pane, _| pane.zoomed = true);
+        let full_tree = self.root.take().expect("已验证工作区存在布局根节点");
+        self.saved_layout = Some(full_tree);
+        self.root = Some(LayoutTree::Leaf(focused));
+        true
+    }
+
+    /// 退出放大并恢复完整布局中的全部终端重绘。
+    ///
+    /// 所有可能隐式退出放大的入口都经过这里，因此布局预设、窗格关闭等路径
+    /// 不会留下“已经显示但仍被视作隐藏”的终端。
     pub fn exit_zoom(&mut self, cx: &mut App) -> Option<Entity<Pane>> {
         let zoomed_pane = self.root.as_ref().and_then(|root| root.first_leaf());
         let saved = self.saved_layout.take()?;
         self.root = Some(saved);
+        if let Some(root) = &self.root {
+            set_layout_terminal_render_visibility(root, None, cx);
+        }
         if let Some(pane) = &zoomed_pane {
             pane.update(cx, |pane, _| {
                 pane.zoomed = false;
@@ -319,6 +341,26 @@ impl Workspace {
         }
         if let Some(saved) = &self.saved_layout {
             walk_and_push_buttons(saved, &self.custom_buttons, cx);
+        }
+    }
+}
+
+/// 批量设置布局内终端的重绘可见性。
+///
+/// `visible_pane` 为 `Some` 时只有指定窗格可见；为 `None` 时全部可见。
+/// 先复制终端实体句柄再更新，避免同时持有窗格读取借用和终端写入借用。
+fn set_layout_terminal_render_visibility(
+    root: &LayoutTree,
+    visible_pane: Option<&Entity<Pane>>,
+    cx: &mut App,
+) {
+    for pane in root.collect_leaves() {
+        let visible = visible_pane.is_none_or(|focused| focused == &pane);
+        let terminals: Vec<_> = pane.read(cx).terminals().cloned().collect();
+        for terminal in terminals {
+            terminal.update(cx, |terminal, cx| {
+                terminal.set_render_visible(visible, cx);
+            });
         }
     }
 }

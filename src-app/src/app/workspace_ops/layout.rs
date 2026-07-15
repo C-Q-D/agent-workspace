@@ -1,6 +1,7 @@
-//! Layout presets, JSON layout application, zoom, and split-equalize.
+//! 工作区布局操作：布局预设、JSON 布局、窗格放大以及比例均衡。
 //!
-//! Part of the US-023 workspace_ops decomposition.
+//! 放大动作通过 `Workspace` 的统一入口更新终端重绘可见性，确保布局状态与
+//! 性能状态始终同步。
 
 use std::collections::VecDeque;
 use std::path::PathBuf;
@@ -42,10 +43,9 @@ impl PaneFlowApp {
                 return;
             };
 
-            focused.update(cx, |p, _| p.zoomed = true);
-            let full_tree = ws.root.take().unwrap();
-            ws.saved_layout = Some(full_tree);
-            ws.root = Some(LayoutTree::Leaf(focused.clone()));
+            if !ws.enter_zoom(focused.clone(), cx) {
+                return;
+            }
             focused.read(cx).focus_handle(cx).focus(window, cx);
         }
         self.save_session(cx);
