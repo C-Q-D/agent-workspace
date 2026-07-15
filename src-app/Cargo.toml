@@ -12,6 +12,11 @@ keywords.workspace = true
 categories.workspace = true
 readme = "../README.md"
 
+[features]
+# 仅供本地性能实验使用。默认构建不包含计数字段、分支或 IPC 附加数据，
+# 避免为了测量优化效果而永久增加终端热路径开销。
+terminal-perf-metrics = []
+
 [[bin]]
 name = "paneflow"
 path = "src/main.rs"

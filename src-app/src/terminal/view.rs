@@ -134,6 +134,27 @@ struct RenderVisibility {
     visible: bool,
     /// 隐藏期间是否发生过至少一次会改变画面的事件。
     hidden_dirty: bool,
+    /// 本地实验构建的累计计数；未启用 feature 时该字段不会进入二进制。
+    #[cfg(feature = "terminal-perf-metrics")]
+    metrics: TerminalRenderMetrics,
+}
+
+/// 终端重绘门控的应用内累计指标。
+///
+/// 该结构只在 `terminal-perf-metrics` 实验 feature 下编译，用普通整数而非
+/// 原子类型，因为所有读写都发生在 `TerminalView` 所属的 GPUI 实体线程。
+/// 数值通过只读 `surface.read` 附加字段导出，不改变默认协议。
+#[cfg(feature = "terminal-perf-metrics")]
+#[derive(Debug, Default, Clone, Copy, serde::Serialize)]
+pub(crate) struct TerminalRenderMetrics {
+    /// 所有可能改变终端画面的事件批次数。
+    pub(crate) change_batches: u64,
+    /// 可见期间立即发出的重绘请求数。
+    pub(crate) immediate_redraw_requests: u64,
+    /// 隐藏期间被门控抑制的重绘请求数。
+    pub(crate) hidden_suppressed_redraw_requests: u64,
+    /// 从脏隐藏状态恢复时合并补发的重绘请求数。
+    pub(crate) resume_redraw_requests: u64,
 }
 
 impl Default for RenderVisibility {
@@ -141,6 +162,8 @@ impl Default for RenderVisibility {
         Self {
             visible: true,
             hidden_dirty: false,
+            #[cfg(feature = "terminal-perf-metrics")]
+            metrics: TerminalRenderMetrics::default(),
         }
     }
 }
@@ -151,10 +174,26 @@ impl RenderVisibility {
     /// 隐藏期间无论收到多少批输出都只保留一个脏标记，避免把输出频率直接
     /// 放大为 UI 重绘频率。
     fn record_change(&mut self) -> bool {
+        #[cfg(feature = "terminal-perf-metrics")]
+        {
+            self.metrics.change_batches = self.metrics.change_batches.saturating_add(1);
+        }
         if self.visible {
+            #[cfg(feature = "terminal-perf-metrics")]
+            {
+                self.metrics.immediate_redraw_requests =
+                    self.metrics.immediate_redraw_requests.saturating_add(1);
+            }
             true
         } else {
             self.hidden_dirty = true;
+            #[cfg(feature = "terminal-perf-metrics")]
+            {
+                self.metrics.hidden_suppressed_redraw_requests = self
+                    .metrics
+                    .hidden_suppressed_redraw_requests
+                    .saturating_add(1);
+            }
             false
         }
     }
@@ -168,10 +207,21 @@ impl RenderVisibility {
         self.visible = visible;
         if visible && self.hidden_dirty {
             self.hidden_dirty = false;
+            #[cfg(feature = "terminal-perf-metrics")]
+            {
+                self.metrics.resume_redraw_requests =
+                    self.metrics.resume_redraw_requests.saturating_add(1);
+            }
             true
         } else {
             false
         }
+    }
+
+    /// 返回当前累计指标快照，供实验 IPC 读取。
+    #[cfg(feature = "terminal-perf-metrics")]
+    fn metrics(&self) -> TerminalRenderMetrics {
+        self.metrics
     }
 }
 
@@ -290,6 +340,12 @@ impl TerminalView {
         if self.render_visibility.record_change() {
             cx.notify();
         }
+    }
+
+    /// 返回该终端的重绘门控指标；仅存在于专用实验构建中。
+    #[cfg(feature = "terminal-perf-metrics")]
+    pub(crate) fn render_metrics_snapshot(&self) -> TerminalRenderMetrics {
+        self.render_visibility.metrics()
     }
 
     fn recorded_window_size(&self) -> Option<TerminalWindowSize> {
@@ -1624,6 +1680,24 @@ mod tests {
 
         assert!(!visibility.set_visible(false));
         assert!(!visibility.set_visible(true));
+    }
+
+    /// 实验 feature 必须准确区分立即重绘、隐藏抑制和恢复补绘。
+    #[cfg(feature = "terminal-perf-metrics")]
+    #[test]
+    fn render_metrics_attribute_each_gate_outcome() {
+        let mut visibility = RenderVisibility::default();
+        assert!(visibility.record_change());
+        assert!(!visibility.set_visible(false));
+        assert!(!visibility.record_change());
+        assert!(!visibility.record_change());
+        assert!(visibility.set_visible(true));
+
+        let metrics = visibility.metrics();
+        assert_eq!(metrics.change_batches, 3);
+        assert_eq!(metrics.immediate_redraw_requests, 1);
+        assert_eq!(metrics.hidden_suppressed_redraw_requests, 2);
+        assert_eq!(metrics.resume_redraw_requests, 1);
     }
 
     // --- send_keystroke submission guard (US-005, orchestration-v2) ---

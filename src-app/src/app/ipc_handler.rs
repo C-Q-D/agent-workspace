@@ -2597,7 +2597,23 @@ impl PaneFlowApp {
                 } else {
                     text
                 };
-                surface_read_value(text, returned, total, eof, output_generation, truncated)
+                let value =
+                    surface_read_value(text, returned, total, eof, output_generation, truncated);
+                #[cfg(feature = "terminal-perf-metrics")]
+                let value = {
+                    let mut value = value;
+                    if let serde_json::Value::Object(ref mut object) = value {
+                        // 指标只在专用实验构建出现；默认构建既没有热路径计数成本，
+                        // 也不会改变现有 surface.read 的响应体。
+                        object.insert(
+                            "render_metrics".to_string(),
+                            serde_json::to_value(terminal.read(cx).render_metrics_snapshot())
+                                .expect("终端重绘指标必须可以序列化"),
+                        );
+                    }
+                    value
+                };
+                value
             }
             "fleet.list" => {
                 // EP-001 US-001 (agent-control-plane): snapshot every running
