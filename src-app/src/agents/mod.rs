@@ -7,7 +7,7 @@
 //!
 //! What remains:
 //! - [`notifications`] - desktop-notification routing and visibility gates.
-//! - [`parent_guard`] - process-parent death guards for PTYs and agent CLIs.
+//! - [`parent_guard`] - 指向通用终端进程守护的临时兼容入口。
 
 pub mod notifications;
 pub mod parent_guard;

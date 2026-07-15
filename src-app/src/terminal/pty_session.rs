@@ -329,7 +329,7 @@ pub struct TerminalState {
     /// process-table I/O on the GPUI thread.
     pub cached_foreground_command: Option<String>,
     #[cfg(all(unix, not(test)))]
-    pty_guard: Option<crate::agents::parent_guard::PtyGuardHandle>,
+    pty_guard: Option<super::process_guard::PtyGuardHandle>,
     /// Deferred text area size request responses from sync().
     pub(super) pending_size_ops:
         Vec<std::sync::Arc<dyn Fn(AlacWindowSize) -> String + Sync + Send + 'static>>,
@@ -423,7 +423,7 @@ pub(super) struct SpawnedPty {
     cwd: std::path::PathBuf,
     cwd_rx: UnboundedReceiver<String>,
     #[cfg(all(unix, not(test)))]
-    pty_guard: Option<crate::agents::parent_guard::PtyGuardHandle>,
+    pty_guard: Option<super::process_guard::PtyGuardHandle>,
     #[cfg(target_os = "macos")]
     pty_master_fd: Option<i32>,
 }
@@ -996,7 +996,7 @@ impl TerminalState {
         #[cfg(windows)]
         let child_pid = pty.child_watcher().pid().map(u32::from).unwrap_or(0);
         #[cfg(all(unix, not(test)))]
-        let pty_guard = crate::agents::parent_guard::spawn_pty_guard(child_pid);
+        let pty_guard = super::process_guard::spawn_pty_guard(child_pid);
         #[cfg(target_os = "macos")]
         let pty_master_fd = {
             use std::os::unix::io::AsRawFd;

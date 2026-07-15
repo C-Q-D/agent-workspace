@@ -8,6 +8,7 @@ pub mod blink;
 pub mod element;
 mod input;
 mod listener;
+pub mod process_guard;
 mod pty_session;
 mod search;
 mod service_detector;
