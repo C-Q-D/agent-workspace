@@ -1,4 +1,28 @@
-# Repository Guidelines
+# AgentWorkspace 本地派生仓库规则
+
+本仓库是 AgentWorkspace 针对 Paneflow v0.7.11 / `040f71a` 建立的本地实验性派生仓库。以下规则优先于本文件后续保留的上游指南；没有冲突的上游工程约定继续适用。
+
+## 仓库与同步边界
+
+- `F:\workspace\projects\AgentWorkspaceLab\paneflow` 是只读上游样本，禁止修改、提交、建分支或推送。
+- 所有实验性代码修改只能发生在当前派生仓库中。
+- 当前仓库只允许本地分支和本地提交，不得配置 GitHub `origin`，不得执行 `git push` 或创建远端 PR。
+- 正式开发获得用户确认后，才能为 AgentWorkspace 配置独立远端；不得把 AgentWorkspace 修改推送到 Paneflow 上游仓库。
+- 需要同步新的 Paneflow 上游提交时，先单独建立只读 fetch remote，并保持其 push URL 禁用；当前实验阶段不配置任何 remote。
+
+## 产品与平台边界
+
+- 第一版产品以 Windows 11、PowerShell 和 ConPTY 为唯一承诺与验收平台。
+- 修改通用终端代码时应尽量保持既有 Linux 与 macOS 分支可编译，但不得因为上游跨平台目标扩大第一版范围或阻塞 Windows 核心实验。
+- 不重新实现 Codex CLI 或 Claude Code CLI；它们继续作为真实终端中的独立程序运行。
+
+## 代码注释要求
+
+- 新增或实质修改的代码必须使用中文注释说明文件职责、类型职责、字段语义、公共方法、关键分支、性能取舍和异常边界。
+- 简单自明语句不要求逐行注释；第三方代码和未修改的上游代码不追补中文注释。
+- 修改现有逻辑时必须同步修正已经失效的英文或中文注释，禁止保留与实现冲突的说明。
+
+# Upstream Repository Guidelines
 
 ## Project Structure & Module Organization
 PaneFlow is a Rust workspace. `src-app/` contains the `paneflow` desktop binary: UI, terminal rendering, pane management, IPC, themes, and bundled helper binaries under `src-app/assets/`. `crates/paneflow-*` contains the shared config, IPC, process, telemetry, ACP, shim, AI-hook, MCP, and installer crates. Top-level `assets/` holds desktop packaging assets, `scripts/` contains utility scripts, and `tasks/` tracks PRDs and story status files.
