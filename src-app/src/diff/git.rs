@@ -1149,6 +1149,86 @@ mod tests {
         assert_ne!(first, second);
     }
 
+    /// 使用两个真实 Git 仓库验证聚焦审查不会串仓，也不会改变仓库语义状态。
+    #[test]
+    fn focused_review_reads_only_the_selected_real_repository() {
+        let repo_a = tempfile::tempdir().unwrap();
+        let repo_b = tempfile::tempdir().unwrap();
+        if !initialize_review_repository(repo_a.path(), "review-a", "A baseline\n")
+            || !initialize_review_repository(repo_b.path(), "review-b", "B baseline\n")
+        {
+            return;
+        }
+
+        // 干净仓库必须产生真实空态，而不是伪造一条占位改动。
+        assert!(compute_head_diff(repo_a.path()).files.is_empty());
+        assert!(compute_head_diff(repo_b.path()).files.is_empty());
+
+        std::fs::write(
+            repo_a.path().join("shared.txt"),
+            "A baseline\nA focused change\n",
+        )
+        .unwrap();
+        std::fs::write(repo_a.path().join("only-a.txt"), "only repository A\n").unwrap();
+        std::fs::write(
+            repo_b.path().join("shared.txt"),
+            "B baseline\nB focused change\n",
+        )
+        .unwrap();
+        std::fs::write(repo_b.path().join("only-b.txt"), "only repository B\n").unwrap();
+
+        let before_a = repository_semantic_snapshot(repo_a.path());
+        let before_b = repository_semantic_snapshot(repo_b.path());
+        let diff_a = compute_head_diff(repo_a.path());
+        let diff_b = compute_head_diff(repo_b.path());
+
+        assert!(diff_a.error.is_none());
+        assert!(diff_b.error.is_none());
+        let paths_a: Vec<&str> = diff_a.files.iter().map(|file| file.path.as_str()).collect();
+        let paths_b: Vec<&str> = diff_b.files.iter().map(|file| file.path.as_str()).collect();
+        assert_eq!(paths_a, vec!["shared.txt", "only-a.txt"]);
+        assert_eq!(paths_b, vec!["shared.txt", "only-b.txt"]);
+        assert!(
+            diff_a
+                .files
+                .iter()
+                .any(|file| file.new_text.contains("A focused change"))
+        );
+        assert!(
+            !diff_a
+                .files
+                .iter()
+                .any(|file| file.new_text.contains("B focused change"))
+        );
+        assert!(
+            diff_b
+                .files
+                .iter()
+                .any(|file| file.new_text.contains("B focused change"))
+        );
+        assert!(
+            !diff_b
+                .files
+                .iter()
+                .any(|file| file.new_text.contains("A focused change"))
+        );
+
+        let branches_a = list_repo_worktrees(repo_a.path());
+        let branches_b = list_repo_worktrees(repo_b.path());
+        assert_eq!(
+            branches_a.first().map(|(_, branch)| branch.as_str()),
+            Some("review-a")
+        );
+        assert_eq!(
+            branches_b.first().map(|(_, branch)| branch.as_str()),
+            Some("review-b")
+        );
+
+        // 生产审查函数执行前后，HEAD、index、工作区状态、分支和 remote 均保持一致。
+        assert_eq!(repository_semantic_snapshot(repo_a.path()), before_a);
+        assert_eq!(repository_semantic_snapshot(repo_b.path()), before_b);
+    }
+
     #[test]
     fn line_counts_sums_hunks() {
         use super::super::engine::DiffHunkStatus;
@@ -1183,5 +1263,56 @@ mod tests {
             .output()
             .map(|out| out.status.success())
             .unwrap_or(false)
+    }
+
+    /// 创建带真实提交、独立分支和远端配置的审查验收仓库。
+    fn initialize_review_repository(root: &Path, branch: &str, baseline: &str) -> bool {
+        if !test_git(root, &["init"])
+            || !test_git(root, &["config", "core.autocrlf", "false"])
+            || !test_git(root, &["checkout", "-b", branch])
+        {
+            return false;
+        }
+        std::fs::write(root.join("shared.txt"), baseline).unwrap();
+        if !test_git(root, &["add", "shared.txt"])
+            || !test_git(
+                root,
+                &[
+                    "-c",
+                    "user.email=paneflow@example.com",
+                    "-c",
+                    "user.name=Paneflow",
+                    "commit",
+                    "-m",
+                    "baseline",
+                ],
+            )
+        {
+            return false;
+        }
+        let remote = format!("https://example.invalid/{branch}.git");
+        test_git(root, &["remote", "add", "origin", &remote])
+    }
+
+    /// 捕获只读审查不得改变的 Git 语义状态；所有数据都来自真实 Git 命令。
+    fn repository_semantic_snapshot(root: &Path) -> Vec<Vec<u8>> {
+        [
+            vec!["rev-parse", "HEAD"],
+            vec!["ls-files", "--stage", "-z"],
+            vec!["status", "--porcelain=v1", "-z"],
+            vec!["branch", "--show-current"],
+            vec!["remote", "-v"],
+        ]
+        .iter()
+        .map(|args| {
+            std::process::Command::new("git")
+                .args(args)
+                .current_dir(root)
+                .env("GIT_TERMINAL_PROMPT", "0")
+                .output()
+                .expect("真实 Git 状态命令必须可以启动")
+                .stdout
+        })
+        .collect()
     }
 }
