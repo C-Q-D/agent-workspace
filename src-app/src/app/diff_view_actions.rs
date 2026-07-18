@@ -563,6 +563,15 @@ impl PaneFlowApp {
         if let Some(ws) = self.workspaces.get_mut(self.active_idx) {
             ws.focus_first(window, cx);
         }
+        // 文件树只属于放大终端的 CLI 上下文。审查期间它被立即释放，返回后再从
+        // 当前稳定工作区惰性重建，不能复用进入审查前可能已经过期的目录状态。
+        let active_workspace_id = self
+            .workspaces
+            .get(self.active_idx)
+            .map(|workspace| workspace.id);
+        if focused_review_allowed(self.maximized_workspace_id, active_workspace_id) {
+            self.open_files_sidebar_for_maximized_workspace(window, cx);
+        }
         self.save_session(cx);
         cx.notify();
     }

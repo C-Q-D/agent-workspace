@@ -287,7 +287,10 @@ impl PaneFlowApp {
         }
         if let Some(workspace_id) = next_id {
             self.maximized_workspace_id = Some(workspace_id);
-            self.retarget_files_sidebar_without_window(cx);
+            // Diff 模式的可见上下文只能是当前仓库改动；文件树等返回 CLI 后再恢复。
+            if matches!(self.mode, paneflow_config::schema::AppMode::Cli) {
+                self.retarget_files_sidebar_without_window(cx);
+            }
         } else {
             self.maximized_workspace_id = None;
             self.workspace_grid_reveal_id = None;
@@ -346,7 +349,9 @@ impl PaneFlowApp {
                 None => self.close_sessions_sidebar(cx),
             }
         }
-        if self.maximized_workspace_id.is_some() {
+        if self.maximized_workspace_id.is_some()
+            && matches!(self.mode, paneflow_config::schema::AppMode::Cli)
+        {
             self.open_files_sidebar_for_maximized_workspace(window, cx);
         }
         self.save_session(cx);
@@ -374,7 +379,9 @@ impl PaneFlowApp {
         if self.agent_sessions.sessions_sidebar_open {
             self.close_sessions_sidebar(cx);
         }
-        if self.maximized_workspace_id.is_some() {
+        if self.maximized_workspace_id.is_some()
+            && matches!(self.mode, paneflow_config::schema::AppMode::Cli)
+        {
             self.retarget_files_sidebar_without_window(cx);
         }
         self.save_session(cx);
@@ -405,13 +412,34 @@ impl PaneFlowApp {
     /// switch (re-target) and close (Multi-project group reconcile). Deferred so
     /// the rebuild (which mounts a fresh entity) never runs inside a
     /// render/callback. No-op outside Diff mode.
-    pub(crate) fn reconcile_diff_after_workspace_change(&self, cx: &mut Context<Self>) {
-        if matches!(self.mode, paneflow_config::schema::AppMode::Diff) {
-            let weak = cx.weak_entity();
-            cx.defer(move |cx| {
-                let _ = weak.update(cx, |app, cx| app.rebuild_diff_view(cx));
-            });
+    pub(crate) fn reconcile_diff_after_workspace_change(&mut self, cx: &mut Context<Self>) {
+        if !matches!(self.mode, paneflow_config::schema::AppMode::Diff) {
+            return;
         }
+
+        let active_workspace_id = self
+            .workspaces
+            .get(self.active_idx)
+            .map(|workspace| workspace.id);
+        if !crate::app::diff_view_actions::focused_review_allowed(
+            self.maximized_workspace_id,
+            active_workspace_id,
+        ) {
+            // 最后一个工作区关闭后审查已经没有合法归属，立即退回 CLI 并释放监听器。
+            self.park_displayed_diff(cx);
+            self.mode = paneflow_config::schema::AppMode::Cli;
+            self.save_session(cx);
+            cx.notify();
+            return;
+        }
+
+        // 先清除旧仓库的可见实体，再延迟挂载新仓库。这样 A→B 切换过程中最多
+        // 短暂显示 B 的空态，绝不会把 A 的 Diff 画在 B 的工作区标题下面。
+        self.park_displayed_diff(cx);
+        let weak = cx.weak_entity();
+        cx.defer(move |cx| {
+            let _ = weak.update(cx, |app, cx| app.rebuild_diff_view(cx));
+        });
     }
 
     #[allow(dead_code)]
