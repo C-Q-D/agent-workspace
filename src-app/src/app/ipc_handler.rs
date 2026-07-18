@@ -2467,7 +2467,15 @@ impl PaneFlowApp {
                 self.reconcile_maximized_workspace_after_change(cx);
                 self.save_session(cx);
                 cx.notify();
-                serde_json::json!({"index": idx, "title": name, "panes": panes})
+                // 创建响应在当前 GPUI 更新内同步生成，后台 PTY promote 尚未回写；
+                // 暴露这一同源快照，让调用方能观察真实 starting 边界而无需高频轮询。
+                let terminal_status = self.workspaces[idx].terminal_status(cx).as_wire_name();
+                serde_json::json!({
+                    "index": idx,
+                    "title": name,
+                    "panes": panes,
+                    "terminal_status": terminal_status,
+                })
             }
             "workspace.up" => self.handle_workspace_up(params, cx),
             "workspace.select" => {
