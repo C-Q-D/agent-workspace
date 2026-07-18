@@ -362,8 +362,9 @@ impl PaneFlowApp {
                                 let ws = Workspace::with_cwd_and_id(ws_id, title, dir, pane);
                                 // 目录选择器创建的工作区在后台确保本地 Git 仓库存在；
                                 // 终端先进入可交互状态，初始化不会阻塞 GPUI 主线程。
-                                app.spawn_workspace_git_preparation(ws_id, ws.cwd.clone(), cx);
+                                let workspace_cwd = ws.cwd.clone();
                                 app.workspaces.push(ws);
+                                app.spawn_workspace_git_preparation(ws_id, workspace_cwd, cx);
                             }
                             app.active_idx = app.workspaces.len() - 1;
                             app.save_session(cx);

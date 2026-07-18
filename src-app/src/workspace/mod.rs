@@ -21,6 +21,21 @@ pub use ports::{PaneScan, scan_panes};
 /// re-declared as a local `const` at every create/IPC site).
 pub(crate) const MAX_WORKSPACES: usize = 20;
 
+/// 工作区本地 Git 准备的可见生命周期。
+///
+/// 该状态只描述应用为稳定 `workspaceRoot` 准备仓库的过程，不代表终端进程状态。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum GitPreparationStatus {
+    /// 尚未由需要自动初始化的创建入口触发。
+    NotStarted,
+    /// 后台任务正在运行；终端在此期间保持可交互。
+    Preparing,
+    /// 仓库元数据已经可用。
+    Ready,
+    /// 准备失败；字符串是供界面展示的有界原因。
+    Failed(String),
+}
+
 use gpui::{App, Entity, Window};
 use paneflow_config::schema::{ButtonCommand, LayoutNode};
 
@@ -78,6 +93,8 @@ pub struct Workspace {
     pub git_branch: String,
     /// Whether this workspace's CWD is inside a git repository.
     pub is_git_repo: bool,
+    /// 本地 Git 准备状态；失败不会改变或替换当前终端实体。
+    pub git_preparation_status: GitPreparationStatus,
     /// Resolved `.git` directory path (for file watcher). `None` if not a git repo.
     pub git_dir: Option<std::path::PathBuf>,
     /// Working directory of the shared repository (parent of the *main* `.git`),
@@ -155,6 +172,7 @@ impl Workspace {
         self.repo_root = prepared.repo_root;
         self.is_worktree = prepared.is_worktree;
         self.worktree_root = prepared.worktree_root;
+        self.git_preparation_status = GitPreparationStatus::Ready;
     }
 
     /// US-013: shared private factory for the three public constructors (kills
@@ -185,6 +203,11 @@ impl Workspace {
             git_stats: GitDiffStats::default(),
             git_branch,
             is_git_repo,
+            git_preparation_status: if is_git_repo {
+                GitPreparationStatus::Ready
+            } else {
+                GitPreparationStatus::NotStarted
+            },
             git_dir,
             repo_root,
             is_worktree,

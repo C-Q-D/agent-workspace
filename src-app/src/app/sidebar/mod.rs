@@ -681,11 +681,16 @@ impl PaneFlowApp {
         // Branch, diff, and service summary stay on one clipped line so a
         // workspace row keeps its compact 48px rhythm.
         let has_branch = !ws.git_branch.is_empty();
+        let git_error = match &ws.git_preparation_status {
+            crate::workspace::GitPreparationStatus::Failed(error) => Some(error.clone()),
+            _ => None,
+        };
+        let has_git_error = git_error.is_some();
         let diff_summary = sidebar_diff_summary(&ws.git_stats);
         let has_stats = diff_summary.is_visible();
         let service_summary = sidebar_service_summary(&ws.active_ports, &ws.service_labels);
         let has_ports = service_summary.is_some();
-        if has_branch || has_stats || has_ports {
+        if has_git_error || has_branch || has_stats || has_ports {
             let mut meta_row = div()
                 .flex()
                 .flex_row()
@@ -698,6 +703,32 @@ impl PaneFlowApp {
                 .whitespace_nowrap()
                 .text_xs()
                 .text_color(ui.muted);
+
+            if let Some(error) = git_error {
+                let error_tooltip: SharedString = error.into();
+                meta_row = meta_row.child(
+                    div()
+                        .id(SharedString::from(format!("workspace-git-error-{idx}")))
+                        .min_w_0()
+                        .max_w(px(if has_ports {
+                            126.0
+                        } else {
+                            SIDEBAR_WORKSPACE_CARD_CONTENT_WIDTH
+                        }))
+                        .overflow_x_hidden()
+                        .whitespace_nowrap()
+                        .text_ellipsis()
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(ui.agent_error)
+                        .tooltip(move |_window, cx| {
+                            cx.new(|_| SidebarTooltip {
+                                label: error_tooltip.clone(),
+                            })
+                            .into()
+                        })
+                        .child("Git unavailable"),
+                );
+            }
 
             if has_branch {
                 let branch_width = match (has_stats, has_ports) {
@@ -778,7 +809,7 @@ impl PaneFlowApp {
 
             // Separator before the ports, only when branch/diff preceded
             // them (a leading `·` would otherwise dangle).
-            if (has_branch || has_stats) && has_ports {
+            if (has_git_error || has_branch || has_stats) && has_ports {
                 meta_row = meta_row.child(div().flex_none().text_color(ui.muted).child("·"));
             }
 

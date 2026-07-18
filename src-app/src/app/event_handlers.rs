@@ -27,6 +27,9 @@ pub(crate) struct GitPreparationRegistry {
     batches: std::collections::HashMap<String, Vec<u64>>,
 }
 
+/// 持久 Git 错误在内存和渲染层允许保留的最大字符数。
+const GIT_PREPARATION_ERROR_CHAR_CAP: usize = 512;
+
 impl GitPreparationRegistry {
     /// 登记一个等待者并返回批次 key 与“是否应启动后台任务”。
     fn join(&mut self, cwd: &str, ws_id: u64) -> (String, bool) {
@@ -60,6 +63,26 @@ fn git_preparation_key(cwd: &str) -> String {
     {
         trimmed.to_string()
     }
+}
+
+/// 把子进程或文件系统错误压缩为适合常驻界面的有界单行文本。
+fn bounded_git_preparation_error(error: &str) -> String {
+    let mut chars = error.chars();
+    let mut message: String = chars
+        .by_ref()
+        .take(GIT_PREPARATION_ERROR_CHAR_CAP)
+        .map(|character| {
+            if character.is_control() {
+                ' '
+            } else {
+                character
+            }
+        })
+        .collect();
+    if chars.next().is_some() {
+        message.push('…');
+    }
+    message
 }
 
 /// Cross-platform "is this PID still running?" probe used by the AI agent
@@ -1711,6 +1734,9 @@ impl PaneFlowApp {
         cwd: String,
         cx: &mut Context<Self>,
     ) {
+        if let Some(workspace) = self.workspaces.iter_mut().find(|ws| ws.id == ws_id) {
+            workspace.git_preparation_status = crate::workspace::GitPreparationStatus::Preparing;
+        }
         let (batch_key, should_spawn) = self.git_preparations.join(&cwd, ws_id);
         if !should_spawn {
             return;
@@ -1724,16 +1750,32 @@ impl PaneFlowApp {
                         let (prepared, branch, is_repo, stats) = match result {
                             Ok(result) => result,
                             Err(error) => {
+                                let visible_error = bounded_git_preparation_error(&error);
                                 log::warn!(
                                     "workspace Git preparation failed for batch {batch_key}: {error}"
                                 );
-                                if !workspace_ids.is_empty() {
+                                let mut affected = 0usize;
+                                for workspace_id in workspace_ids {
+                                    if let Some(workspace) = app
+                                        .workspaces
+                                        .iter_mut()
+                                        .find(|workspace| workspace.id == workspace_id)
+                                    {
+                                        workspace.git_preparation_status =
+                                            crate::workspace::GitPreparationStatus::Failed(
+                                                visible_error.clone(),
+                                            );
+                                        affected += 1;
+                                    }
+                                }
+                                if affected > 0 {
                                     app.show_toast(
                                         format!(
-                                            "Could not initialize local Git repository: {error}"
+                                            "Could not initialize local Git repository: {visible_error}"
                                         ),
                                         cx,
                                     );
+                                    cx.notify();
                                 }
                                 return;
                             }
@@ -1843,9 +1885,10 @@ fn prepare_workspace_git(
 #[cfg(test)]
 mod tests {
     use super::{
-        GitPreparationRegistry, announced_port_conflicts, keep_session_after_surface_purge,
-        merge_scan_workspace_state, merge_service_label, parse_proc_stat_starttime, port_ownership,
-        prepare_workspace_git, stale_sweep_keeps_without_pid_probe,
+        GitPreparationRegistry, announced_port_conflicts, bounded_git_preparation_error,
+        keep_session_after_surface_purge, merge_scan_workspace_state, merge_service_label,
+        parse_proc_stat_starttime, port_ownership, prepare_workspace_git,
+        stale_sweep_keeps_without_pid_probe,
     };
     use crate::agent_launcher::TerminalAgent;
     use crate::ai_types::{AgentSession, AgentState};
@@ -1891,6 +1934,22 @@ mod tests {
         // 批次完成后再次创建工作区会启动新一轮检查，不会被旧状态永久吞掉。
         let (_, next_should_spawn) = registry.join(&root, 43);
         assert!(next_should_spawn);
+    }
+
+    #[test]
+    fn real_broken_git_metadata_produces_bounded_visible_error() {
+        let dir = tempfile::tempdir().expect("应能创建真实异常工作区");
+        std::fs::write(dir.path().join(".git"), "这不是合法的 gitdir 指针\n")
+            .expect("应能制造真实损坏 Git 元数据");
+
+        let error = prepare_workspace_git(&dir.path().to_string_lossy())
+            .expect_err("损坏的真实 .git 文件必须使准备失败");
+        let visible = bounded_git_preparation_error(&format!("{error}{}", "x".repeat(700)));
+
+        assert!(error.contains("Git"));
+        assert!(visible.chars().count() <= 513);
+        assert!(!visible.contains('\n'));
+        assert!(visible.ends_with('…'));
     }
 
     #[test]
