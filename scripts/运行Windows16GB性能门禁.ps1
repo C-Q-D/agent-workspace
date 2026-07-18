@@ -21,6 +21,9 @@ param(
     [ValidateRange(600, 3600)]
     [int]$StabilityDurationSeconds = 1800,
 
+    [ValidateScript({ [string]::IsNullOrWhiteSpace($_) -or (Test-Path -LiteralPath $_ -PathType Leaf) })]
+    [string]$CapacitySummaryPath = '',
+
     [string]$OutputDirectory = (Join-Path $PSScriptRoot '..\docs\验收\P1.5性能数据')
 )
 
@@ -109,43 +112,57 @@ function Test-AllTrue {
     return @($Checks.Values | Where-Object { -not [bool]$_ }).Count -eq 0
 }
 
-$capacityResults = @()
-foreach ($count in @(1, 9, 16)) {
-    $capacityResults += Invoke-MatrixRun `
-        -TerminalCount $count `
-        -DurationSeconds $CapacityDurationSeconds `
-        -OutputIntervalMilliseconds 250 `
-        -SwitchCount 32 `
-        -Variant 'p15-capacity'
+$effectiveCapacityDuration = $CapacityDurationSeconds
+if (-not [string]::IsNullOrWhiteSpace($CapacitySummaryPath)) {
+    # 长稳可以复用同一二进制已经通过的容量证据，避免再启动 26 个无意义的终端。
+    $capacitySummary = Get-Content -LiteralPath (Resolve-Path -LiteralPath $CapacitySummaryPath) -Raw | ConvertFrom-Json
+    $currentBinaryHash = (Get-FileHash -LiteralPath $binary -Algorithm SHA256).Hash
+    if (-not [bool]$capacitySummary.CapacityPassed) { throw '指定的容量摘要自身没有通过门禁。' }
+    if ([string]$capacitySummary.BinarySha256 -ne $currentBinaryHash) { throw '容量摘要与当前长稳二进制的 SHA-256 不一致。' }
+    $capacityResults = @($capacitySummary.CapacityResults)
+    $capacityChecks = $capacitySummary.CapacityChecks
+    $capacityPassed = $true
+    $effectiveCapacityDuration = [int]$capacitySummary.CapacityDurationSeconds
 }
+else {
+    $capacityResults = @()
+    foreach ($count in @(1, 9, 16)) {
+        $capacityResults += Invoke-MatrixRun `
+            -TerminalCount $count `
+            -DurationSeconds $CapacityDurationSeconds `
+            -OutputIntervalMilliseconds 250 `
+            -SwitchCount 32 `
+            -Variant 'p15-capacity'
+    }
 
-$capacityByCount = @{}
-foreach ($result in $capacityResults) { $capacityByCount[[int]$result.TerminalCount] = $result }
-$one = $capacityByCount[1]
-$nine = $capacityByCount[9]
-$sixteen = $capacityByCount[16]
-$marginalOneToNine = ([double]$nine.AppWorkingSetPeakMiB - [double]$one.AppWorkingSetPeakMiB) / 8.0
-$marginalNineToSixteen = ([double]$sixteen.AppWorkingSetPeakMiB - [double]$nine.AppWorkingSetPeakMiB) / 7.0
+    $capacityByCount = @{}
+    foreach ($result in $capacityResults) { $capacityByCount[[int]$result.TerminalCount] = $result }
+    $one = $capacityByCount[1]
+    $nine = $capacityByCount[9]
+    $sixteen = $capacityByCount[16]
+    $marginalOneToNine = ([double]$nine.AppWorkingSetPeakMiB - [double]$one.AppWorkingSetPeakMiB) / 8.0
+    $marginalNineToSixteen = ([double]$sixteen.AppWorkingSetPeakMiB - [double]$nine.AppWorkingSetPeakMiB) / 7.0
 
-$capacityChecks = [ordered]@{
-    OneTerminal = Test-CommonRunGate -Result $one
-    NineTerminals = Test-CommonRunGate -Result $nine
-    SixteenTerminals = Test-CommonRunGate -Result $sixteen
-    MarginalOneToNineMiB = [Math]::Round($marginalOneToNine, 3)
-    MarginalNineToSixteenMiB = [Math]::Round($marginalNineToSixteen, 3)
-    MarginalOneToNineWithin8MiB = ($marginalOneToNine -le 8.0)
-    MarginalNineToSixteenWithin8MiB = ($marginalNineToSixteen -le 8.0)
-    SixteenWorkingSetRegressionWithin16MiB = ([double]$sixteen.AppWorkingSetPeakMiB -le 247.289)
-    MaxSwitchRegressionWithin25Ms = ((@($capacityResults.SwitchP95Milliseconds | Measure-Object -Maximum).Maximum) -le 88.328)
+    $capacityChecks = [ordered]@{
+        OneTerminal = Test-CommonRunGate -Result $one
+        NineTerminals = Test-CommonRunGate -Result $nine
+        SixteenTerminals = Test-CommonRunGate -Result $sixteen
+        MarginalOneToNineMiB = [Math]::Round($marginalOneToNine, 3)
+        MarginalNineToSixteenMiB = [Math]::Round($marginalNineToSixteen, 3)
+        MarginalOneToNineWithin8MiB = ($marginalOneToNine -le 8.0)
+        MarginalNineToSixteenWithin8MiB = ($marginalNineToSixteen -le 8.0)
+        SixteenWorkingSetRegressionWithin16MiB = ([double]$sixteen.AppWorkingSetPeakMiB -le 247.289)
+        MaxSwitchRegressionWithin25Ms = ((@($capacityResults.SwitchP95Milliseconds | Measure-Object -Maximum).Maximum) -le 88.328)
+    }
+    $capacityRunsPassed = (Test-AllTrue -Checks $capacityChecks.OneTerminal) -and
+        (Test-AllTrue -Checks $capacityChecks.NineTerminals) -and
+        (Test-AllTrue -Checks $capacityChecks.SixteenTerminals)
+    $capacityPassed = $capacityRunsPassed -and
+        $capacityChecks.MarginalOneToNineWithin8MiB -and
+        $capacityChecks.MarginalNineToSixteenWithin8MiB -and
+        $capacityChecks.SixteenWorkingSetRegressionWithin16MiB -and
+        $capacityChecks.MaxSwitchRegressionWithin25Ms
 }
-$capacityRunsPassed = (Test-AllTrue -Checks $capacityChecks.OneTerminal) -and
-    (Test-AllTrue -Checks $capacityChecks.NineTerminals) -and
-    (Test-AllTrue -Checks $capacityChecks.SixteenTerminals)
-$capacityPassed = $capacityRunsPassed -and
-    $capacityChecks.MarginalOneToNineWithin8MiB -and
-    $capacityChecks.MarginalNineToSixteenWithin8MiB -and
-    $capacityChecks.SixteenWorkingSetRegressionWithin16MiB -and
-    $capacityChecks.MaxSwitchRegressionWithin25Ms
 
 $stabilityResult = $null
 $stabilityChecks = $null
@@ -182,7 +199,8 @@ $summary = [ordered]@{
     Commit = (git -C $repoRoot rev-parse HEAD).Trim()
     BinaryPath = $binary
     BinarySha256 = (Get-FileHash -LiteralPath $binary -Algorithm SHA256).Hash
-    CapacityDurationSeconds = $CapacityDurationSeconds
+    CapacityDurationSeconds = $effectiveCapacityDuration
+    ReusedCapacitySummary = -not [string]::IsNullOrWhiteSpace($CapacitySummaryPath)
     StabilityIncluded = [bool]$IncludeLongStability
     StabilityDurationSeconds = if ($IncludeLongStability) { $StabilityDurationSeconds } else { 0 }
     CapacityResults = $capacityResults
