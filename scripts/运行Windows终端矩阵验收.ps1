@@ -353,8 +353,10 @@ try {
         throw "预期 $TerminalCount 个 workspace 终端，实际为 $($surfaces.Count)。"
     }
 
-    # 预留创建后截图和进入放大的时间，确保所有负载覆盖完整采样窗口。
-    $loadSeconds = $DurationSeconds + 10
+    # 多工作区逐个启动负载、截图和进入放大都会消耗采样前时间；固定保留 45 秒尾部，
+    # 确保 16 终端档位也不会在采样结束前退出并造成伪进程抖动。
+    $loadTailSeconds = 45
+    $loadSeconds = $DurationSeconds + $loadTailSeconds
     foreach ($surface in $surfaces) {
         $windowName = 'perf-{0:D2}' -f ([int]$surface.workspace + 1)
         $command = 'pwsh -NoLogo -NoProfile -File "{0}" -WindowName "{1}" -DurationSeconds {2} -IntervalMilliseconds {3}' -f $workload, $windowName, $loadSeconds, $OutputIntervalMilliseconds
@@ -392,7 +394,7 @@ try {
     $processIdsAfter = @(Get-ProcessTreeIds -RootProcessId $process.Id)
 
     # 等待有界负载写出最终标记，逐窗口读取真实 scrollback 证明后台未丢尾部。
-    Start-Sleep -Seconds 12
+    Start-Sleep -Seconds ($loadTailSeconds + 2)
     $completion = @()
     foreach ($surface in $surfaces) {
         $read = Invoke-PaneflowRpc -Method 'surface.read' -Params @{ surface_id = [uint64]$surface.surface_id; lines = 40; fenced = $false }
