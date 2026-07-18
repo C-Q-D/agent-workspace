@@ -83,6 +83,12 @@ impl WorkspaceGridPlan {
             cell_height,
         }
     }
+
+    /// 判断指定工作区索引是否位于本计划的当前页。
+    fn contains_workspace(self, workspace_index: usize) -> bool {
+        let start = self.page.saturating_mul(self.page_size);
+        workspace_index >= start && workspace_index < start.saturating_add(self.page_size)
+    }
 }
 
 /// 仅使用整数运算计算向上取整平方根，避免浮点边界影响 9、16 等关键容量。
@@ -113,6 +119,12 @@ impl PaneFlowApp {
         self.workspace_grid_page = plan.page;
         let start = plan.page.saturating_mul(plan.page_size);
         let end = (start + plan.page_size).min(self.workspaces.len());
+
+        // 每次布局渲染都同步可见性，确保 IPC 新增窗格也会在下一帧继承所在页策略。
+        // 终端内部对相同状态切换会直接返回，不会产生额外重绘通知。
+        for (index, workspace) in self.workspaces.iter_mut().enumerate() {
+            workspace.set_grid_page_visible(plan.contains_workspace(index), cx);
+        }
 
         let app_weak = cx.weak_entity();
         let on_resize_end = std::rc::Rc::new(move |cx: &mut App| {
@@ -292,5 +304,8 @@ mod tests {
         assert_eq!(plan.page_count, 2);
         assert_eq!(plan.page, 1);
         assert!(plan.cell_height >= 190.0);
+        assert!(!plan.contains_workspace(8));
+        assert!(plan.contains_workspace(9));
+        assert!(plan.contains_workspace(15));
     }
 }

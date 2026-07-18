@@ -87,6 +87,8 @@ pub struct Workspace {
     /// Saved layout tree when zoomed. `Some(tree)` means the workspace is zoomed
     /// and `root` contains only the zoomed pane as a single Leaf.
     pub saved_layout: Option<LayoutTree>,
+    /// 当前工作区是否位于动态矩阵的可见页；只控制终端重绘，不暂停 PTY。
+    grid_page_visible: bool,
     /// Cached git diff stats, refreshed by a background poller.
     pub git_stats: GitDiffStats,
     /// Current git branch name. Empty string when not a git repo or branch unknown.
@@ -200,6 +202,7 @@ impl Workspace {
             cwd,
             root: Some(root),
             saved_layout: None,
+            grid_page_visible: true,
             git_stats: GitDiffStats::default(),
             git_branch,
             is_git_repo,
@@ -272,7 +275,7 @@ impl Workspace {
             return false;
         }
 
-        set_layout_terminal_render_visibility(root, Some(&focused), cx);
+        set_layout_terminal_render_visibility(root, Some(&focused), self.grid_page_visible, cx);
         focused.update(cx, |pane, _| pane.zoomed = true);
         let full_tree = self.root.take().expect("已验证工作区存在布局根节点");
         self.saved_layout = Some(full_tree);
@@ -289,7 +292,7 @@ impl Workspace {
         let saved = self.saved_layout.take()?;
         self.root = Some(saved);
         if let Some(root) = &self.root {
-            set_layout_terminal_render_visibility(root, None, cx);
+            set_layout_terminal_render_visibility(root, None, self.grid_page_visible, cx);
         }
         if let Some(pane) = &zoomed_pane {
             pane.update(cx, |pane, _| {
@@ -297,6 +300,20 @@ impl Workspace {
             });
         }
         zoomed_pane
+    }
+
+    /// 同步工作区在动态矩阵页中的重绘可见性。
+    ///
+    /// 隐藏只门控 GPUI 通知，PTY 读取、Agent 进程和终端状态仍持续更新。工作区
+    /// 内部处于窗格放大时，保存布局必须继续隐藏，避免翻回当前页后后台窗格抢占重绘。
+    pub(crate) fn set_grid_page_visible(&mut self, visible: bool, cx: &mut App) {
+        self.grid_page_visible = visible;
+        if let Some(saved) = &self.saved_layout {
+            set_layout_terminal_render_visibility(saved, None, false, cx);
+        }
+        if let Some(root) = &self.root {
+            set_layout_terminal_render_visibility(root, None, visible, cx);
+        }
     }
 
     pub fn pane_count(&self) -> usize {
@@ -384,15 +401,17 @@ impl Workspace {
 
 /// 批量设置布局内终端的重绘可见性。
 ///
-/// `visible_pane` 为 `Some` 时只有指定窗格可见；为 `None` 时全部可见。
+/// `visible_pane` 为 `Some` 时只有指定窗格可见；为 `None` 时布局内全部可见。
+/// `layout_visible` 为 `false` 时优先隐藏整棵布局。
 /// 先复制终端实体句柄再更新，避免同时持有窗格读取借用和终端写入借用。
 fn set_layout_terminal_render_visibility(
     root: &LayoutTree,
     visible_pane: Option<&Entity<Pane>>,
+    layout_visible: bool,
     cx: &mut App,
 ) {
     for pane in root.collect_leaves() {
-        let visible = visible_pane.is_none_or(|focused| focused == &pane);
+        let visible = layout_visible && visible_pane.is_none_or(|focused| focused == &pane);
         let terminals: Vec<_> = pane.read(cx).terminals().cloned().collect();
         for terminal in terminals {
             terminal.update(cx, |terminal, cx| {
