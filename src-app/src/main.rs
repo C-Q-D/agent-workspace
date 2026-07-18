@@ -1103,6 +1103,8 @@ struct PaneFlowApp {
     show_about_dialog: bool,
     /// 等待用户确认关闭的稳定 workspace ID；索引可能在对话框期间发生变化。
     pending_workspace_close: Option<u64>,
+    /// 动态终端矩阵的当前页；窗口数量或尺寸变化时由布局计划自动夹紧。
+    workspace_grid_page: usize,
     /// Whether the command-palette-style theme picker is visible.
     show_theme_picker: bool,
     /// Typeahead filter for the theme picker (case-insensitive substring).
@@ -1580,22 +1582,19 @@ impl Render for PaneFlowApp {
             // force a Diff arm - it must be added by hand or the diff
             // mode would silently fall through to the terminal view.
             self.render_diff_main(cx)
-        } else if let Some(ws) = self.active_workspace() {
-            if let Some(root) = &ws.root {
-                let app_weak = cx.weak_entity();
-                let on_resize_end = std::rc::Rc::new(move |cx: &mut App| {
-                    let _ = app_weak.update(cx, |app, cx| app.save_session(cx));
-                });
-                root.render(window, cx, Some(on_resize_end))
+        } else if !self.workspaces.is_empty() {
+            let viewport = window.viewport_size();
+            let right_sidebar_width = if sessions_sidebar_mounted {
+                sessions_sidebar_width
+            } else if files_sidebar_mounted {
+                files_sidebar_width
             } else {
-                div()
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .size_full()
-                    .child(div().text_color(ui.text).child("No terminal panes open"))
-                    .into_any_element()
-            }
+                0.0
+            };
+            let available_width =
+                (f32::from(viewport.width) - primary_sidebar_width - right_sidebar_width).max(1.0);
+            let available_height = (f32::from(viewport.height) - f32::from(title_bar_h)).max(1.0);
+            self.render_workspace_grid(window, available_width, available_height, ui, cx)
         } else {
             div()
                 .flex()
