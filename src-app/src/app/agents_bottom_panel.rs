@@ -311,19 +311,6 @@ impl PaneFlowApp {
         }
     }
 
-    pub(crate) fn enforce_bottom_terminal_cache_budget(
-        &mut self,
-        panel_visible: bool,
-        cx: &mut Context<Self>,
-    ) {
-        let protected_active = panel_visible
-            .then_some(self.agents_view.bottom_panel_active)
-            .flatten();
-        if self.prune_bottom_terminal_cache(protected_active, !panel_visible, cx) {
-            cx.notify();
-        }
-    }
-
     fn bottom_terminal_cache_entries(
         &self,
         cx: &mut Context<Self>,

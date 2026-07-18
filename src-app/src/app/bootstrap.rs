@@ -871,7 +871,7 @@ impl PaneFlowApp {
             cached_config.theme.as_deref(),
         );
 
-        let mut app = Self {
+        let app = Self {
             workspaces,
             active_idx,
             renaming_workspace_id: None,
@@ -1109,19 +1109,9 @@ impl PaneFlowApp {
             sidebar_order_cache: std::cell::RefCell::new(Default::default()),
         };
 
-        for cwd in app
-            .projects
-            .iter()
-            .map(|project| project.cwd.clone())
-            .collect::<Vec<_>>()
-        {
-            app.spawn_agents_environment_git_refresh(cwd, cx);
-        }
-        if matches!(app.mode, paneflow_config::schema::AppMode::Agents)
-            && let Some(target) = app.current_thread_view_target()
-        {
-            app.mount_agents_terminal_for_target(target, cx);
-        }
+        // 第一版不为旧 Agents 项目执行启动 Git 扫描，也不挂载其终端或注册缓存
+        // 清理定时器。公开 CLI/Review 的运行成本只由真实工作区承担；历史 Agents
+        // 元数据暂留内存用于后续迁移，但不会派生进程、文件读取或周期唤醒。
 
         // US-013 AC #1 - fire `app_started` once per launch. `Null` clients
         // (opt-out / unanswered consent / env kill-switch) no-op; only a
@@ -1135,40 +1125,6 @@ impl PaneFlowApp {
         if let Some(info) = session_corruption {
             app.emit_session_corrupted(&info);
         }
-
-        // EP-002 (memory): opportunistically release exited cached agent
-        // terminals after their idle TTL even if the user never selects another
-        // thread. Running PTYs stay protected by the eviction guard.
-        cx.spawn(
-            async |this: gpui::WeakEntity<Self>, cx: &mut gpui::AsyncApp| {
-                loop {
-                    smol::Timer::after(std::time::Duration::from_secs(60)).await;
-                    let result = cx.update(|cx| {
-                        this.update(cx, |app: &mut Self, cx: &mut Context<Self>| {
-                            let agents_terminal_visible =
-                                matches!(app.mode, paneflow_config::schema::AppMode::Agents)
-                                    && !app.agents_view.agents_skills_visible;
-                            let active_thread_id = agents_terminal_visible
-                                .then(|| {
-                                    app.current_thread_view_target().and_then(|target| {
-                                        app.thread_for_target(target).map(|thread| thread.id)
-                                    })
-                                })
-                                .flatten();
-                            app.enforce_agents_terminal_cache_budget(active_thread_id, cx);
-                            let bottom_panel_visible =
-                                matches!(app.mode, paneflow_config::schema::AppMode::Agents)
-                                    && app.agents_view.bottom_panel_open;
-                            app.enforce_bottom_terminal_cache_budget(bottom_panel_visible, cx);
-                        })
-                    });
-                    if result.is_err() {
-                        break;
-                    }
-                }
-            },
-        )
-        .detach();
 
         // Custom-button propagation runs once on the active workspace so
         // user-defined tab-bar buttons surface immediately after restore.
