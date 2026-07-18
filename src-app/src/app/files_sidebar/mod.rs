@@ -41,6 +41,36 @@ pub(super) const INDENT_STEP: f32 = 12.;
 pub(super) const DIMMED_OPACITY: f32 = 0.55;
 
 impl PaneFlowApp {
+    /// 记录活动工作区当前终端，供文件/目录引用发送回正确 CLI 对话。
+    fn capture_active_files_surface(
+        &self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Option<u64> {
+        self.workspaces
+            .get(self.active_idx)
+            .and_then(|ws| ws.root.as_ref())
+            .and_then(|root| root.focused_pane(window, cx))
+            .and_then(|pane| pane.read(cx).active_terminal_opt())
+            .map(|terminal| terminal.entity_id().as_u64())
+    }
+
+    /// 为应用级放大的活动工作区自动打开或重定向文件树。
+    ///
+    /// 该入口不会把焦点移到文件树，确保用户点击放大后可以直接继续操作终端。
+    pub(crate) fn open_files_sidebar_for_maximized_workspace(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.files_surface_id = self.capture_active_files_surface(window, cx);
+        if self.files_sidebar_open {
+            self.reroot_files_tree(cx);
+        } else {
+            self.toggle_files_sidebar(cx);
+        }
+    }
+
     /// Toggle the Files sidebar. Opening resolves the active workspace's `cwd`
     /// to the tree root, reads + auto-expands it, and closes the sessions
     /// sidebar (mutual exclusion). Re-clicking closes and releases the tree.
@@ -50,14 +80,16 @@ impl PaneFlowApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        // 第一版把文件树定义为放大工作区的上下文面板；矩阵状态不允许手动挂载，
+        // 避免右侧目录与多个同时可见终端之间产生含糊归属。
+        if self.maximized_workspace_id.is_none() {
+            if self.files_sidebar_open {
+                self.close_files_sidebar(cx);
+            }
+            return;
+        }
         if !self.files_sidebar_open {
-            self.files_surface_id = self
-                .workspaces
-                .get(self.active_idx)
-                .and_then(|ws| ws.root.as_ref())
-                .and_then(|root| root.focused_pane(window, cx))
-                .and_then(|pane| pane.read(cx).active_terminal_opt())
-                .map(|terminal| terminal.entity_id().as_u64());
+            self.files_surface_id = self.capture_active_files_surface(window, cx);
         }
         self.toggle_files_sidebar(cx);
         if self.files_sidebar_open {

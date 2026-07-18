@@ -235,7 +235,9 @@ impl PaneFlowApp {
             return false;
         };
         self.maximized_workspace_id = Some(workspace_id);
-        self.activate_workspace_at(idx, WorkspaceFocusTarget::FirstPane, window, cx)
+        let changed = self.activate_workspace_at(idx, WorkspaceFocusTarget::FirstPane, window, cx);
+        self.open_files_sidebar_for_maximized_workspace(window, cx);
+        changed
     }
 
     /// 显式进入指定工作区的应用级放大视图。
@@ -257,6 +259,9 @@ impl PaneFlowApp {
             .workspaces
             .get(self.active_idx)
             .map(|workspace| workspace.id);
+        if self.files_sidebar_open {
+            self.close_files_sidebar(cx);
+        }
         cx.notify();
     }
 
