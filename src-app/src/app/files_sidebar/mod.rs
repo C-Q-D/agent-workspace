@@ -185,6 +185,17 @@ impl PaneFlowApp {
         self.set_files_sidebar_open(false, cx);
     }
 
+    /// 立即关闭并释放文件树，供互斥的聚焦审查界面接管右侧上下文。
+    ///
+    /// 普通用户关闭保留宽度动画；模式切换不能等待动画结束，否则 Diff 已显示时
+    /// 旧目录仍会短暂存在，形成错误的双重工作区归属。
+    pub(crate) fn close_files_sidebar_immediate(&mut self, cx: &mut Context<Self>) {
+        self.files_sidebar_open = false;
+        self.files_sidebar_animation = None;
+        self.clear_files_sidebar_state();
+        cx.notify();
+    }
+
     fn files_sidebar_width_at(&self, now: std::time::Instant) -> f32 {
         if let Some(animation) = self.files_sidebar_animation {
             animation.width_at(now)

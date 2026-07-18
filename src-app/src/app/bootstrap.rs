@@ -1099,27 +1099,11 @@ impl PaneFlowApp {
             app.mount_agents_terminal_for_target(target, cx);
         }
 
-        // US-015 (prd-git-diff-mode-2026-Q3.md): restore Diff mode only when
-        // it is reconstructable. The diff derives its repo from the restored
-        // active workspace (Project / Worktree) or any open repo (Multi-project),
-        // so no separate repo-root needs persisting. If viable, mount the diff
-        // for the restored scope; otherwise collapse to CLI so the window never
-        // opens onto an empty diff.
+        // 第一版不持久化应用级放大状态，而审查必须拥有明确的放大工作区归属。
+        // 因此启动时不能恢复旧 Diff 模式，否则会在矩阵总览中直接暴露仓库内容；
+        // 统一回到 CLI，等待用户主动放大工作区后再次进入审查。
         if matches!(app.mode, paneflow_config::schema::AppMode::Diff) {
-            let viable = match app.diff_mode.diff_scope {
-                crate::diff::DiffScope::MultiProject => {
-                    app.workspaces.iter().any(|ws| ws.repo_root.is_some())
-                }
-                _ => app
-                    .workspaces
-                    .get(app.active_idx)
-                    .is_some_and(|ws| ws.repo_root.is_some()),
-            };
-            if viable {
-                app.rebuild_diff_view(cx);
-            } else {
-                app.mode = paneflow_config::schema::AppMode::Cli;
-            }
+            app.mode = paneflow_config::schema::AppMode::Cli;
         }
 
         // US-013 AC #1 - fire `app_started` once per launch. `Null` clients

@@ -20,6 +20,46 @@ use gpui::{
 impl PaneFlowApp {
     pub(crate) fn render_scope_header(&self, cx: &mut Context<Self>) -> AnyElement {
         let ui = crate::theme::ui_colors();
+
+        // 第一版审查必须锁定到当前放大工作区。这里显示不可交互的归属标签，彻底
+        // 移除 Project/Multi-project/Worktree 和其他项目选择入口，避免用户在审查
+        // 期间切到与当前终端无关的仓库。
+        let active_workspace_id = self
+            .workspaces
+            .get(self.active_idx)
+            .map(|workspace| workspace.id);
+        if crate::app::diff_view_actions::focused_review_allowed(
+            self.maximized_workspace_id,
+            active_workspace_id,
+        ) {
+            let workspace_label = self
+                .workspaces
+                .get(self.active_idx)
+                .map(|workspace| workspace.title.clone())
+                .unwrap_or_else(|| "Current workspace".to_string());
+            return div()
+                .flex_none()
+                .flex()
+                .flex_row()
+                .items_center()
+                .gap(px(6.))
+                .h(px(22.))
+                .px(px(7.))
+                .text_size(crate::ui_primitives::BODY)
+                .text_color(ui.text)
+                .child(
+                    svg()
+                        .size(px(13.))
+                        .flex_none()
+                        .path("icons/git-pull-request.svg")
+                        .text_color(ui.muted),
+                )
+                .child("Current workspace")
+                .child(div().text_color(ui.muted).child("›"))
+                .child(div().text_color(ui.muted).child(workspace_label))
+                .into_any_element();
+        }
+
         let active = self.diff_mode.diff_scope;
         let open = self.diff_mode.diff_scope_picker_open;
 

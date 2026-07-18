@@ -104,6 +104,19 @@ fn multiproject_signature(groups: &[RepoGroup]) -> u64 {
 /// (decision: literal Zed; see the PRD §4).
 pub(crate) const DIFF_SIDEBAR_WIDTH: f32 = 360.0;
 
+/// 判断审查模式是否拥有唯一且仍然有效的放大工作区归属。
+///
+/// 仅检查 `Some` 不够：工作区关闭或异步切换期间，旧放大 ID 可能暂时与活动项
+/// 不一致。必须同时匹配稳定 ID，才能避免把 A 仓库的审查界面挂到 B 窗口上。
+pub(crate) fn focused_review_allowed(
+    maximized_workspace_id: Option<u64>,
+    active_workspace_id: Option<u64>,
+) -> bool {
+    maximized_workspace_id
+        .zip(active_workspace_id)
+        .is_some_and(|(maximized, active)| maximized == active)
+}
+
 impl PaneFlowApp {
     /// Toggle the Git Diff mode. Mirrors `handle_open_agents_view`:
     /// pressing the binding (or the action) from CLI/Agents enters
@@ -121,10 +134,26 @@ impl PaneFlowApp {
         }
     }
 
-    /// Switch into [`AppMode::Diff`] and mount the `DiffView` for the
-    /// active workspace's repo. Keeps the two non-CLI surfaces mutually
-    /// exclusive.
+    /// 进入当前放大工作区的只读 Git 审查模式。
+    ///
+    /// 第一版不允许从矩阵总览进入审查，也不保留上游的多项目和 worktree 范围
+    /// 切换入口；审查范围始终固定为稳定 ID 对应的活动项目。进入后立即释放文件树，
+    /// 避免同一右侧上下文同时表达“文件引用”和“改动审查”两种含义。
     pub(crate) fn enter_diff_mode(&mut self, cx: &mut Context<Self>) {
+        let active_workspace_id = self
+            .workspaces
+            .get(self.active_idx)
+            .map(|workspace| workspace.id);
+        if !focused_review_allowed(self.maximized_workspace_id, active_workspace_id) {
+            self.show_toast("Maximize a workspace before reviewing changes", cx);
+            return;
+        }
+
+        self.diff_mode.diff_scope = DiffScope::Project;
+        self.diff_mode.diff_scope_picker_open = false;
+        self.diff_mode.diff_project_picker_open = false;
+        self.diff_mode.diff_worktree_picker_open = false;
+        self.close_files_sidebar_immediate(cx);
         self.mode = AppMode::Diff;
         // `rebuild_diff_view` mounts the entity and calls `cx.notify()`.
         self.rebuild_diff_view(cx);
@@ -617,5 +646,19 @@ fn norm_path(p: &std::path::Path) -> String {
         s.to_lowercase()
     } else {
         s
+    }
+}
+
+#[cfg(test)]
+mod focused_review_tests {
+    use super::focused_review_allowed;
+
+    /// 只有放大稳定 ID 与活动工作区一致时才允许进入审查。
+    #[test]
+    fn focused_review_requires_matching_stable_workspace_id() {
+        assert!(focused_review_allowed(Some(41), Some(41)));
+        assert!(!focused_review_allowed(None, Some(41)));
+        assert!(!focused_review_allowed(Some(41), None));
+        assert!(!focused_review_allowed(Some(41), Some(72)));
     }
 }
