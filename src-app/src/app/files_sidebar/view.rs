@@ -48,6 +48,9 @@ impl PaneFlowApp {
         ui: crate::theme::UiColors,
         cx: &mut Context<Self>,
     ) -> AnyElement {
+        if self.files_line_picker.is_some() {
+            return self.render_file_line_picker_header(ui, cx);
+        }
         // Title = the workspace folder's final component (the tree root name).
         let title: SharedString = self
             .files_tree
@@ -109,6 +112,9 @@ impl PaneFlowApp {
         ui: crate::theme::UiColors,
         cx: &mut Context<Self>,
     ) -> AnyElement {
+        if self.files_line_picker.is_some() {
+            return self.render_file_line_picker_body(ui, cx);
+        }
         let canary = FilesSidebarRenderTimeCanary::new();
         let rows = self.files_visible_rows();
         canary.set_row_count(rows.len());

@@ -231,6 +231,8 @@ pub(crate) struct TabContextMenu {
 #[derive(Clone)]
 pub(crate) struct FilesContextMenu {
     pub(crate) path: std::path::PathBuf,
+    /// 右键目标是否为目录；目录不提供代码行选择入口。
+    pub(crate) is_dir: bool,
     pub(crate) position: Point<Pixels>,
 }
 
@@ -1060,6 +1062,8 @@ struct PaneFlowApp {
     /// In-memory tree state for the open Files sidebar (root + expanded set +
     /// lazily-cached directory listings). Empty when the sidebar is closed.
     files_tree: app::files_tree::FilesTreeState,
+    /// 文件树内打开的真实文件只读行选择器；关闭文件栏时一并释放。
+    files_line_picker: Option<app::files_sidebar::FileLinePickerState>,
     /// Scroll state for the Files tree body. Re-created on every open so a
     /// fresh sidebar starts at offset 0.
     files_tree_scroll: gpui::ScrollHandle,

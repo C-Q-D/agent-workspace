@@ -24,9 +24,8 @@ impl PaneFlowApp {
         window: &mut gpui::Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        // 三个条目加菜单内边距；空间不足时沿用工作区菜单规则翻到点击点上方。
-        // isn't room below (mirrors the workspace menu).
-        let menu_height = px(94.);
+        // 目录三个条目、文件四个条目；空间不足时沿用工作区菜单规则翻到点击点上方。
+        let menu_height = px(if menu.is_dir { 94. } else { 122. });
         let menu_width = px(220.);
         let menu_pos =
             clamped_context_menu_position(menu.position, menu_width, menu_height, window);
@@ -37,7 +36,7 @@ impl PaneFlowApp {
         let reference_root = self.files_tree.root.clone();
         let reference_path = menu.path.clone();
 
-        let context_menu = div()
+        let mut context_menu = div()
             .id("files-context-menu")
             .occlude()
             .absolute()
@@ -82,7 +81,22 @@ impl PaneFlowApp {
                     this.files_menu_open = None;
                     cx.stop_propagation();
                 }),
-            ))
+            ));
+        if !menu.is_dir {
+            let line_path = menu.path.clone();
+            context_menu = context_menu.child(self.render_context_menu_item(
+                "files-context-select-lines".into(),
+                "Select Lines…",
+                None,
+                ui,
+                cx.listener(move |this, _: &ClickEvent, _window, cx| {
+                    this.files_menu_open = None;
+                    this.open_file_line_picker(line_path.clone(), cx);
+                    cx.stop_propagation();
+                }),
+            ));
+        }
+        let context_menu = context_menu
             .child(self.render_context_menu_item(
                 "files-context-copy-path".into(),
                 "Copy Path",

@@ -15,8 +15,11 @@
 
 mod context_menu;
 mod keyboard;
+mod line_picker;
 mod row;
 mod view;
+
+pub(crate) use line_picker::FileLinePickerState;
 mod watch;
 
 use std::path::{Path, PathBuf};
@@ -216,6 +219,7 @@ impl PaneFlowApp {
 
     fn clear_files_sidebar_state(&mut self) {
         self.files_tree = FilesTreeState::default();
+        self.files_line_picker = None;
         self.files_watcher = None;
         self.files_event_rx = None;
         self.files_menu_open = None;
@@ -238,6 +242,8 @@ impl PaneFlowApp {
         if self.files_tree.root == root {
             return;
         }
+        // 行选择状态只属于原 workspaceRoot；切换放大目标时不得保留旧文件视图。
+        self.files_line_picker = None;
         let persisted = ws.files_expanded.clone();
         // US-018: re-root off the render thread.
         self.spawn_files_hydration(root, persisted, cx);

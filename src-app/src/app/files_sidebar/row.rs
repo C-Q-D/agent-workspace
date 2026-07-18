@@ -96,6 +96,7 @@ impl PaneFlowApp {
                 this.select_files_row(&menu_path);
                 this.files_menu_open = Some(crate::FilesContextMenu {
                     path: menu_path.clone(),
+                    is_dir,
                     position,
                 });
                 cx.stop_propagation();
