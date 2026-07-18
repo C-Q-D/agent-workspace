@@ -1,0 +1,174 @@
+{
+  "RunId": "capacity-16终端-20260718-185246",
+  "Commit": "01a661b7206d126ef0aa264d6f2686d96f913d44",
+  "BinaryPath": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\target\\release\\paneflow.exe",
+  "BinarySha256": "14ACD3BB04008C89BF56AD79D29F4C2B72031EAC85B3E0639E0C08514E73CED1",
+  "TerminalCount": 16,
+  "DurationSeconds": 30,
+  "OutputIntervalMilliseconds": 250,
+  "AppCpuAveragePercent": 0.5724,
+  "AppWorkingSetPeakMiB": 231.289,
+  "AppWorkingSetFirstMiB": 231.289,
+  "AppWorkingSetLastMiB": 213.566,
+  "AppPrivatePeakMiB": 259.551,
+  "AppPrivateFirstMiB": 259.551,
+  "AppPrivateLastMiB": 241.305,
+  "TreeProcessCountPeak": 49.0,
+  "PowerShellCountPeak": 32.0,
+  "ProcessTreeStableDuringSample": true,
+  "ProcessIdsStableDuringSample": true,
+  "FirstSurfaceRenderDelta": {
+    "change_batches": 206,
+    "immediate_redraw_requests": 206,
+    "hidden_suppressed_redraw_requests": 0,
+    "resume_redraw_requests": 0
+  },
+  "LastSurfaceRenderDelta": {
+    "change_batches": 205,
+    "immediate_redraw_requests": 0,
+    "hidden_suppressed_redraw_requests": 205,
+    "resume_redraw_requests": 0
+  },
+  "AllFinalMarkersObserved": true,
+  "Completion": [
+    {
+      "SurfaceId": 4294967301,
+      "Workspace": 0,
+      "OutputGeneration": 308,
+      "Completed": true
+    },
+    {
+      "SurfaceId": 12884901889,
+      "Workspace": 1,
+      "OutputGeneration": 296,
+      "Completed": true
+    },
+    {
+      "SurfaceId": 4294967315,
+      "Workspace": 2,
+      "OutputGeneration": 301,
+      "Completed": true
+    },
+    {
+      "SurfaceId": 4294967318,
+      "Workspace": 3,
+      "OutputGeneration": 298,
+      "Completed": true
+    },
+    {
+      "SurfaceId": 4294967321,
+      "Workspace": 4,
+      "OutputGeneration": 291,
+      "Completed": true
+    },
+    {
+      "SurfaceId": 4294967324,
+      "Workspace": 5,
+      "OutputGeneration": 299,
+      "Completed": true
+    },
+    {
+      "SurfaceId": 4294967327,
+      "Workspace": 6,
+      "OutputGeneration": 302,
+      "Completed": true
+    },
+    {
+      "SurfaceId": 4294967330,
+      "Workspace": 7,
+      "OutputGeneration": 303,
+      "Completed": true
+    },
+    {
+      "SurfaceId": 4294967333,
+      "Workspace": 8,
+      "OutputGeneration": 299,
+      "Completed": true
+    },
+    {
+      "SurfaceId": 4294967336,
+      "Workspace": 9,
+      "OutputGeneration": 295,
+      "Completed": true
+    },
+    {
+      "SurfaceId": 4294967339,
+      "Workspace": 10,
+      "OutputGeneration": 323,
+      "Completed": true
+    },
+    {
+      "SurfaceId": 4294967342,
+      "Workspace": 11,
+      "OutputGeneration": 297,
+      "Completed": true
+    },
+    {
+      "SurfaceId": 4294967345,
+      "Workspace": 12,
+      "OutputGeneration": 297,
+      "Completed": true
+    },
+    {
+      "SurfaceId": 4294967348,
+      "Workspace": 13,
+      "OutputGeneration": 301,
+      "Completed": true
+    },
+    {
+      "SurfaceId": 4294967351,
+      "Workspace": 14,
+      "OutputGeneration": 326,
+      "Completed": true
+    },
+    {
+      "SurfaceId": 4294967354,
+      "Workspace": 15,
+      "OutputGeneration": 299,
+      "Completed": true
+    }
+  ],
+  "SwitchCount": 32,
+  "SwitchP95Milliseconds": 63.328,
+  "SwitchMaxMilliseconds": 63.688,
+  "SwitchProcessIdsStable": true,
+  "TrackedProcessIds": [
+    324,
+    4808,
+    5508,
+    6260,
+    7556,
+    8296,
+    9676,
+    10136,
+    10328,
+    15052,
+    15988,
+    16360,
+    16724,
+    16972,
+    18036,
+    18652,
+    19068,
+    19912,
+    20836,
+    23744,
+    24092,
+    25244,
+    25580,
+    25924,
+    27040,
+    28496,
+    29300,
+    29660,
+    30032,
+    30724,
+    30764,
+    30768,
+    31640
+  ],
+  "RemainingProcessIds": [],
+  "OverviewScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\性能数据\\capacity-16终端-20260718-185246\\矩阵总览.png",
+  "MaximizedScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\性能数据\\capacity-16终端-20260718-185246\\单窗口放大.png",
+  "SamplesCsv": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\性能数据\\capacity-16终端-20260718-185246\\进程采样.csv"
+}

@@ -1,0 +1,118 @@
+{
+  "RunId": "capacity-09终端-20260718-185048",
+  "Commit": "854aa4d409bc405a4269a0ff57640c6174c3d56a",
+  "BinaryPath": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\target\\release\\paneflow.exe",
+  "BinarySha256": "14ACD3BB04008C89BF56AD79D29F4C2B72031EAC85B3E0639E0C08514E73CED1",
+  "TerminalCount": 9,
+  "DurationSeconds": 30,
+  "OutputIntervalMilliseconds": 250,
+  "AppCpuAveragePercent": 0.4351,
+  "AppWorkingSetPeakMiB": 213.773,
+  "AppWorkingSetFirstMiB": 213.773,
+  "AppWorkingSetLastMiB": 197.457,
+  "AppPrivatePeakMiB": 214.801,
+  "AppPrivateFirstMiB": 214.801,
+  "AppPrivateLastMiB": 198.109,
+  "TreeProcessCountPeak": 28.0,
+  "PowerShellCountPeak": 18.0,
+  "ProcessTreeStableDuringSample": true,
+  "ProcessIdsStableDuringSample": true,
+  "FirstSurfaceRenderDelta": {
+    "change_batches": 192,
+    "immediate_redraw_requests": 192,
+    "hidden_suppressed_redraw_requests": 0,
+    "resume_redraw_requests": 0
+  },
+  "LastSurfaceRenderDelta": {
+    "change_batches": 193,
+    "immediate_redraw_requests": 0,
+    "hidden_suppressed_redraw_requests": 193,
+    "resume_redraw_requests": 0
+  },
+  "AllFinalMarkersObserved": true,
+  "Completion": [
+    {
+      "SurfaceId": 4294967301,
+      "Workspace": 0,
+      "OutputGeneration": 308,
+      "Completed": true
+    },
+    {
+      "SurfaceId": 12884901889,
+      "Workspace": 1,
+      "OutputGeneration": 297,
+      "Completed": true
+    },
+    {
+      "SurfaceId": 4294967315,
+      "Workspace": 2,
+      "OutputGeneration": 297,
+      "Completed": true
+    },
+    {
+      "SurfaceId": 4294967318,
+      "Workspace": 3,
+      "OutputGeneration": 296,
+      "Completed": true
+    },
+    {
+      "SurfaceId": 4294967321,
+      "Workspace": 4,
+      "OutputGeneration": 298,
+      "Completed": true
+    },
+    {
+      "SurfaceId": 4294967324,
+      "Workspace": 5,
+      "OutputGeneration": 298,
+      "Completed": true
+    },
+    {
+      "SurfaceId": 4294967327,
+      "Workspace": 6,
+      "OutputGeneration": 299,
+      "Completed": true
+    },
+    {
+      "SurfaceId": 4294967330,
+      "Workspace": 7,
+      "OutputGeneration": 299,
+      "Completed": true
+    },
+    {
+      "SurfaceId": 4294967333,
+      "Workspace": 8,
+      "OutputGeneration": 299,
+      "Completed": true
+    }
+  ],
+  "SwitchCount": 32,
+  "SwitchP95Milliseconds": 63.284,
+  "SwitchMaxMilliseconds": 63.414,
+  "SwitchProcessIdsStable": true,
+  "TrackedProcessIds": [
+    1724,
+    3784,
+    5644,
+    6060,
+    8664,
+    9800,
+    11700,
+    13476,
+    17944,
+    20440,
+    20816,
+    22480,
+    24132,
+    25984,
+    27464,
+    28652,
+    32096,
+    32452,
+    34540
+  ],
+  "RemainingProcessIds": [],
+  "OverviewScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\性能数据\\capacity-09终端-20260718-185048\\矩阵总览.png",
+  "MaximizedScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\性能数据\\capacity-09终端-20260718-185048\\单窗口放大.png",
+  "SamplesCsv": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\性能数据\\capacity-09终端-20260718-185048\\进程采样.csv"
+}
