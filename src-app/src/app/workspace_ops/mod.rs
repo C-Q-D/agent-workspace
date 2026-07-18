@@ -296,18 +296,9 @@ impl PaneFlowApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
-        if idx >= self.workspaces.len() {
+        let Some(changed) = self.begin_workspace_activation(idx) else {
             return false;
-        }
-
-        let changed = idx != self.active_idx;
-        self.dismiss_transient_surfaces();
-        self.active_idx = idx;
-        if self.workspace_focus.is_focused() {
-            let workspace = &self.workspaces[idx];
-            self.workspace_focus
-                .focus(workspace.id, workspace.cwd.clone());
-        }
+        };
 
         match focus_target {
             WorkspaceFocusTarget::FirstPane => {
@@ -323,31 +314,8 @@ impl PaneFlowApp {
                 pane.read(cx).focus_handle(cx).focus(window, cx);
             }
         }
-
-        self.reroot_files_tree(cx);
-        if self.agent_sessions.sessions_sidebar_open {
-            let keep_sidebar_focus = self.agent_sessions.sessions_focus.is_focused(window);
-            match self.workspaces[idx]
-                .root
-                .as_ref()
-                .and_then(|root| root.first_leaf())
-            {
-                Some(pane) => self.open_sessions_sidebar_for_pane(
-                    &pane,
-                    keep_sidebar_focus.then_some(window),
-                    cx,
-                ),
-                None => self.close_sessions_sidebar(cx),
-            }
-        }
-        if self.workspace_focus.is_focused()
-            && matches!(self.mode, paneflow_config::schema::AppMode::Cli)
-        {
-            self.open_files_sidebar_for_maximized_workspace(window, cx);
-        }
-        self.save_session(cx);
-        self.reconcile_diff_after_workspace_change(cx);
-        cx.notify();
+        self.sync_workspace_activation_surfaces(Some(window), cx);
+        self.finish_workspace_activation(cx);
         changed
     }
 
@@ -356,10 +324,22 @@ impl PaneFlowApp {
         idx: usize,
         cx: &mut Context<Self>,
     ) -> bool {
-        if idx >= self.workspaces.len() {
+        let Some(changed) = self.begin_workspace_activation(idx) else {
             return false;
-        }
+        };
+        self.sync_workspace_activation_surfaces(None, cx);
+        self.finish_workspace_activation(cx);
+        changed
+    }
 
+    /// 执行所有工作区激活入口共享的纯状态转换。
+    ///
+    /// 这里不接触 `Window`，因此鼠标、快捷键、IPC 与异步回调不会各自维护活动索引
+    /// 和聚焦上下文。返回值表示目标是否真的改变；越界目标不会产生任何副作用。
+    fn begin_workspace_activation(&mut self, idx: usize) -> Option<bool> {
+        if idx >= self.workspaces.len() {
+            return None;
+        }
         let changed = idx != self.active_idx;
         self.dismiss_transient_surfaces();
         self.active_idx = idx;
@@ -368,19 +348,60 @@ impl PaneFlowApp {
             self.workspace_focus
                 .focus(workspace.id, workspace.cwd.clone());
         }
+        Some(changed)
+    }
+
+    /// 让文件栏和会话栏跟随已经完成的活动工作区转换。
+    ///
+    /// 有 `Window` 时保留原有真实焦点和当前终端 Surface；无 `Window` 的 IPC 路径
+    /// 使用第一个窗格作为安全回退，并关闭无法可靠保持焦点的会话栏。
+    fn sync_workspace_activation_surfaces(
+        &mut self,
+        window: Option<&mut Window>,
+        cx: &mut Context<Self>,
+    ) {
         self.reroot_files_tree(cx);
-        if self.agent_sessions.sessions_sidebar_open {
-            self.close_sessions_sidebar(cx);
+        match window {
+            Some(window) => {
+                if self.agent_sessions.sessions_sidebar_open {
+                    let keep_sidebar_focus = self.agent_sessions.sessions_focus.is_focused(window);
+                    match self.workspaces[self.active_idx]
+                        .root
+                        .as_ref()
+                        .and_then(|root| root.first_leaf())
+                    {
+                        Some(pane) => self.open_sessions_sidebar_for_pane(
+                            &pane,
+                            keep_sidebar_focus.then_some(&mut *window),
+                            cx,
+                        ),
+                        None => self.close_sessions_sidebar(cx),
+                    }
+                }
+                if self.workspace_focus.is_focused()
+                    && matches!(self.mode, paneflow_config::schema::AppMode::Cli)
+                {
+                    self.open_files_sidebar_for_maximized_workspace(window, cx);
+                }
+            }
+            None => {
+                if self.agent_sessions.sessions_sidebar_open {
+                    self.close_sessions_sidebar(cx);
+                }
+                if self.workspace_focus.is_focused()
+                    && matches!(self.mode, paneflow_config::schema::AppMode::Cli)
+                {
+                    self.retarget_files_sidebar_without_window(cx);
+                }
+            }
         }
-        if self.workspace_focus.is_focused()
-            && matches!(self.mode, paneflow_config::schema::AppMode::Cli)
-        {
-            self.retarget_files_sidebar_without_window(cx);
-        }
+    }
+
+    /// 统一持久化并刷新工作区激活后的 Review 归属。
+    fn finish_workspace_activation(&mut self, cx: &mut Context<Self>) {
         self.save_session(cx);
         self.reconcile_diff_after_workspace_change(cx);
         cx.notify();
-        changed
     }
 
     /// US-009 (orchestration-v2): tear down the worktrees a closing workspace
