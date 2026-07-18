@@ -1,0 +1,370 @@
+{
+  "version": 1,
+  "active_workspace": 19,
+  "workspace_grid_page": 1,
+  "workspaces": [
+    {
+      "title": "app",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "\noh-my-posh: C:\\Users\\Administrator\\Documents\n\\PowerShell\\Microsoft.PowerShell_profile.ps1\n:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:\nPOSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\noh-my-posh: C:\\Users\\Administrator\\Documents\n\\PowerShell\\Microsoft.PowerShell_profile.ps1\n:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:\nPOSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not recogniz\ned as a name of a cmdlet, function, script\n     | file, or executable program. Check th\ne spelling of the name, or if a path was\n     | included, verify that the path is cor\nrect and try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\a\ngent-workspace\\app>\noh-my-posh: C:\\Users\\Administrator\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:POSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not recognized as a name of a cmdlet, function, script file, or executable program.\n     | Check the spelling of the name, or if a path was included, verify that the path is correct and try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app>"
+          }
+        ]
+      }
+    },
+    {
+      "title": "restore-02",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "\noh-my-posh: C:\\Users\\Administrator\\Documents\n\\PowerShell\\Microsoft.PowerShell_profile.ps1\n:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:\nPOSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not\n     | recognized as a name of a cmdlet,\n     | function, script file, or executable\n     | program. Check the spelling of the\n     | name, or if a path was included,\n     | verify that the path is correct and\n     | try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\a\ngent-workspace\\app>\noh-my-posh: C:\\Users\\Administrator\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:POSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not recognized as a name of a cmdlet, function, script file, or executable program.\n     | Check the spelling of the name, or if a path was included, verify that the path is correct and try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app>"
+          }
+        ]
+      }
+    },
+    {
+      "title": "restore-03",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "\noh-my-posh: C:\\Users\\Administrator\\Documents\n\\PowerShell\\Microsoft.PowerShell_profile.ps1\n:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:\nPOSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not\n     | recognized as a name of a cmdlet,\n     | function, script file, or executable\n     | program. Check the spelling of the\n     | name, or if a path was included,\n     | verify that the path is correct and\n     | try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\a\ngent-workspace\\app>\noh-my-posh: C:\\Users\\Administrator\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:POSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not recognized as a name of a cmdlet, function, script file, or executable program.\n     | Check the spelling of the name, or if a path was included, verify that the path is correct and try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app>"
+          }
+        ]
+      }
+    },
+    {
+      "title": "restore-04",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "\noh-my-posh: C:\\Users\\Administrator\\Documents\n\\PowerShell\\Microsoft.PowerShell_profile.ps1\n:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:\nPOSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not\n     | recognized as a name of a cmdlet,\n     | function, script file, or executable\n     | program. Check the spelling of the\n     | name, or if a path was included,\n     | verify that the path is correct and\n     | try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\a\ngent-workspace\\app>\noh-my-posh: C:\\Users\\Administrator\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:POSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not recognized as a name of a cmdlet, function, script file, or executable program.\n     | Check the spelling of the name, or if a path was included, verify that the path is correct and try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app>"
+          }
+        ]
+      }
+    },
+    {
+      "title": "restore-05",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "\noh-my-posh: C:\\Users\\Administrator\\Documents\n\\PowerShell\\Microsoft.PowerShell_profile.ps1\n:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:\nPOSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not\n     | recognized as a name of a cmdlet,\n     | function, script file, or executable\n     | program. Check the spelling of the\n     | name, or if a path was included,\n     | verify that the path is correct and\n     | try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\a\ngent-workspace\\app>\noh-my-posh: C:\\Users\\Administrator\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:POSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not recognized as a name of a cmdlet, function, script file, or executable program.\n     | Check the spelling of the name, or if a path was included, verify that the path is correct and try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app>"
+          }
+        ]
+      }
+    },
+    {
+      "title": "restore-06",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "\noh-my-posh: C:\\Users\\Administrator\\Documents\n\\PowerShell\\Microsoft.PowerShell_profile.ps1\n:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:\nPOSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not\n     | recognized as a name of a cmdlet,\n     | function, script file, or executable\n     | program. Check the spelling of the\n     | name, or if a path was included,\n     | verify that the path is correct and\n     | try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\a\ngent-workspace\\app>\noh-my-posh: C:\\Users\\Administrator\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:POSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not recognized as a name of a cmdlet, function, script file, or executable program.\n     | Check the spelling of the name, or if a path was included, verify that the path is correct and try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app>"
+          }
+        ]
+      }
+    },
+    {
+      "title": "restore-07",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "ed as a name of a cmdlet, function, script f\nile, or executable program.\n     | Check the spelling of the name, or if\n a path was included, verify that the path i\ns correct and try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\a\ngent-workspace\\app>\noh-my-posh: C:\\Users\\Administrator\\Documents\n\\PowerShell\\Microsoft.PowerShell_profile.ps1\n:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:\nPOSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not\n     | recognized as a name of a cmdlet,\n     | function, script file, or executable\n     | program. Check the spelling of the\n     | name, or if a path was included,\n     | verify that the path is correct and\n     | try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\a\ngent-workspace\\app>"
+          }
+        ]
+      }
+    },
+    {
+      "title": "restore-08",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "ed as a name of a cmdlet, function, script f\nile, or executable program.\n     | Check the spelling of the name, or if\n a path was included, verify that the path i\ns correct and try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\a\ngent-workspace\\app>\noh-my-posh: C:\\Users\\Administrator\\Documents\n\\PowerShell\\Microsoft.PowerShell_profile.ps1\n:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:\nPOSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not\n     | recognized as a name of a cmdlet,\n     | function, script file, or executable\n     | program. Check the spelling of the\n     | name, or if a path was included,\n     | verify that the path is correct and\n     | try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\a\ngent-workspace\\app>"
+          }
+        ]
+      }
+    },
+    {
+      "title": "restore-09",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "ed as a name of a cmdlet, function, script f\nile, or executable program.\n     | Check the spelling of the name, or if\n a path was included, verify that the path i\ns correct and try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\a\ngent-workspace\\app>\noh-my-posh: C:\\Users\\Administrator\\Documents\n\\PowerShell\\Microsoft.PowerShell_profile.ps1\n:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:\nPOSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not\n     | recognized as a name of a cmdlet,\n     | function, script file, or executable\n     | program. Check the spelling of the\n     | name, or if a path was included,\n     | verify that the path is correct and\n     | try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\a\ngent-workspace\\app>"
+          }
+        ]
+      }
+    },
+    {
+      "title": "restore-10",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "ed as a name of a cmdlet, function, script f\nile, or executable program.\n     | Check the spelling of the name, or if\n a path was included, verify that the path i\ns correct and try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\a\ngent-workspace\\app>\noh-my-posh: C:\\Users\\Administrator\\Documents\n\\PowerShell\\Microsoft.PowerShell_profile.ps1\n:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:\nPOSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not\n     | recognized as a name of a cmdlet,\n     | function, script file, or executable\n     | program. Check the spelling of the\n     | name, or if a path was included,\n     | verify that the path is correct and\n     | try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\a\ngent-workspace\\app>"
+          }
+        ]
+      }
+    },
+    {
+      "title": "restore-11",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "ed as a name of a cmdlet, function, script f\nile, or executable program.\n     | Check the spelling of the name, or if\n a path was included, verify that the path i\ns correct and try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\a\ngent-workspace\\app>\noh-my-posh: C:\\Users\\Administrator\\Documents\n\\PowerShell\\Microsoft.PowerShell_profile.ps1\n:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:\nPOSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not\n     | recognized as a name of a cmdlet,\n     | function, script file, or executable\n     | program. Check the spelling of the\n     | name, or if a path was included,\n     | verify that the path is correct and\n     | try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\a\ngent-workspace\\app>"
+          }
+        ]
+      }
+    },
+    {
+      "title": "restore-12",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "ed as a name of a cmdlet, function, script f\nile, or executable program.\n     | Check the spelling of the name, or if\n a path was included, verify that the path i\ns correct and try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\a\ngent-workspace\\app>\noh-my-posh: C:\\Users\\Administrator\\Documents\n\\PowerShell\\Microsoft.PowerShell_profile.ps1\n:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:\nPOSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not\n     | recognized as a name of a cmdlet,\n     | function, script file, or executable\n     | program. Check the spelling of the\n     | name, or if a path was included,\n     | verify that the path is correct and\n     | try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\a\ngent-workspace\\app>"
+          }
+        ]
+      }
+    },
+    {
+      "title": "restore-13",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "\noh-my-posh: C:\\Users\\Administrator\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:POSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not recognized as a name of a cmdlet, function, script file, or executable program.\n     | Check the spelling of the name, or if a path was included, verify that the path is correct and try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app>\noh-my-posh: C:\\Users\\Administrator\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:POSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not recognized as a name of a cmdlet, function, script file, or executable program.\n     | Check the spelling of the name, or if a path was included, verify that the path is correct and try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app>"
+          }
+        ]
+      }
+    },
+    {
+      "title": "restore-14",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "\noh-my-posh: C:\\Users\\Administrator\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:POSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not recognized as a name of a cmdlet, function, script file, or executable program.\n     | Check the spelling of the name, or if a path was included, verify that the path is correct and try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app>\noh-my-posh: C:\\Users\\Administrator\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:POSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not recognized as a name of a cmdlet, function, script file, or executable program.\n     | Check the spelling of the name, or if a path was included, verify that the path is correct and try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app>"
+          }
+        ]
+      }
+    },
+    {
+      "title": "restore-15",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "\noh-my-posh: C:\\Users\\Administrator\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:POSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not recognized as a name of a cmdlet, function, script file, or executable program.\n     | Check the spelling of the name, or if a path was included, verify that the path is correct and try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app>\noh-my-posh: C:\\Users\\Administrator\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:POSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not recognized as a name of a cmdlet, function, script file, or executable program.\n     | Check the spelling of the name, or if a path was included, verify that the path is correct and try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app>"
+          }
+        ]
+      }
+    },
+    {
+      "title": "restore-16",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "\noh-my-posh: C:\\Users\\Administrator\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:POSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not recognized as a name of a cmdlet, function, script file, or executable program.\n     | Check the spelling of the name, or if a path was included, verify that the path is correct and try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app>\noh-my-posh: C:\\Users\\Administrator\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:POSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not recognized as a name of a cmdlet, function, script file, or executable program.\n     | Check the spelling of the name, or if a path was included, verify that the path is correct and try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app>"
+          }
+        ]
+      }
+    },
+    {
+      "title": "restore-17",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "\noh-my-posh: C:\\Users\\Administrator\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:POSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not recognized as a name of a cmdlet, function, script file, or executable program.\n     | Check the spelling of the name, or if a path was included, verify that the path is correct and try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app>\noh-my-posh: C:\\Users\\Administrator\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:POSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not recognized as a name of a cmdlet, function, script file, or executable program.\n     | Check the spelling of the name, or if a path was included, verify that the path is correct and try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app>"
+          }
+        ]
+      }
+    },
+    {
+      "title": "restore-18",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "\noh-my-posh: C:\\Users\\Administrator\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:POSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not recognized as a name of a cmdlet, function, script file, or executable program.\n     | Check the spelling of the name, or if a path was included, verify that the path is correct and try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app>\noh-my-posh: C:\\Users\\Administrator\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:POSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not recognized as a name of a cmdlet, function, script file, or executable program.\n     | Check the spelling of the name, or if a path was included, verify that the path is correct and try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app>"
+          }
+        ]
+      }
+    },
+    {
+      "title": "restore-19",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "\noh-my-posh: C:\\Users\\Administrator\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:POSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not recognized as a name of a cmdlet, function, script file, or executable program.\n     | Check the spelling of the name, or if a path was included, verify that the path is correct and try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app>\noh-my-posh: C:\\Users\\Administrator\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:POSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not recognized as a name of a cmdlet, function, script file, or executable program.\n     | Check the spelling of the name, or if a path was included, verify that the path is correct and try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app>"
+          }
+        ]
+      }
+    },
+    {
+      "title": "restore-20",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "\noh-my-posh: C:\\Users\\Administrator\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:POSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not recognized as a name of a cmdlet, function, script file, or executable program.\n     | Check the spelling of the name, or if a path was included, verify that the path is correct and try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app>\noh-my-posh: C:\\Users\\Administrator\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:POSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not recognized as a name of a cmdlet, function, script file, or executable program.\n     | Check the spelling of the name, or if a path was included, verify that the path is correct and try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app>"
+          }
+        ]
+      }
+    }
+  ],
+  "active_project": 0,
+  "mode": "cli",
+  "diff_scope": "project"
+}
