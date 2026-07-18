@@ -1,0 +1,287 @@
+{
+  "RunId": "真实状态-20260718-205247",
+  "Commit": "f4356faab4ad1de950411a034f540642747f2085",
+  "BinaryPath": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\target\\release\\paneflow.exe",
+  "BinarySha256": "FFA8EC367125F013949A034DBEB386588665FF48B1DED1CFC44738BD3E485D81",
+  "StartingObserved": true,
+  "StatusTrace": [
+    {
+      "TimestampUtc": "2026-07-18T12:52:50.8484531+00:00",
+      "WorkspaceCount": 2,
+      "CreateResponseStatus": "starting",
+      "Statuses": [
+        "running",
+        "running"
+      ]
+    },
+    {
+      "TimestampUtc": "2026-07-18T12:52:50.9619190+00:00",
+      "WorkspaceCount": 3,
+      "CreateResponseStatus": "starting",
+      "Statuses": [
+        "running",
+        "running",
+        "running"
+      ]
+    },
+    {
+      "TimestampUtc": "2026-07-18T12:52:51.0788293+00:00",
+      "WorkspaceCount": 4,
+      "CreateResponseStatus": "starting",
+      "Statuses": [
+        "running",
+        "running",
+        "running",
+        "running"
+      ]
+    },
+    {
+      "TimestampUtc": "2026-07-18T12:52:51.2040034+00:00",
+      "WorkspaceCount": 5,
+      "CreateResponseStatus": "starting",
+      "Statuses": [
+        "running",
+        "running",
+        "running",
+        "running",
+        "running"
+      ]
+    },
+    {
+      "TimestampUtc": "2026-07-18T12:52:51.3258284+00:00",
+      "WorkspaceCount": 6,
+      "CreateResponseStatus": "starting",
+      "Statuses": [
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running"
+      ]
+    },
+    {
+      "TimestampUtc": "2026-07-18T12:52:51.4489694+00:00",
+      "WorkspaceCount": 7,
+      "CreateResponseStatus": "starting",
+      "Statuses": [
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running"
+      ]
+    },
+    {
+      "TimestampUtc": "2026-07-18T12:52:51.5974099+00:00",
+      "WorkspaceCount": 8,
+      "CreateResponseStatus": "starting",
+      "Statuses": [
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running"
+      ]
+    },
+    {
+      "TimestampUtc": "2026-07-18T12:52:51.6979007+00:00",
+      "WorkspaceCount": 9,
+      "CreateResponseStatus": "starting",
+      "Statuses": [
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running"
+      ]
+    },
+    {
+      "TimestampUtc": "2026-07-18T12:52:51.8207764+00:00",
+      "WorkspaceCount": 10,
+      "CreateResponseStatus": "starting",
+      "Statuses": [
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running"
+      ]
+    },
+    {
+      "TimestampUtc": "2026-07-18T12:52:51.9444508+00:00",
+      "WorkspaceCount": 11,
+      "CreateResponseStatus": "starting",
+      "Statuses": [
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running"
+      ]
+    },
+    {
+      "TimestampUtc": "2026-07-18T12:52:52.3990570+00:00",
+      "WorkspaceCount": 12,
+      "CreateResponseStatus": "starting",
+      "Statuses": [
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running"
+      ]
+    },
+    {
+      "TimestampUtc": "2026-07-18T12:52:52.5280995+00:00",
+      "WorkspaceCount": 13,
+      "CreateResponseStatus": "starting",
+      "Statuses": [
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running"
+      ]
+    },
+    {
+      "TimestampUtc": "2026-07-18T12:52:52.6441268+00:00",
+      "WorkspaceCount": 14,
+      "CreateResponseStatus": "starting",
+      "Statuses": [
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running"
+      ]
+    },
+    {
+      "TimestampUtc": "2026-07-18T12:52:52.7704138+00:00",
+      "WorkspaceCount": 15,
+      "CreateResponseStatus": "starting",
+      "Statuses": [
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running",
+        "running"
+      ]
+    },
+    {
+      "TimestampUtc": "2026-07-18T12:52:55.9915432+00:00",
+      "WorkspaceCount": 4,
+      "CreateResponseStatus": "starting",
+      "Statuses": [
+        "running",
+        "normal_exited",
+        "abnormal_exited",
+        "launch_failed"
+      ]
+    }
+  ],
+  "FinalWorkspaces": [
+    {
+      "index": 0,
+      "title": "app",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "panes": 1,
+      "terminal_status": "running",
+      "active": true
+    },
+    {
+      "index": 1,
+      "title": "state-02",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "panes": 1,
+      "terminal_status": "normal_exited",
+      "active": false
+    },
+    {
+      "index": 2,
+      "title": "state-03",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "panes": 1,
+      "terminal_status": "abnormal_exited",
+      "active": false
+    },
+    {
+      "index": 3,
+      "title": "launch-failed",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "panes": 1,
+      "terminal_status": "launch_failed",
+      "active": false
+    }
+  ],
+  "FinalSurfaceIds": [
+    4294967301,
+    12884901889,
+    4294967315,
+    12884901911
+  ],
+  "ExitedSurfaceIdsPreserved": true,
+  "TrackedProcessIds": [
+    12992,
+    16208,
+    33172,
+    34216
+  ],
+  "RemainingProcessIds": [],
+  "Screenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\终端状态数据\\真实状态-20260718-205247\\四种稳定状态.png",
+  "Passed": true
+}
