@@ -1316,6 +1316,9 @@ struct BatchAccumulator {
     line: i32,
     col_start: usize,
     col_end: usize, // next expected column (tracks wide chars correctly)
+    /// 最后一个基础字形是否占两列。GPUI 的 `force_width` 只按字形数推进单列，
+    /// 因此双列字形后必须重开批次，不能只依据网格 `col_end` 判断连续。
+    ends_with_wide_glyph: bool,
 }
 
 impl BatchAccumulator {
@@ -1332,12 +1335,18 @@ impl BatchAccumulator {
             line: 0,
             col_start: 0,
             col_end: 0,
+            ends_with_wide_glyph: false,
         }
     }
 
     fn can_append(&self, style: &CellStyle, line: i32, col: usize) -> bool {
         match &self.style {
-            Some(cs) => *cs == *style && self.line == line && col == self.col_end,
+            Some(cs) => {
+                *cs == *style
+                    && self.line == line
+                    && col == self.col_end
+                    && !self.ends_with_wide_glyph
+            }
             None => false,
         }
     }
@@ -1345,6 +1354,7 @@ impl BatchAccumulator {
     fn append(&mut self, c: char, cell_cols: usize) {
         self.text.push(c);
         self.col_end += cell_cols;
+        self.ends_with_wide_glyph = cell_cols > 1;
     }
 
     fn append_zerowidth(&mut self, chars: &[char]) {
@@ -1385,6 +1395,7 @@ impl BatchAccumulator {
         self.line = line;
         self.col_start = col_start;
         self.col_end = col_start + cell_cols;
+        self.ends_with_wide_glyph = cell_cols > 1;
     }
 
     fn flush(&mut self) {
@@ -1416,6 +1427,7 @@ impl BatchAccumulator {
             col_start: self.col_start,
         });
         self.style = None;
+        self.ends_with_wide_glyph = false;
     }
 }
 
@@ -2752,6 +2764,83 @@ mod golden_frame_tests {
             "only the wide glyph produces a run"
         );
         assert_eq!(state.batched_runs[0].text, "中");
+    }
+
+    /// GPUI 的固定列宽塑形不理解单个字形占两列，因此每个宽字符之后必须重开
+    /// 批次，让下一个字形从 Alacritty 的真实网格列重新定位。
+    #[test]
+    fn wide_chars_end_force_width_batches_at_real_grid_columns() {
+        let cjk = vec![
+            cell(0, 0, '中', default_fg(), default_bg(), CellFlags::WIDE_CHAR),
+            cell(
+                0,
+                1,
+                ' ',
+                default_fg(),
+                default_bg(),
+                CellFlags::WIDE_CHAR_SPACER,
+            ),
+            cell(0, 2, '文', default_fg(), default_bg(), CellFlags::WIDE_CHAR),
+            cell(
+                0,
+                3,
+                ' ',
+                default_fg(),
+                default_bg(),
+                CellFlags::WIDE_CHAR_SPACER,
+            ),
+            cell(0, 4, 'A', default_fg(), default_bg(), CellFlags::empty()),
+        ];
+
+        let state = run(cjk, None, None);
+        let runs: Vec<_> = state
+            .batched_runs
+            .iter()
+            .map(|run| (run.text.as_ref(), run.col_start))
+            .collect();
+
+        assert_eq!(runs, vec![("中", 0), ("文", 2), ("A", 4)]);
+    }
+
+    /// 普通单列字符仍应合并，避免修复宽字符时退化英文输出的批处理效率。
+    #[test]
+    fn narrow_chars_still_share_one_force_width_batch() {
+        let state = run(
+            text_row(0, "ABC", default_fg(), CellFlags::empty()),
+            None,
+            None,
+        );
+
+        assert_eq!(state.batched_runs.len(), 1);
+        assert_eq!(state.batched_runs[0].text, "ABC");
+        assert_eq!(state.batched_runs[0].col_start, 0);
+    }
+
+    /// 宽字符前的单列前缀可以安全共用批次，但宽字符后的后缀必须从真实网格列重开。
+    #[test]
+    fn mixed_width_text_only_splits_after_wide_glyph() {
+        let mixed = vec![
+            cell(0, 0, 'A', default_fg(), default_bg(), CellFlags::empty()),
+            cell(0, 1, '中', default_fg(), default_bg(), CellFlags::WIDE_CHAR),
+            cell(
+                0,
+                2,
+                ' ',
+                default_fg(),
+                default_bg(),
+                CellFlags::WIDE_CHAR_SPACER,
+            ),
+            cell(0, 3, 'B', default_fg(), default_bg(), CellFlags::empty()),
+        ];
+
+        let state = run(mixed, None, None);
+        let runs: Vec<_> = state
+            .batched_runs
+            .iter()
+            .map(|run| (run.text.as_ref(), run.col_start))
+            .collect();
+
+        assert_eq!(runs, vec![("A中", 0), ("B", 3)]);
     }
 
     /// Viewport culling: rows outside `[first_visible_row, last_visible_row)`
