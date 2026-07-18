@@ -265,7 +265,7 @@ function Get-MetricDelta {
 }
 
 function Measure-ProcessTree {
-    <# 每秒记录应用外壳与真实 PowerShell 子进程，CPU 按逻辑处理器归一化。 #>
+    <# 按绝对一秒节拍记录应用外壳与真实 PowerShell 子进程，CPU 按逻辑处理器归一化。 #>
     param([Parameter(Mandatory = $true)][int]$RootProcessId, [Parameter(Mandatory = $true)][int]$Seconds)
 
     $rows = [Collections.Generic.List[object]]::new()
@@ -273,8 +273,14 @@ function Measure-ProcessTree {
     $root = Get-Process -Id $RootProcessId -ErrorAction Stop
     $previousCpu = $root.TotalProcessorTime.TotalSeconds
     $previousTime = [DateTimeOffset]::UtcNow
+    $sampleClock = [Diagnostics.Stopwatch]::StartNew()
     for ($sample = 1; $sample -le $Seconds; $sample++) {
-        Start-Sleep -Seconds 1
+        # 进程树枚举本身需要约 100～200 ms；若每轮固定再睡一秒，1800 个样本会
+        # 漂移到 30 分钟以后并让有界负载正常退出。这里等待绝对目标时刻来消除累计漂移。
+        $remainingMilliseconds = ($sample * 1000.0) - $sampleClock.Elapsed.TotalMilliseconds
+        if ($remainingMilliseconds -gt 0) {
+            Start-Sleep -Milliseconds ([Math]::Ceiling($remainingMilliseconds))
+        }
         $now = [DateTimeOffset]::UtcNow
         $root = Get-Process -Id $RootProcessId -ErrorAction Stop
         $cpu = (($root.TotalProcessorTime.TotalSeconds - $previousCpu) / [Math]::Max(0.001, ($now - $previousTime).TotalSeconds) / [Environment]::ProcessorCount) * 100
