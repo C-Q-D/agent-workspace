@@ -8,8 +8,8 @@
 //! clipboard and surface a confirmation toast.
 
 use gpui::{
-    AnyElement, ClickEvent, Context, IntoElement, MouseButton, ParentElement, Styled, deferred,
-    div, prelude::*, px,
+    AnyElement, ClickEvent, Context, Focusable, IntoElement, MouseButton, ParentElement, Styled,
+    deferred, div, prelude::*, px,
 };
 
 use crate::app::files_tree;
@@ -24,9 +24,9 @@ impl PaneFlowApp {
         window: &mut gpui::Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        // Two items × ~25px + 8px padding. Flip above the click when there
+        // 三个条目加菜单内边距；空间不足时沿用工作区菜单规则翻到点击点上方。
         // isn't room below (mirrors the workspace menu).
-        let menu_height = px(66.);
+        let menu_height = px(94.);
         let menu_width = px(220.);
         let menu_pos =
             clamped_context_menu_position(menu.position, menu_width, menu_height, window);
@@ -34,6 +34,8 @@ impl PaneFlowApp {
         let abs_path = menu.path.clone();
         let rel_root = self.files_tree.root.clone();
         let rel_path = menu.path.clone();
+        let reference_root = self.files_tree.root.clone();
+        let reference_path = menu.path.clone();
 
         let context_menu = div()
             .id("files-context-menu")
@@ -55,6 +57,32 @@ impl PaneFlowApp {
             }))
             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
             .on_mouse_down(MouseButton::Right, |_, _, cx| cx.stop_propagation())
+            .child(self.render_context_menu_item(
+                "files-context-add-reference".into(),
+                "Add Path to Prompt",
+                None,
+                ui,
+                cx.listener(move |this, _: &ClickEvent, window, cx| {
+                    let reference =
+                        files_tree::model_path_reference(&reference_root, &reference_path);
+                    let terminal = this.files_surface_id.and_then(|surface_id| {
+                        crate::app::ipc_handler::find_terminal_by_surface_id(
+                            &this.workspaces,
+                            surface_id,
+                            cx,
+                        )
+                    });
+                    if let Some(terminal) = terminal {
+                        terminal.read(cx).inject_text(&format!("{reference} "));
+                        terminal.read(cx).focus_handle(cx).focus(window, cx);
+                        this.show_toast("Added path to prompt", cx);
+                    } else {
+                        this.show_toast("Target terminal is unavailable", cx);
+                    }
+                    this.files_menu_open = None;
+                    cx.stop_propagation();
+                }),
+            ))
             .child(self.render_context_menu_item(
                 "files-context-copy-path".into(),
                 "Copy Path",
