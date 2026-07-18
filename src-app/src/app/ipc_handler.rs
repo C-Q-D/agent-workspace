@@ -2369,6 +2369,7 @@ impl PaneFlowApp {
                             "cwd": ws.cwd,
                             "panes": ws.pane_count(),
                             "terminal_status": ws.terminal_status(cx).as_wire_name(),
+                            "reference_format": ws.reference_format.as_persisted(),
                             "active": i == self.active_idx,
                         })
                     })
@@ -2383,6 +2384,7 @@ impl PaneFlowApp {
                         "title": ws.title,
                         "cwd": ws.cwd,
                         "panes": ws.pane_count(),
+                        "reference_format": ws.reference_format.as_persisted(),
                         "layout": layout.and_then(|l| serde_json::to_value(l).ok()),
                     })
                 } else {
@@ -2475,6 +2477,7 @@ impl PaneFlowApp {
                     "title": name,
                     "panes": panes,
                     "terminal_status": terminal_status,
+                    "reference_format": self.workspaces[idx].reference_format.as_persisted(),
                 })
             }
             "workspace.up" => self.handle_workspace_up(params, cx),

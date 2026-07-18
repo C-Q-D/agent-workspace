@@ -39,6 +39,19 @@ impl ReferenceFormat {
             _ => Self::Common,
         }
     }
+
+    /// 返回右侧选择器使用的短标签。
+    pub(crate) const fn label(self) -> &'static str {
+        match self {
+            Self::Common => "Common",
+            Self::Codex => "Codex",
+            Self::Claude => "Claude",
+            Self::PowerShell => "Shell",
+        }
+    }
+
+    /// 第一版固定展示顺序；数组避免每帧为选择器分配集合。
+    pub(crate) const ALL: [Self; 4] = [Self::Common, Self::Codex, Self::Claude, Self::PowerShell];
 }
 
 /// 描述一次引用格式化请求。
@@ -202,6 +215,14 @@ mod tests {
         assert_eq!(
             ReferenceFormat::from_persisted("CLAUDE-CODE"),
             ReferenceFormat::Claude
+        );
+    }
+
+    #[test]
+    fn selector_labels_and_order_are_stable() {
+        assert_eq!(
+            ReferenceFormat::ALL.map(ReferenceFormat::label),
+            ["Common", "Codex", "Claude", "Shell"]
         );
     }
 }

@@ -212,12 +212,7 @@ impl PaneFlowApp {
             self.show_toast("File changed; reopen it before adding lines", cx);
             return;
         }
-        let reference = crate::app::files_tree::model_line_reference(
-            &self.files_tree.root,
-            &document.path,
-            first,
-            last,
-        );
+        let reference = self.format_files_reference(&document.path, false, Some((first, last)));
         if self.inject_files_reference(&reference, window, cx) {
             self.show_toast("Added line reference to prompt", cx);
         } else {

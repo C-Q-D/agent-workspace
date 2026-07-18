@@ -31,6 +31,7 @@ use gpui::{
 
 use crate::app::files_tree::{self, FilesTreeState};
 use crate::app::ipc_handler::{find_pane_by_surface_id, find_terminal_by_surface_id};
+use crate::reference_formatter::{ReferenceFormat, ReferenceRequest, format_reference};
 use crate::{PaneFlowApp, ToggleFilesSidebar};
 
 /// Fixed sidebar width - matches the sessions sidebar (a resizable width is
@@ -44,6 +45,50 @@ pub(super) const INDENT_STEP: f32 = 12.;
 pub(super) const DIMMED_OPACITY: f32 = 0.55;
 
 impl PaneFlowApp {
+    /// 返回当前文件面板所属工作区的引用策略；索引失效时使用公共格式。
+    pub(super) fn active_files_reference_format(&self) -> ReferenceFormat {
+        self.workspaces
+            .get(self.active_idx)
+            .map_or(ReferenceFormat::Common, |workspace| {
+                workspace.reference_format
+            })
+    }
+
+    /// 更新当前工作区的引用策略并立即持久化，不影响其他工作区。
+    pub(super) fn set_active_files_reference_format(
+        &mut self,
+        format: ReferenceFormat,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(workspace) = self.workspaces.get_mut(self.active_idx) else {
+            return;
+        };
+        if workspace.reference_format == format {
+            return;
+        }
+        workspace.reference_format = format;
+        self.save_session(cx);
+        cx.notify();
+    }
+
+    /// 统一格式化右键路径与行选择引用，避免两个入口产生不同 CLI 文本。
+    pub(super) fn format_files_reference(
+        &self,
+        target_path: &Path,
+        is_directory: bool,
+        lines: Option<(usize, usize)>,
+    ) -> String {
+        format_reference(
+            self.active_files_reference_format(),
+            ReferenceRequest {
+                workspace_root: &self.files_tree.root,
+                target_path,
+                is_directory,
+                lines,
+            },
+        )
+    }
+
     /// 把已经格式化的文件引用安全预填到当前放大工作区绑定终端。
     ///
     /// `inject_text` 会尊重 bracketed paste，但绝不追加回车；返回值表示目标终端
@@ -369,6 +414,7 @@ impl PaneFlowApp {
                 self.cached_config.cockpit_chrome_material_enabled(),
             ))
             .child(self.files_sidebar_header(ui, cx))
+            .child(self.files_reference_format_selector(ui, cx))
             .child(self.files_sidebar_body(ui, cx))
             .into_any_element()
     }

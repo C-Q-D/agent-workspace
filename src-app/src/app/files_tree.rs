@@ -230,41 +230,6 @@ pub(crate) fn workspace_relative_path(root: &Path, path: &Path) -> String {
     }
 }
 
-/// 将文件树路径格式化为 Codex/Claude CLI 都容易识别的模型路径引用。
-///
-/// 引用始终优先使用 workspaceRoot 相对路径，并统一为 `/` 分隔符；根目录使用
-/// `.`，避免生成内容为空的 `f:`。这里只提供路径，不读取或拼接文件正文。
-pub(crate) fn model_path_reference(root: &Path, path: &Path) -> String {
-    crate::reference_formatter::format_reference(
-        crate::reference_formatter::ReferenceFormat::Common,
-        crate::reference_formatter::ReferenceRequest {
-            workspace_root: root,
-            target_path: path,
-            // 旧入口没有携带节点类型；UNIT-16 的调用方会改为传入真实目录事实。
-            is_directory: false,
-            lines: None,
-        },
-    )
-}
-
-/// 将规范化后的 1-based 闭区间附加到模型路径引用。
-pub(crate) fn model_line_reference(
-    root: &Path,
-    path: &Path,
-    first_line: usize,
-    last_line: usize,
-) -> String {
-    crate::reference_formatter::format_reference(
-        crate::reference_formatter::ReferenceFormat::Common,
-        crate::reference_formatter::ReferenceRequest {
-            workspace_root: root,
-            target_path: path,
-            is_directory: false,
-            lines: Some((first_line, last_line)),
-        },
-    )
-}
-
 /// Coalesce a batch of affected directory paths into the minimal set to
 /// re-read (US-005): dedup, then drop any path that has an ancestor also in
 /// the set - a parent re-read subsumes its queued descendants (the burst-safe
@@ -530,46 +495,6 @@ mod tests {
         assert_eq!(
             workspace_relative_path(Path::new("/r"), Path::new("/other/y")),
             "/other/y"
-        );
-    }
-
-    #[test]
-    fn model_reference_handles_root_nested_and_space_paths() {
-        assert_eq!(
-            model_path_reference(Path::new("/r"), Path::new("/r")),
-            "f:."
-        );
-        assert_eq!(
-            model_path_reference(Path::new("/r"), Path::new("/r/src/my file.rs")),
-            "f:src/my file.rs"
-        );
-    }
-
-    #[test]
-    fn model_line_reference_normalizes_forward_reverse_and_single_ranges() {
-        let root = Path::new("/r");
-        let path = Path::new("/r/src/main.rs");
-        assert_eq!(
-            model_line_reference(root, path, 23, 43),
-            "f:src/main.rs#L23-L43"
-        );
-        assert_eq!(
-            model_line_reference(root, path, 43, 23),
-            "f:src/main.rs#L23-L43"
-        );
-        assert_eq!(model_line_reference(root, path, 7, 7), "f:src/main.rs#L7");
-        assert_eq!(model_line_reference(root, path, 0, 0), "f:src/main.rs#L1");
-    }
-
-    #[cfg(windows)]
-    #[test]
-    fn model_reference_normalizes_windows_separators() {
-        assert_eq!(
-            model_path_reference(
-                Path::new(r"C:\workspace\repo"),
-                Path::new(r"C:\workspace\repo\src\main.rs")
-            ),
-            "f:src/main.rs"
         );
     }
 

@@ -33,8 +33,8 @@ impl PaneFlowApp {
         let abs_path = menu.path.clone();
         let rel_root = self.files_tree.root.clone();
         let rel_path = menu.path.clone();
-        let reference_root = self.files_tree.root.clone();
         let reference_path = menu.path.clone();
+        let reference_is_dir = menu.is_dir;
 
         let mut context_menu = div()
             .id("files-context-menu")
@@ -63,7 +63,7 @@ impl PaneFlowApp {
                 ui,
                 cx.listener(move |this, _: &ClickEvent, window, cx| {
                     let reference =
-                        files_tree::model_path_reference(&reference_root, &reference_path);
+                        this.format_files_reference(&reference_path, reference_is_dir, None);
                     if this.inject_files_reference(&reference, window, cx) {
                         this.show_toast("Added path to prompt", cx);
                     } else {

@@ -9,6 +9,7 @@ use gpui::{
 };
 
 use crate::PaneFlowApp;
+use crate::reference_formatter::ReferenceFormat;
 
 struct FilesSidebarRenderTimeCanary {
     start: std::time::Instant,
@@ -43,6 +44,53 @@ impl Drop for FilesSidebarRenderTimeCanary {
 }
 
 impl PaneFlowApp {
+    /// 渲染始终可见的工作区级 CLI 引用格式选择器。
+    pub(super) fn files_reference_format_selector(
+        &self,
+        ui: crate::theme::UiColors,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let selected = self.active_files_reference_format();
+        let mut selector = div()
+            .id("files-reference-format-selector")
+            .h(px(32.))
+            .flex_none()
+            .px(px(8.))
+            .pb(px(4.))
+            .flex()
+            .items_center()
+            .gap(px(3.));
+
+        for format in ReferenceFormat::ALL {
+            let is_selected = selected == format;
+            selector = selector.child(
+                div()
+                    .id(SharedString::from(format!(
+                        "files-reference-format-{}",
+                        format.as_persisted()
+                    )))
+                    .flex_1()
+                    .min_w_0()
+                    .h(px(26.))
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .rounded(px(5.))
+                    .cursor_pointer()
+                    .text_size(px(10.))
+                    .text_color(if is_selected { ui.base } else { ui.muted })
+                    .bg(if is_selected { ui.accent } else { ui.subtle })
+                    .hover(|style| style.opacity(0.88))
+                    .on_click(cx.listener(move |this, _: &ClickEvent, _window, cx| {
+                        this.set_active_files_reference_format(format, cx);
+                        cx.stop_propagation();
+                    }))
+                    .child(format.label()),
+            );
+        }
+        selector.into_any_element()
+    }
+
     pub(super) fn files_sidebar_header(
         &self,
         ui: crate::theme::UiColors,
