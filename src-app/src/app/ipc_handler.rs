@@ -2487,6 +2487,11 @@ impl PaneFlowApp {
                         .map(|i| i as usize)
                         .unwrap_or(self.active_idx);
                     if idx < self.workspaces.len() {
+                        // IPC 是显式无交互关闭；若该窗口同时有 UI 确认框，先按稳定
+                        // ID 撤销确认，避免留下指向已删除工作区的遮罩层。
+                        if self.pending_workspace_close == Some(self.workspaces[idx].id) {
+                            self.pending_workspace_close = None;
+                        }
                         if let Some(dir) = self.workspaces[idx].git_dir.clone() {
                             self.unwatch_git_dir(&dir);
                         }

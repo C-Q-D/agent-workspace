@@ -1100,6 +1100,8 @@ struct PaneFlowApp {
     closed_panes: Vec<ClosedPaneRecord>,
     /// Whether the "About PaneFlow" dialog is visible.
     show_about_dialog: bool,
+    /// 等待用户确认关闭的稳定 workspace ID；索引可能在对话框期间发生变化。
+    pending_workspace_close: Option<u64>,
     /// Whether the command-palette-style theme picker is visible.
     show_theme_picker: bool,
     /// Typeahead filter for the theme picker (case-insensitive substring).
@@ -2102,6 +2104,10 @@ impl Render for PaneFlowApp {
 
         if self.show_about_dialog {
             app_content = app_content.child(self.render_about_dialog(cx));
+        }
+
+        if self.pending_workspace_close.is_some() {
+            app_content = app_content.child(self.render_workspace_close_dialog(ui, cx));
         }
 
         if let Some(menu) = self.workspace_menu_open

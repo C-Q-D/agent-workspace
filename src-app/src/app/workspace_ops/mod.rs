@@ -93,6 +93,26 @@ fn closed_pane_scrollback_bytes(records: &[ClosedPaneRecord]) -> usize {
         .sum()
 }
 
+/// 判断工作区的当前布局或放大前保存布局中是否仍有运行中的真实终端。
+///
+/// 放大状态下 `root` 只包含当前窗格，其他后台终端位于 `saved_layout`；两者都必须
+/// 检查，否则用户可能在看一个已退出终端时误关仍在执行任务的隐藏终端。
+fn workspace_has_running_terminal(workspace: &Workspace, cx: &App) -> bool {
+    workspace
+        .root
+        .iter()
+        .chain(workspace.saved_layout.iter())
+        .flat_map(LayoutTree::collect_leaves)
+        .any(|pane| {
+            pane.read(cx).tabs.iter().any(|tab| match tab {
+                crate::pane::TabContent::Terminal(terminal) => {
+                    terminal.read(cx).terminal.exited.is_none()
+                }
+                crate::pane::TabContent::Markdown(_) | crate::pane::TabContent::Diff(_) => false,
+            })
+        })
+}
+
 fn capture_closed_pane_record(
     pane: &gpui::Entity<crate::pane::Pane>,
     workspace_idx: usize,
@@ -689,6 +709,28 @@ impl PaneFlowApp {
             return;
         }
         self.workspace_menu_open = None;
+        if workspace_has_running_terminal(&self.workspaces[idx], cx) {
+            self.pending_workspace_close = Some(self.workspaces[idx].id);
+            cx.notify();
+            return;
+        }
+        self.execute_close_workspace_at(idx, window, cx);
+    }
+
+    /// 执行已经无需确认或已由用户确认的工作区关闭。
+    ///
+    /// 所有 UI 关闭入口最终汇聚到这里，确保 watcher、worktree、Composer、广播
+    /// 状态和 Diff 视图的清理顺序保持唯一。
+    fn execute_close_workspace_at(
+        &mut self,
+        idx: usize,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if idx >= self.workspaces.len() {
+            return;
+        }
+        self.pending_workspace_close = None;
         if let Some(dir) = self.workspaces[idx].git_dir.clone() {
             self.unwatch_git_dir(&dir);
         }
@@ -724,6 +766,29 @@ impl PaneFlowApp {
         // closed workspace must drop). Deferred so the rebuild runs after the
         // close settles, never inside a render/callback.
         self.reconcile_diff_after_workspace_change(cx);
+    }
+
+    /// 取消关闭确认，不触发任何工作区或终端副作用。
+    pub(crate) fn cancel_workspace_close(&mut self, cx: &mut Context<Self>) {
+        if self.pending_workspace_close.take().is_some() {
+            cx.notify();
+        }
+    }
+
+    /// 按稳定 workspace ID 确认关闭，避免确认期间重排导致关闭错误索引。
+    pub(crate) fn confirm_workspace_close(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(workspace_id) = self.pending_workspace_close.take() else {
+            return;
+        };
+        let Some(idx) = self
+            .workspaces
+            .iter()
+            .position(|workspace| workspace.id == workspace_id)
+        else {
+            cx.notify();
+            return;
+        };
+        self.execute_close_workspace_at(idx, window, cx);
     }
 
     /// Move a workspace (identified by `from_id`) so it ends up at `to_idx`

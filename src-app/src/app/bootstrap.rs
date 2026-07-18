@@ -937,6 +937,7 @@ impl PaneFlowApp {
             swap_source: None,
             closed_panes: Vec::new(),
             show_about_dialog: false,
+            pending_workspace_close: None,
             show_theme_picker: false,
             theme_picker_query: String::new(),
             theme_picker_selected_idx: 0,

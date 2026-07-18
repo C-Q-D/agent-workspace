@@ -3582,6 +3582,63 @@ mod tests {
         );
     }
 
+    /// 真实 Windows 验收：销毁 PTY 后根 PowerShell 与其子 PowerShell 都必须退出。
+    #[cfg(windows)]
+    #[test]
+    fn dropping_terminal_cleans_real_powershell_process_tree() {
+        let dir = tempfile::tempdir().expect("应能创建真实进程树测试目录");
+        let pid_file = dir.path().join("child.pid");
+        let quoted_pid_file = pid_file.to_string_lossy().replace('\'', "''");
+        let state = TerminalState::new_plain(
+            Some(dir.path().to_path_buf()),
+            9_001,
+            Some((80, 24)),
+            None,
+            None,
+        )
+        .expect("应能启动真实 PowerShell PTY");
+        let root_pid = state.child_pid;
+        let command = format!(
+            "$exe=(Get-Process -Id $PID).Path; $child=Start-Process -FilePath $exe -ArgumentList '-NoProfile','-Command','Start-Sleep -Seconds 30' -PassThru; [IO.File]::WriteAllText('{quoted_pid_file}', [string]$child.Id); Wait-Process -Id $child.Id\r\n"
+        );
+        state.notifier.notify(command.into_bytes());
+
+        let child_pid = (0..100)
+            .find_map(|_| {
+                std::thread::sleep(std::time::Duration::from_millis(50));
+                std::fs::read_to_string(&pid_file)
+                    .ok()
+                    .and_then(|pid| pid.trim().parse::<u32>().ok())
+            })
+            .expect("真实子 PowerShell 应在 5 秒内写出 PID");
+        assert!(
+            windows_process_entries()
+                .iter()
+                .any(|(pid, _)| *pid == root_pid),
+            "PTY 根 PowerShell 必须仍在运行"
+        );
+        assert!(
+            windows_process_entries()
+                .iter()
+                .any(|(pid, _)| *pid == child_pid),
+            "子 PowerShell 必须仍在运行"
+        );
+
+        drop(state);
+        let cleaned = (0..120).any(|_| {
+            std::thread::sleep(std::time::Duration::from_millis(50));
+            let entries = windows_process_entries();
+            !entries.iter().any(|(pid, _)| *pid == root_pid)
+                && !entries.iter().any(|(pid, _)| *pid == child_pid)
+        });
+        if !cleaned {
+            // 测试失败时仍主动清理真实进程，避免失败用例污染后续开发环境。
+            terminate_windows_process_tree(root_pid);
+            terminate_windows_process_tree(child_pid);
+        }
+        assert!(cleaned, "销毁终端后根进程和子进程必须在 6 秒内全部退出");
+    }
+
     #[test]
     fn output_generation_advances_on_pty_output() {
         // US-010: `workspace.up` polls `output_generation` as its prefill
