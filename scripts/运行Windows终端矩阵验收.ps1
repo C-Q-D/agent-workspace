@@ -290,6 +290,7 @@ function Measure-ProcessTree {
         $signatures.Add(($ids -join ',')) | Out-Null
         $tree = @($ids | ForEach-Object { Get-Process -Id $_ -ErrorAction SilentlyContinue } | Where-Object { $null -ne $_ })
         $powershell = @($tree | Where-Object { $_.ProcessName -in @('pwsh', 'powershell') })
+        $conhost = @($tree | Where-Object { $_.ProcessName -eq 'conhost' })
         $rows.Add([pscustomobject]@{
             Sample = $sample
             TimestampUtc = $now.ToString('O')
@@ -300,8 +301,13 @@ function Measure-ProcessTree {
             AppHandles = $root.HandleCount
             TreeProcessCount = $tree.Count
             TreeWorkingSetMiB = [Math]::Round((($tree | Measure-Object WorkingSet64 -Sum).Sum) / 1MB, 3)
+            TreePrivateMiB = [Math]::Round((($tree | Measure-Object PrivateMemorySize64 -Sum).Sum) / 1MB, 3)
             PowerShellCount = $powershell.Count
             PowerShellWorkingSetMiB = [Math]::Round((($powershell | Measure-Object WorkingSet64 -Sum).Sum) / 1MB, 3)
+            PowerShellPrivateMiB = [Math]::Round((($powershell | Measure-Object PrivateMemorySize64 -Sum).Sum) / 1MB, 3)
+            ConhostCount = $conhost.Count
+            ConhostWorkingSetMiB = [Math]::Round((($conhost | Measure-Object WorkingSet64 -Sum).Sum) / 1MB, 3)
+            ConhostPrivateMiB = [Math]::Round((($conhost | Measure-Object PrivateMemorySize64 -Sum).Sum) / 1MB, 3)
         })
     }
     return [pscustomobject]@{ Rows = @($rows); Stable = ($signatures.Count -eq 1); Signatures = @($signatures) }
@@ -398,6 +404,21 @@ try {
     $firstAfter = Get-RenderMetrics -SurfaceId $firstId
     $lastAfter = Get-RenderMetrics -SurfaceId $lastId
     $processIdsAfter = @(Get-ProcessTreeIds -RootProcessId $process.Id)
+    # 固定保存采样结束时的真实进程树明细，便于区分桌面外壳、PowerShell 和
+    # conhost 开销；PID 只用于本轮证据，不作为跨运行的稳定标识。
+    $processTreeSnapshot = @($processIdsAfter | ForEach-Object {
+        $item = Get-Process -Id $_ -ErrorAction SilentlyContinue
+        if ($null -ne $item) {
+            try { $parentId = if ($null -eq $item.Parent) { 0 } else { [int]$item.Parent.Id } } catch { $parentId = 0 }
+            [pscustomobject]@{
+                Id = [int]$item.Id
+                ParentId = $parentId
+                Name = [string]$item.ProcessName
+                WorkingSetMiB = [Math]::Round($item.WorkingSet64 / 1MB, 3)
+                PrivateMiB = [Math]::Round($item.PrivateMemorySize64 / 1MB, 3)
+            }
+        }
+    })
 
     # 等待有界负载写出最终标记，逐窗口读取真实 scrollback 证明后台未丢尾部。
     Start-Sleep -Seconds ($loadTailSeconds + 2)
@@ -446,9 +467,17 @@ try {
         AppPrivateFirstMiB = $rows[0].AppPrivateMiB
         AppPrivateLastMiB = $rows[-1].AppPrivateMiB
         TreeProcessCountPeak = (($rows | Measure-Object TreeProcessCount -Maximum).Maximum)
+        TreeWorkingSetPeakMiB = [Math]::Round((($rows | Measure-Object TreeWorkingSetMiB -Maximum).Maximum), 3)
+        TreePrivatePeakMiB = [Math]::Round((($rows | Measure-Object TreePrivateMiB -Maximum).Maximum), 3)
         PowerShellCountPeak = (($rows | Measure-Object PowerShellCount -Maximum).Maximum)
+        PowerShellWorkingSetPeakMiB = [Math]::Round((($rows | Measure-Object PowerShellWorkingSetMiB -Maximum).Maximum), 3)
+        PowerShellPrivatePeakMiB = [Math]::Round((($rows | Measure-Object PowerShellPrivateMiB -Maximum).Maximum), 3)
+        ConhostCountPeak = (($rows | Measure-Object ConhostCount -Maximum).Maximum)
+        ConhostWorkingSetPeakMiB = [Math]::Round((($rows | Measure-Object ConhostWorkingSetMiB -Maximum).Maximum), 3)
+        ConhostPrivatePeakMiB = [Math]::Round((($rows | Measure-Object ConhostPrivateMiB -Maximum).Maximum), 3)
         ProcessTreeStableDuringSample = [bool]$samples.Stable
         ProcessIdsStableDuringSample = (($processIdsBefore -join ',') -eq ($processIdsAfter -join ','))
+        ProcessTreeSnapshot = $processTreeSnapshot
         FirstSurfaceRenderDelta = Get-MetricDelta -Before $firstBefore -After $firstAfter
         LastSurfaceRenderDelta = Get-MetricDelta -Before $lastBefore -After $lastAfter
         AllFinalMarkersObserved = (@($completion | Where-Object { -not $_.Completed }).Count -eq 0)
