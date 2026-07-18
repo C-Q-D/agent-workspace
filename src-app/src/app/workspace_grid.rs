@@ -5,7 +5,7 @@
 
 use gpui::{
     AnyElement, App, ClickEvent, Context, FontWeight, InteractiveElement, IntoElement,
-    ParentElement, Styled, Window, div, prelude::*, px,
+    ParentElement, Styled, Window, div, prelude::*, px, svg,
 };
 
 use crate::PaneFlowApp;
@@ -89,6 +89,11 @@ impl WorkspaceGridPlan {
         let start = self.page.saturating_mul(self.page_size);
         workspace_index >= start && workspace_index < start.saturating_add(self.page_size)
     }
+
+    /// 返回包含目标工作区索引的页码。
+    fn page_for_workspace(self, workspace_index: usize) -> usize {
+        workspace_index / self.page_size.max(1)
+    }
 }
 
 /// 仅使用整数运算计算向上取整平方根，避免浮点边界影响 9、16 等关键容量。
@@ -110,11 +115,28 @@ impl PaneFlowApp {
         ui: crate::theme::UiColors,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        let plan = WorkspaceGridPlan::calculate(
+        let sizing_plan = WorkspaceGridPlan::calculate(
             self.workspaces.len(),
             available_width,
             available_height,
             self.workspace_grid_page,
+        );
+        let requested_page = self
+            .workspace_grid_reveal_id
+            .take()
+            .and_then(|workspace_id| {
+                self.workspaces
+                    .iter()
+                    .position(|workspace| workspace.id == workspace_id)
+            })
+            .map_or(sizing_plan.page, |index| {
+                sizing_plan.page_for_workspace(index)
+            });
+        let plan = WorkspaceGridPlan::calculate(
+            self.workspaces.len(),
+            available_width,
+            available_height,
+            requested_page,
         );
         self.workspace_grid_page = plan.page;
         let start = plan.page.saturating_mul(plan.page_size);
@@ -203,6 +225,36 @@ impl PaneFlowApp {
                                 .font_weight(FontWeight::MEDIUM)
                                 .text_color(ui.text)
                                 .child(title),
+                        )
+                        .child(
+                            div()
+                                .id(gpui::SharedString::from(format!(
+                                    "workspace-grid-maximize-{workspace_id}"
+                                )))
+                                .size(px(22.))
+                                .flex_none()
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .rounded(px(4.))
+                                .text_color(ui.muted)
+                                .hover(|style| style.bg(crate::theme::ui_colors().base))
+                                .on_click(cx.listener(move |this, _: &ClickEvent, window, cx| {
+                                    cx.stop_propagation();
+                                    if let Some(index) = this
+                                        .workspaces
+                                        .iter()
+                                        .position(|workspace| workspace.id == workspace_id)
+                                    {
+                                        this.maximize_workspace_at(index, window, cx);
+                                    }
+                                }))
+                                .child(
+                                    svg()
+                                        .size(px(11.))
+                                        .path("icons/generic_maximize.svg")
+                                        .text_color(ui.muted),
+                                ),
                         ),
                 )
                 .child(div().flex_1().min_h_0().overflow_hidden().child(terminal));
@@ -254,6 +306,106 @@ impl PaneFlowApp {
             );
         }
         root.into_any_element()
+    }
+
+    /// 渲染单个应用级放大工作区；其他工作区继续运行但关闭终端重绘。
+    pub(crate) fn render_maximized_workspace(
+        &mut self,
+        window: &mut Window,
+        available_width: f32,
+        available_height: f32,
+        ui: crate::theme::UiColors,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let Some(workspace_id) = self.maximized_workspace_id else {
+            return self.render_workspace_grid(window, available_width, available_height, ui, cx);
+        };
+        let Some(index) = self
+            .workspaces
+            .iter()
+            .position(|workspace| workspace.id == workspace_id)
+        else {
+            // 生命周期原子会在关闭入口主动清理；这里保留防御性回退，避免空白主区域。
+            self.maximized_workspace_id = None;
+            return self.render_workspace_grid(window, available_width, available_height, ui, cx);
+        };
+
+        for (workspace_index, workspace) in self.workspaces.iter_mut().enumerate() {
+            workspace.set_grid_page_visible(workspace_index == index, cx);
+        }
+        let title = self.workspaces[index].title.clone();
+        let app_weak = cx.weak_entity();
+        let on_resize_end = std::rc::Rc::new(move |cx: &mut App| {
+            let _ = app_weak.update(cx, |app, cx| app.save_session(cx));
+        });
+        let terminal = self.workspaces[index].root.as_ref().map_or_else(
+            || {
+                div()
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .size_full()
+                    .text_color(ui.muted)
+                    .child("No terminal panes open")
+                    .into_any_element()
+            },
+            |root| root.render(window, cx, Some(on_resize_end)),
+        );
+
+        div()
+            .size_full()
+            .min_h_0()
+            .flex()
+            .flex_col()
+            .bg(ui.base)
+            .child(
+                div()
+                    .h(px(32.))
+                    .flex_none()
+                    .px(px(10.))
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .border_b_1()
+                    .border_color(ui.border)
+                    .bg(ui.surface)
+                    .child(
+                        div()
+                            .min_w_0()
+                            .overflow_hidden()
+                            .whitespace_nowrap()
+                            .text_ellipsis()
+                            .text_size(px(11.))
+                            .font_weight(FontWeight::MEDIUM)
+                            .text_color(ui.text)
+                            .child(title),
+                    )
+                    .child(
+                        div()
+                            .id("workspace-grid-restore")
+                            .size(px(24.))
+                            .flex_none()
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .cursor_pointer()
+                            .rounded(px(4.))
+                            .text_color(ui.muted)
+                            .hover(|style| style.bg(crate::theme::ui_colors().subtle))
+                            .on_click(cx.listener(|this, _: &ClickEvent, _window, cx| {
+                                cx.stop_propagation();
+                                this.restore_workspace_grid(cx);
+                            }))
+                            .child(
+                                svg()
+                                    .size(px(12.))
+                                    .path("icons/generic_restore.svg")
+                                    .text_color(ui.muted),
+                            ),
+                    ),
+            )
+            .child(div().flex_1().min_h_0().overflow_hidden().child(terminal))
+            .into_any_element()
     }
 }
 
@@ -307,5 +459,9 @@ mod tests {
         assert!(!plan.contains_workspace(8));
         assert!(plan.contains_workspace(9));
         assert!(plan.contains_workspace(15));
+        assert_eq!(plan.page_for_workspace(0), 0);
+        assert_eq!(plan.page_for_workspace(8), 0);
+        assert_eq!(plan.page_for_workspace(9), 1);
+        assert_eq!(plan.page_for_workspace(15), 1);
     }
 }

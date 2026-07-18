@@ -221,6 +221,45 @@ impl PaneFlowApp {
         self.activate_workspace_at(idx, WorkspaceFocusTarget::FirstPane, window, cx);
     }
 
+    /// 从左侧工作区列表进入目标工作区的应用级放大视图。
+    ///
+    /// 已有放大目标时直接替换稳定 ID，不经过矩阵中间态；普通内部选择入口仍只
+    /// 更新 active workspace，避免矩阵标题点击等行为被隐式改成放大。
+    pub(crate) fn select_workspace_from_sidebar(
+        &mut self,
+        idx: usize,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        let Some(workspace_id) = self.workspaces.get(idx).map(|workspace| workspace.id) else {
+            return false;
+        };
+        self.maximized_workspace_id = Some(workspace_id);
+        self.activate_workspace_at(idx, WorkspaceFocusTarget::FirstPane, window, cx)
+    }
+
+    /// 显式进入指定工作区的应用级放大视图。
+    pub(crate) fn maximize_workspace_at(
+        &mut self,
+        idx: usize,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        self.select_workspace_from_sidebar(idx, window, cx)
+    }
+
+    /// 仅由放大视图的恢复按钮退出应用级放大，并标记活动工作区所在矩阵页。
+    pub(crate) fn restore_workspace_grid(&mut self, cx: &mut Context<Self>) {
+        if self.maximized_workspace_id.take().is_none() {
+            return;
+        }
+        self.workspace_grid_reveal_id = self
+            .workspaces
+            .get(self.active_idx)
+            .map(|workspace| workspace.id);
+        cx.notify();
+    }
+
     pub(crate) fn activate_workspace_at(
         &mut self,
         idx: usize,

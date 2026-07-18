@@ -1105,6 +1105,10 @@ struct PaneFlowApp {
     pending_workspace_close: Option<u64>,
     /// 动态终端矩阵的当前页；窗口数量或尺寸变化时由布局计划自动夹紧。
     workspace_grid_page: usize,
+    /// 应用级放大的稳定 workspace ID；不复用工作区内部 pane zoom 状态。
+    maximized_workspace_id: Option<u64>,
+    /// 恢复矩阵后需要显示到可见页的 workspace ID。
+    workspace_grid_reveal_id: Option<u64>,
     /// Whether the command-palette-style theme picker is visible.
     show_theme_picker: bool,
     /// Typeahead filter for the theme picker (case-insensitive substring).
@@ -1594,7 +1598,11 @@ impl Render for PaneFlowApp {
             let available_width =
                 (f32::from(viewport.width) - primary_sidebar_width - right_sidebar_width).max(1.0);
             let available_height = (f32::from(viewport.height) - f32::from(title_bar_h)).max(1.0);
-            self.render_workspace_grid(window, available_width, available_height, ui, cx)
+            if self.maximized_workspace_id.is_some() {
+                self.render_maximized_workspace(window, available_width, available_height, ui, cx)
+            } else {
+                self.render_workspace_grid(window, available_width, available_height, ui, cx)
+            }
         } else {
             div()
                 .flex()

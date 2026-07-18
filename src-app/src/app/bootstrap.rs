@@ -939,6 +939,8 @@ impl PaneFlowApp {
             show_about_dialog: false,
             pending_workspace_close: None,
             workspace_grid_page: 0,
+            maximized_workspace_id: None,
+            workspace_grid_reveal_id: None,
             show_theme_picker: false,
             theme_picker_query: String::new(),
             theme_picker_selected_idx: 0,

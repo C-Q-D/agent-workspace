@@ -544,7 +544,7 @@ impl PaneFlowApp {
                     this.begin_workspace_rename(idx, cx);
                 } else {
                     this.commit_rename(cx);
-                    this.select_workspace(idx, window, cx);
+                    this.select_workspace_from_sidebar(idx, window, cx);
                 }
                 cx.notify();
             }))
