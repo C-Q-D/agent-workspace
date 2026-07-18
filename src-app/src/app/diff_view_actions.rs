@@ -98,11 +98,21 @@ fn multiproject_signature(groups: &[RepoGroup]) -> u64 {
     h.finish()
 }
 
-/// Sidebar width when in [`AppMode::Diff`]. 360 px matches Zed's git
-/// panel default - the dedicated diff surface deliberately diverges
-/// from the 220/280 px CLI/Agents family for Zed visual parity
-/// (decision: literal Zed; see the PRD §4).
+/// Review 次级改动栏的首选宽度；窄窗口会通过 [`review_sidebar_width`] 收缩。
 pub(crate) const DIFF_SIDEBAR_WIDTH: f32 = 360.0;
+/// 次级改动栏的最小可用宽度，继续保证路径和变更统计可辨识。
+const DIFF_SIDEBAR_MIN_WIDTH: f32 = 260.0;
+/// Review 主 Diff 区优先保留的宽度，防止两个固定侧栏把正文无限压缩。
+const DIFF_MAIN_MIN_WIDTH: f32 = 520.0;
+
+/// 根据视口与左侧窗口栏计算 Review 次级栏宽度。
+///
+/// 该计算只发生在渲染布局中，不启动监听或后台任务。宽屏使用完整宽度；窄屏先
+/// 收缩改动栏但不低于可读下限，让主 Diff 保持尽可能大的审查区域。
+pub(crate) fn review_sidebar_width(viewport_width: f32, primary_sidebar_width: f32) -> f32 {
+    (viewport_width - primary_sidebar_width - DIFF_MAIN_MIN_WIDTH)
+        .clamp(DIFF_SIDEBAR_MIN_WIDTH, DIFF_SIDEBAR_WIDTH)
+}
 
 /// 判断审查模式是否拥有唯一且仍然有效的放大工作区归属。
 ///
@@ -154,6 +164,7 @@ impl PaneFlowApp {
         self.diff_mode.diff_project_picker_open = false;
         self.diff_mode.diff_worktree_picker_open = false;
         self.close_files_sidebar_immediate(cx);
+        self.close_sessions_sidebar_immediate(cx);
         self.mode = AppMode::Diff;
         // `rebuild_diff_view` mounts the entity and calls `cx.notify()`.
         self.rebuild_diff_view(cx);
@@ -660,7 +671,7 @@ fn norm_path(p: &std::path::Path) -> String {
 
 #[cfg(test)]
 mod focused_review_tests {
-    use super::focused_review_allowed;
+    use super::{focused_review_allowed, review_sidebar_width};
 
     /// 只有放大稳定 ID 与活动工作区一致时才允许进入审查。
     #[test]
@@ -669,5 +680,13 @@ mod focused_review_tests {
         assert!(!focused_review_allowed(None, Some(41)));
         assert!(!focused_review_allowed(Some(41), None));
         assert!(!focused_review_allowed(Some(41), Some(72)));
+    }
+
+    /// 宽视口使用完整次级栏，窄视口优先保留 Diff 正文且不突破可读下限。
+    #[test]
+    fn review_sidebar_width_balances_wide_and_narrow_viewports() {
+        assert_eq!(review_sidebar_width(1440.0, 240.0), 360.0);
+        assert_eq!(review_sidebar_width(1024.0, 240.0), 264.0);
+        assert_eq!(review_sidebar_width(800.0, 240.0), 260.0);
     }
 }

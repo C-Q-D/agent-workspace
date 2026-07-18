@@ -1264,9 +1264,8 @@ impl PaneFlowApp {
                 paneflow_config::schema::AppMode::Agents => {
                     crate::app::agents_view_actions::AGENTS_SIDEBAR_WIDTH
                 }
-                paneflow_config::schema::AppMode::Diff => {
-                    crate::app::diff_view_actions::DIFF_SIDEBAR_WIDTH
-                }
+                // Review 与 CLI 共享稳定工作区窗口栏，避免模式切换后丢失导航。
+                paneflow_config::schema::AppMode::Diff => SIDEBAR_WIDTH,
                 paneflow_config::schema::AppMode::Cli => SIDEBAR_WIDTH,
             }
         }
@@ -1494,7 +1493,8 @@ impl Render for PaneFlowApp {
         let files_sidebar_opacity = (files_sidebar_width
             / crate::app::files_sidebar::FILES_SIDEBAR_WIDTH.max(1.))
         .clamp(0., 1.);
-        let secondary_sidebar_open = sessions_sidebar_mounted || files_sidebar_mounted;
+        let review_sidebar_mounted = self.settings_section.is_none()
+            && matches!(self.mode, paneflow_config::schema::AppMode::Diff);
         // Every mode now renders the right area as ONE top-rounded clipped panel
         // (`panel_bg` fill + 16px rail-side top radius + 5px inset), replacing the
         // old Cli/Diff corner-mask trick. GPUI clips the panel's bg fill to the
@@ -1543,12 +1543,24 @@ impl Render for PaneFlowApp {
         } else {
             (primary_sidebar_width / self.primary_sidebar_expanded_width().max(1.)).clamp(0., 1.)
         };
+        let review_sidebar_width = if review_sidebar_mounted {
+            crate::app::diff_view_actions::review_sidebar_width(
+                f32::from(window.viewport_size().width),
+                primary_sidebar_width,
+            )
+        } else {
+            0.0
+        };
+        let secondary_sidebar_open =
+            review_sidebar_mounted || sessions_sidebar_mounted || files_sidebar_mounted;
         #[cfg(target_os = "linux")]
         {
             crate::window_chrome::linux_backdrop::set_chrome_geometry(
                 crate::window_chrome::linux_backdrop::ChromeGeometry {
                     left_sidebar_width: primary_sidebar_width,
-                    right_sidebar_width: if sessions_sidebar_mounted {
+                    right_sidebar_width: if review_sidebar_mounted {
+                        review_sidebar_width
+                    } else if sessions_sidebar_mounted {
                         sessions_sidebar_width
                     } else if files_sidebar_mounted {
                         files_sidebar_width
@@ -1886,11 +1898,10 @@ impl Render for PaneFlowApp {
                                 .flex_shrink_0()
                                 .overflow_hidden()
                                 .opacity(primary_sidebar_opacity)
-                                // Clear the transparent title-bar overlay so the
-                                // first sidebar row sits below the floating
-                                // window controls (mirrors the other rails).
+                                // Review 继续显示相同的工作区窗口列表，点击即可直接
+                                // 重定向当前审查对象。
                                 .pt(title_bar_h)
-                                .child(self.render_diff_sidebar(window, cx))
+                                .child(self.render_sidebar(window, cx))
                                 .into_any_element(),
                             paneflow_config::schema::AppMode::Cli => div()
                                 .flex()
@@ -1992,10 +2003,26 @@ impl Render for PaneFlowApp {
                                     .border_color(panel_border),
                             ),
                     )
+                    // Review 次级改动栏固定在右侧，只复用当前 Diff 实体的文件列表，
+                    // 不创建第二份 Git watcher 或计算缓存。
+                    .when(review_sidebar_mounted, |row| {
+                        row.child(
+                            div()
+                                .flex()
+                                .flex_col()
+                                .h_full()
+                                .w(px(review_sidebar_width))
+                                .flex_shrink_0()
+                                .overflow_hidden()
+                                .pt(title_bar_h)
+                                .child(self.render_diff_sidebar(window, cx))
+                                .into_any_element(),
+                        )
+                    })
                     // Docked agent-sessions sidebar (right edge). A layout child
                     // - not an overlay - so it reflows the content and persists
                     // while the user works (PRD agent-sessions-sidebar EP-001).
-                    .when(sessions_sidebar_mounted, |row| {
+                    .when(sessions_sidebar_mounted && !review_sidebar_mounted, |row| {
                         row.child(
                             div()
                                 .flex()
@@ -2015,23 +2042,28 @@ impl Render for PaneFlowApp {
                     // Docked Files sidebar (right edge) - same layout child as
                     // the sessions sidebar, mutually exclusive with it (PRD
                     // files-tree EP-001).
-                    .when(files_sidebar_mounted && !sessions_sidebar_mounted, |row| {
-                        row.child(
-                            div()
-                                .flex()
-                                .flex_col()
-                                .h_full()
-                                .w(px(files_sidebar_width))
-                                .flex_shrink_0()
-                                .overflow_hidden()
-                                .opacity(files_sidebar_opacity)
-                                // Keep the right rail below the full-width
-                                // title bar, aligned with the main panel.
-                                .pt(title_bar_h)
-                                .child(self.render_files_sidebar(window, cx))
-                                .into_any_element(),
-                        )
-                    }),
+                    .when(
+                        files_sidebar_mounted
+                            && !sessions_sidebar_mounted
+                            && !review_sidebar_mounted,
+                        |row| {
+                            row.child(
+                                div()
+                                    .flex()
+                                    .flex_col()
+                                    .h_full()
+                                    .w(px(files_sidebar_width))
+                                    .flex_shrink_0()
+                                    .overflow_hidden()
+                                    .opacity(files_sidebar_opacity)
+                                    // Keep the right rail below the full-width
+                                    // title bar, aligned with the main panel.
+                                    .pt(title_bar_h)
+                                    .child(self.render_files_sidebar(window, cx))
+                                    .into_any_element(),
+                            )
+                        },
+                    ),
             );
 
         {

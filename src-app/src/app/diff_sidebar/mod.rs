@@ -1,8 +1,8 @@
-//! EP-001/EP-003 (prd-git-diff-mode-2026-Q3.md): left git panel for the
+//! EP-001/EP-003 (prd-git-diff-mode-2026-Q3.md): Review 次级改动栏。
 //! Git Diff mode ([`paneflow_config::schema::AppMode::Diff`]).
 //!
-//! US-008: the panel is the Zed-styled changed-files tree (NOT the workspace
-//! list - workspace switching stays on `Ctrl+1-9` / CLI mode). A "Changes"
+//! Review 左侧始终保留工作区窗口列表，本栏停靠在右侧并只承载 changed-files
+//! tree，不再复制模式导航和设置入口。A "Changes"
 //! section header (collapse chevron + aggregate diffstat) tops a list of file rows
 //! (status-colored letter + filename + dimmed directory + +/- counts), with
 //! hover / selected states resolved from the curated `vc_*` theme slots
@@ -12,7 +12,6 @@
 //! `rows.rs` to keep this file under the 250-line cap.
 
 use crate::PaneFlowApp;
-use crate::app::diff_view_actions::DIFF_SIDEBAR_WIDTH;
 use crate::diff::{FileEntry, FileListState, aggregate_file_lists};
 use crate::theme::UiColors;
 use gpui::{
@@ -34,8 +33,10 @@ struct DirNode {
 }
 
 impl PaneFlowApp {
-    /// Sidebar render branch for [`AppMode::Diff`](paneflow_config::schema::AppMode::Diff).
-    /// Wired into the `main.rs` mode-dispatch `match`.
+    /// 渲染 Review 右侧次级改动栏。
+    ///
+    /// 模式导航与设置入口由左侧稳定工作区栏承载，本栏只读取已挂载 Diff 实体，
+    /// 不创建第二份缓存、监听器或 Git 扫描。
     pub(crate) fn render_diff_sidebar(
         &mut self,
         window: &mut Window,
@@ -46,7 +47,9 @@ impl PaneFlowApp {
 
         div()
             .relative()
-            .w(px(DIFF_SIDEBAR_WIDTH))
+            // 实际宽度由主布局按视口计算；内容必须跟随父栏，不能保留 360px
+            // 固定宽度后在窄窗口中被裁掉。
+            .w_full()
             .flex_shrink_0()
             .h_full()
             // Cockpit rail (#141414), matching the Cli/Agents sidebars. No
@@ -60,8 +63,6 @@ impl PaneFlowApp {
             .flex()
             .flex_col()
             .child(self.render_diff_files(ui, cx))
-            .child(self.render_sidebar_settings_footer(self.diff_menu_items(), cx))
-            .child(self.render_mode_toggle(cx))
             .into_any_element()
     }
 
@@ -646,36 +647,5 @@ impl PaneFlowApp {
                 .children(self.render_diff_file_rows(col_idx, is_active, state, filter_lc, ui, cx));
         }
         section.into_any_element()
-    }
-
-    /// Items in the bottom Settings popover when in Diff mode. The
-    /// workspace-creation actions from the CLI menu are dropped (not
-    /// meaningful in a read-only diff surface); the escape hatches
-    /// (Themes / About / Settings) are kept.
-    fn diff_menu_items(&self) -> Vec<crate::app::sidebar_actions_menu::SidebarMenuItem> {
-        use crate::app::sidebar_actions_menu::SidebarMenuItem;
-        vec![
-            SidebarMenuItem {
-                id: "diff-menu-themes".into(),
-                icon: "icons/palette.svg",
-                label: "Themes".into(),
-                on_click: Box::new(|app, w, cx| app.open_theme_picker(w, cx)),
-            },
-            SidebarMenuItem {
-                id: "diff-menu-about".into(),
-                icon: "icons/info-circle.svg",
-                label: "About Paneflow".into(),
-                on_click: Box::new(|app, _w, cx| {
-                    app.show_about_dialog = true;
-                    cx.notify();
-                }),
-            },
-            SidebarMenuItem {
-                id: "diff-menu-open-settings".into(),
-                icon: "icons/settings.svg",
-                label: "Settings".into(),
-                on_click: Box::new(|app, w, cx| app.open_settings_window(w, cx)),
-            },
-        ]
     }
 }
