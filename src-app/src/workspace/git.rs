@@ -2,6 +2,8 @@
 //! worktree-aware `.git` lookup. All functions are pure (no shared mutable
 //! state) and cross-platform - git subprocesses are bounded and non-interactive,
 //! while branch detection reads `.git/HEAD` directly.
+//! 本模块还负责把一个已确认存在的工作区根目录准备为本地 Git 仓库；初始化
+//! 只写入本地 `.git` 元数据，不创建远端、不提交，也不执行任何网络操作。
 //!
 //! Extracted from `workspace.rs` per US-030 of the src-app refactor PRD.
 
@@ -26,6 +28,34 @@ const EMPTY_TREE_SHA: &str = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
 const GIT_DIFF_STAT_UNTRACKED_FILE_CAP: usize = 200;
 const GIT_DIFF_STAT_UNTRACKED_PATH_CAP: usize = 1000;
 const GIT_DIFF_STAT_FILE_BYTES_CAP: u64 = 512 * 1024;
+
+/// `git init` 的最长执行时间。
+///
+/// 初始化只创建本地元数据，正常情况下应在很短时间内完成；设置上限可以避免
+/// 网络盘、损坏的 Git 配置或被替换的可执行文件永久占用后台任务。
+const GIT_INIT_DEADLINE: std::time::Duration = std::time::Duration::from_secs(10);
+
+/// `git init` 标准输出上限。命令正常只产生一行提示，预留 256 KiB 足够诊断，
+/// 同时避免异常可执行文件无限占用内存。
+const GIT_INIT_STDOUT_CAP: u64 = 256 * 1024;
+
+/// 已准备完成的本地 Git 仓库元数据。
+///
+/// 该快照不持有进程或文件句柄，可以安全地从后台线程传回应用状态。`initialized`
+/// 只表示本次调用确实执行了 `git init`；已有仓库始终为 `false`。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PreparedGitRepository {
+    /// 当前工作区实际使用的 Git 元数据目录；linked worktree 会指向主仓库下的目录。
+    pub git_dir: std::path::PathBuf,
+    /// 共享主仓库的工作目录；裸仓库或损坏元数据无法解析时为 `None`。
+    pub repo_root: Option<std::path::PathBuf>,
+    /// 当前工作区对应的实际 checkout 根目录。
+    pub worktree_root: std::path::PathBuf,
+    /// 当前工作区是否为 linked worktree，而不是主 checkout。
+    pub is_worktree: bool,
+    /// 本次调用是否新执行了本地 `git init`。
+    pub initialized: bool,
+}
 
 impl GitDiffStats {
     /// Run a HEAD-relative diff stat in the given directory and parse the result.
@@ -204,6 +234,89 @@ pub fn find_git_dir(cwd: &str) -> Option<std::path::PathBuf> {
         Some(git_path)
     } else {
         None
+    }
+}
+
+/// 确保指定工作区根目录属于一个可识别的本地 Git 仓库。
+///
+/// 已位于普通仓库或 linked worktree 中时直接返回现有元数据；向上找不到
+/// `.git` 时，以参数数组执行一次 `git -C <root> init --quiet`。本函数是阻塞
+/// 原语，调用方必须把它放到后台线程，不能直接运行在 GPUI 主线程。
+///
+/// # 错误
+///
+/// 根目录不存在、不是目录、Git 无法启动、执行超时、返回非零状态，或初始化后
+/// 仍无法解析 `.git` 时返回包含根目录的可展示错误。失败不会删除或改写工作区文件。
+pub fn ensure_local_repository(
+    workspace_root: &std::path::Path,
+) -> Result<PreparedGitRepository, String> {
+    let metadata = std::fs::metadata(workspace_root)
+        .map_err(|error| format!("无法读取工作区根目录 {}：{error}", workspace_root.display()))?;
+    if !metadata.is_dir() {
+        return Err(format!(
+            "工作区根目录不是目录：{}",
+            workspace_root.display()
+        ));
+    }
+
+    let cwd = workspace_root.to_string_lossy();
+    if let Some(git_dir) = find_git_dir(&cwd) {
+        return Ok(prepared_repository(&cwd, git_dir, false));
+    }
+
+    let mut command = std::process::Command::new("git");
+    command
+        .arg("-C")
+        .arg(workspace_root)
+        .args(["init", "--quiet"])
+        // 禁止任何凭据或交互提示；本地初始化不需要用户输入。
+        .env("GIT_TERMINAL_PROMPT", "0");
+    let output =
+        paneflow_process::run_with_timeout(command, GIT_INIT_DEADLINE, GIT_INIT_STDOUT_CAP)
+            .map_err(|error| {
+                format!(
+                    "初始化本地 Git 仓库失败（{}）：{error}",
+                    workspace_root.display()
+                )
+            })?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let reason = stderr
+            .trim()
+            .lines()
+            .last()
+            .filter(|line| !line.is_empty())
+            .unwrap_or("git init 返回非零状态");
+        return Err(format!(
+            "初始化本地 Git 仓库失败（{}）：{reason}",
+            workspace_root.display()
+        ));
+    }
+
+    let git_dir = find_git_dir(&cwd).ok_or_else(|| {
+        format!(
+            "git init 已完成，但无法解析工作区的 .git 目录：{}",
+            workspace_root.display()
+        )
+    })?;
+    Ok(prepared_repository(&cwd, git_dir, true))
+}
+
+/// 根据已解析的 Git 元数据目录构造无句柄快照。
+fn prepared_repository(
+    cwd: &str,
+    git_dir: std::path::PathBuf,
+    initialized: bool,
+) -> PreparedGitRepository {
+    let (repo_root, is_worktree) = resolve_repo_root(&git_dir);
+    let worktree_root =
+        resolve_worktree_root(cwd, Some(&git_dir), repo_root.as_deref(), is_worktree);
+    PreparedGitRepository {
+        git_dir,
+        repo_root,
+        worktree_root,
+        is_worktree,
+        initialized,
     }
 }
 
@@ -773,6 +886,62 @@ mod tests {
         assert_eq!(stats.deletions, 0);
     }
 
+    #[test]
+    fn ensure_local_repository_initializes_real_repo_without_changing_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let tracked_content = b"keep this content\n";
+        std::fs::write(root.join("keep.txt"), tracked_content).unwrap();
+
+        let prepared = ensure_local_repository(root).expect("真实 git init 应成功");
+
+        assert!(prepared.initialized);
+        assert_eq!(prepared.git_dir, root.join(".git"));
+        assert_eq!(
+            prepared.repo_root,
+            Some(std::fs::canonicalize(root).unwrap())
+        );
+        assert!(!prepared.is_worktree);
+        assert_eq!(prepared.worktree_root, std::fs::canonicalize(root).unwrap());
+        assert_eq!(
+            test_git_stdout(root, &["rev-parse", "--is-inside-work-tree"]),
+            "true"
+        );
+        assert_eq!(test_git_stdout(root, &["remote"]), "");
+        assert_eq!(
+            std::fs::read(root.join("keep.txt")).unwrap(),
+            tracked_content
+        );
+    }
+
+    #[test]
+    fn ensure_local_repository_reuses_parent_repo_without_nested_init() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        assert!(test_git(root, &["init", "--quiet"]));
+        assert!(test_git(
+            root,
+            &[
+                "remote",
+                "add",
+                "origin",
+                "https://example.invalid/repo.git"
+            ]
+        ));
+        let nested = root.join("src").join("nested");
+        std::fs::create_dir_all(&nested).unwrap();
+
+        let prepared = ensure_local_repository(&nested).expect("已有父仓库应直接复用");
+
+        assert!(!prepared.initialized);
+        assert_eq!(prepared.git_dir, root.join(".git"));
+        assert!(!nested.join(".git").exists());
+        assert_eq!(
+            test_git_stdout(root, &["remote", "get-url", "origin"]),
+            "https://example.invalid/repo.git"
+        );
+    }
+
     fn test_git(cwd: &std::path::Path, args: &[&str]) -> bool {
         std::process::Command::new("git")
             .args(args)
@@ -781,5 +950,20 @@ mod tests {
             .output()
             .map(|out| out.status.success())
             .unwrap_or(false)
+    }
+
+    fn test_git_stdout(cwd: &std::path::Path, args: &[&str]) -> String {
+        let output = std::process::Command::new("git")
+            .args(args)
+            .current_dir(cwd)
+            .env("GIT_TERMINAL_PROMPT", "0")
+            .output()
+            .expect("测试环境必须提供真实 Git");
+        assert!(
+            output.status.success(),
+            "git {args:?} failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8_lossy(&output.stdout).trim().to_string()
     }
 }

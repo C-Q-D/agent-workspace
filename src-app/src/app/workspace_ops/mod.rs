@@ -297,7 +297,7 @@ impl PaneFlowApp {
     /// switch (re-target) and close (Multi-project group reconcile). Deferred so
     /// the rebuild (which mounts a fresh entity) never runs inside a
     /// render/callback. No-op outside Diff mode.
-    fn reconcile_diff_after_workspace_change(&self, cx: &mut Context<Self>) {
+    pub(crate) fn reconcile_diff_after_workspace_change(&self, cx: &mut Context<Self>) {
         if matches!(self.mode, paneflow_config::schema::AppMode::Diff) {
             let weak = cx.weak_entity();
             cx.defer(move |cx| {
@@ -360,9 +360,9 @@ impl PaneFlowApp {
                                     .new(|cx| TerminalView::with_cwd(ws_id, Some(path), None, cx));
                                 let pane = app.create_pane(terminal, ws_id, cx);
                                 let ws = Workspace::with_cwd_and_id(ws_id, title, dir, pane);
-                                // US-013: deferred git-stats probe off the render thread.
-                                Self::spawn_initial_git_stats(ws_id, ws.cwd.clone(), cx);
-                                app.watch_git_dir(&ws);
+                                // 目录选择器创建的工作区在后台确保本地 Git 仓库存在；
+                                // 终端先进入可交互状态，初始化不会阻塞 GPUI 主线程。
+                                Self::spawn_workspace_git_preparation(ws_id, ws.cwd.clone(), cx);
                                 app.workspaces.push(ws);
                             }
                             app.active_idx = app.workspaces.len() - 1;

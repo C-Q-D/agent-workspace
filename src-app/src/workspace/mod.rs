@@ -9,7 +9,10 @@ mod ports;
 pub mod surface_naming;
 pub mod worktree;
 
-pub use git::{GitDiffStats, detect_branch, find_git_dir, resolve_repo_root};
+pub use git::{
+    GitDiffStats, PreparedGitRepository, detect_branch, ensure_local_repository, find_git_dir,
+    resolve_repo_root,
+};
 #[cfg(test)]
 pub(crate) use ports::PortEntry;
 pub use ports::{PaneScan, scan_panes};
@@ -143,6 +146,17 @@ pub struct Workspace {
 }
 
 impl Workspace {
+    /// 把后台完成的 Git 仓库准备结果写入当前工作区。
+    ///
+    /// 该方法只更新仓库身份元数据；分支和 Diff 统计由应用层统一刷新，避免同一路径
+    /// 对应多个工作区时出现两套状态传播规则。
+    pub(crate) fn apply_prepared_git_repository(&mut self, prepared: PreparedGitRepository) {
+        self.git_dir = Some(prepared.git_dir);
+        self.repo_root = prepared.repo_root;
+        self.is_worktree = prepared.is_worktree;
+        self.worktree_root = prepared.worktree_root;
+    }
+
     /// US-013: shared private factory for the three public constructors (kills
     /// the verbatim triplication). Resolves the *cheap* git metadata - `.git`
     /// dir, branch (`parse_head`), repo root - synchronously, since those are

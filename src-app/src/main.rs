@@ -1327,30 +1327,37 @@ impl PaneFlowApp {
         cx.notify();
     }
 
-    /// Add a workspace's `.git` directory to the file watcher.
-    /// Uses refcounting so multiple workspaces sharing a repo don't conflict.
-    /// Silently skipped if the workspace is not in a git repo or watcher is unavailable.
+    /// 将工作区的 `.git` 目录加入文件监听器。
+    ///
+    /// 工作区尚未完成后台 Git 准备时没有可用路径，因此保留该包装方法供同步构造
+    /// 路径使用；后台完成路径直接调用 [`Self::watch_git_path`]。
     fn watch_git_dir(&mut self, ws: &Workspace) {
         if let Some(ref git_dir) = ws.git_dir {
-            let current = self.git_watch_counts.get(git_dir).copied().unwrap_or(0);
-            if current == 0 {
-                // First workspace watching this git dir - register with OS.
-                // U-018: only commit the refcount when `watch()` succeeds. The
-                // old form incremented to 1 before checking, so a transient
-                // failure pinned the count at 1 and every later workspace
-                // sharing the repo saw count>1 and never retried the
-                // registration - the dir stayed permanently unwatched. On
-                // failure we return without recording the entry so a later
-                // workspace re-attempts the watch.
-                if let Some(ref mut watcher) = self.git_watcher
-                    && let Err(e) = watcher.watch(git_dir, notify::RecursiveMode::NonRecursive)
-                {
-                    log::warn!("git watcher: failed to watch {}: {e}", git_dir.display());
-                    return;
-                }
-            }
-            *self.git_watch_counts.entry(git_dir.clone()).or_insert(0) += 1;
+            self.watch_git_path(git_dir);
         }
+    }
+
+    /// 按已解析的 Git 元数据路径注册一次文件监听，并维护共享仓库引用计数。
+    ///
+    /// 只有操作系统 watcher 注册成功后才记录第一次引用；这样临时失败不会留下
+    /// 虚假的计数，后续工作区仍有机会重新注册。watcher 不可用时保留引用计数，
+    /// 应用会继续依靠现有轮询刷新 Git 状态。
+    fn watch_git_path(&mut self, git_dir: &std::path::Path) {
+        let current = self.git_watch_counts.get(git_dir).copied().unwrap_or(0);
+        if current == 0
+            && let Some(ref mut watcher) = self.git_watcher
+            && let Err(error) = watcher.watch(git_dir, notify::RecursiveMode::NonRecursive)
+        {
+            log::warn!(
+                "git watcher: failed to watch {}: {error}",
+                git_dir.display()
+            );
+            return;
+        }
+        *self
+            .git_watch_counts
+            .entry(git_dir.to_path_buf())
+            .or_insert(0) += 1;
     }
 
     /// Remove a workspace's `.git` directory from the file watcher.

@@ -1656,6 +1656,58 @@ impl PaneFlowApp {
         .detach();
     }
 
+    /// 在后台确保目录选择器创建的工作区拥有本地 Git 仓库，并刷新仓库状态。
+    ///
+    /// 所有文件系统操作和 Git 子进程都在 `smol::unblock` 中执行；回到 GPUI 主线程
+    /// 后必须按稳定 `ws_id` 重新定位工作区，因为等待期间工作区可能被关闭或重排。
+    /// 初始化失败不会关闭已经可用的终端，只记录错误并向用户显示提示。
+    pub(crate) fn spawn_workspace_git_preparation(ws_id: u64, cwd: String, cx: &mut Context<Self>) {
+        cx.spawn(
+            async move |this: gpui::WeakEntity<Self>, cx: &mut gpui::AsyncApp| {
+                let cwd_for_apply = cwd.clone();
+                let result = smol::unblock(move || prepare_workspace_git(&cwd)).await;
+                let _ = cx.update(|cx| {
+                    this.update(cx, |app: &mut Self, cx: &mut Context<Self>| {
+                        let Some(ws_idx) = app.workspaces.iter().position(|ws| ws.id == ws_id)
+                        else {
+                            return;
+                        };
+                        let (prepared, branch, is_repo, stats) = match result {
+                            Ok(result) => result,
+                            Err(error) => {
+                                log::warn!(
+                                    "workspace Git preparation failed for {}: {error}",
+                                    cwd_for_apply
+                                );
+                                app.show_toast(
+                                    format!("Could not initialize local Git repository: {error}"),
+                                    cx,
+                                );
+                                return;
+                            }
+                        };
+
+                        // 目录选择器路径没有在构造阶段预注册 watcher；后台准备成功后
+                        // 无论仓库是新建还是复用，都在这里且只在这里登记一次。
+                        let git_dir = prepared.git_dir.clone();
+                        app.workspaces[ws_idx].apply_prepared_git_repository(prepared);
+                        app.watch_git_path(&git_dir);
+                        let changed =
+                            app.apply_git_state_for_cwd(&cwd_for_apply, branch, is_repo, stats);
+                        let refreshed_diff =
+                            changed && app.refresh_agents_diff_if_open_for_cwd(&cwd_for_apply, cx);
+                        app.save_session(cx);
+                        app.reconcile_diff_after_workspace_change(cx);
+                        if changed && !refreshed_diff {
+                            cx.notify();
+                        }
+                    })
+                });
+            },
+        )
+        .detach();
+    }
+
     /// US-013: populate a freshly-created workspace's `git diff --shortstat`
     /// stats off the GPUI main thread. The constructors build with
     /// `git_stats: default()` (0/0) so the blocking `git` subprocess never runs
@@ -1692,11 +1744,32 @@ impl PaneFlowApp {
     }
 }
 
+/// 阻塞式准备一个工作区的完整 Git 首帧状态。
+///
+/// 此函数集中约束后台任务的执行顺序：先确保本地仓库存在，再读取分支和真实 Diff
+/// 统计，调用方不会观察到“仓库已存在但状态仍按非仓库计算”的中间结果。
+fn prepare_workspace_git(
+    cwd: &str,
+) -> Result<
+    (
+        crate::workspace::PreparedGitRepository,
+        String,
+        bool,
+        crate::workspace::GitDiffStats,
+    ),
+    String,
+> {
+    let prepared = crate::workspace::ensure_local_repository(std::path::Path::new(cwd))?;
+    let (branch, is_repo) = crate::workspace::detect_branch(cwd);
+    let stats = crate::workspace::GitDiffStats::from_cwd(cwd);
+    Ok((prepared, branch, is_repo, stats))
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
         announced_port_conflicts, keep_session_after_surface_purge, merge_scan_workspace_state,
-        merge_service_label, parse_proc_stat_starttime, port_ownership,
+        merge_service_label, parse_proc_stat_starttime, port_ownership, prepare_workspace_git,
         stale_sweep_keeps_without_pid_probe,
     };
     use crate::agent_launcher::TerminalAgent;
@@ -1704,6 +1777,22 @@ mod tests {
     use crate::terminal::ServiceInfo;
     use crate::workspace::{PaneScan, PortEntry};
     use std::collections::{HashMap, HashSet};
+
+    #[test]
+    fn prepare_workspace_git_uses_real_repository_and_diff() {
+        let dir = tempfile::tempdir().expect("应能创建真实临时工作区");
+        std::fs::write(dir.path().join("新文件.txt"), "真实工作区内容\n")
+            .expect("应能写入真实工作区文件");
+
+        let (prepared, branch, is_repo, stats) =
+            prepare_workspace_git(&dir.path().to_string_lossy()).expect("后台 Git 准备应成功");
+
+        assert!(prepared.initialized);
+        assert!(is_repo);
+        assert!(!branch.is_empty());
+        assert_eq!(stats.files_changed, 1);
+        assert!(dir.path().join(".git").is_dir());
+    }
 
     #[test]
     fn proc_stat_starttime_survives_hostile_comm_names() {
