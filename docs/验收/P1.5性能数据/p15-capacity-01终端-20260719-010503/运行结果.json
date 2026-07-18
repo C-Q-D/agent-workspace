@@ -1,0 +1,91 @@
+{
+  "RunId": "p15-capacity-01终端-20260719-010503",
+  "Commit": "c98b758efd131817939ca774ed76ea480bf12374",
+  "BinaryPath": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\target\\release\\paneflow.exe",
+  "BinarySha256": "26FB12CE73A5C232B2E7D32910A7E527080C484FA3652B4B15BE7C7FE9A2986E",
+  "TerminalCount": 1,
+  "DurationSeconds": 30,
+  "OutputIntervalMilliseconds": 250,
+  "AppCpuAveragePercent": 0.1406,
+  "AppWorkingSetPeakMiB": 187.219,
+  "AppWorkingSetFirstMiB": 183.891,
+  "AppWorkingSetLastMiB": 167.504,
+  "AppPrivatePeakMiB": 157.094,
+  "AppPrivateFirstMiB": 153.766,
+  "AppPrivateLastMiB": 136.961,
+  "TreeProcessCountPeak": 4.0,
+  "TreeWorkingSetPeakMiB": 394.488,
+  "TreePrivatePeakMiB": 231.695,
+  "PowerShellCountPeak": 2.0,
+  "PowerShellWorkingSetPeakMiB": 200.238,
+  "PowerShellPrivatePeakMiB": 73.719,
+  "ConhostCountPeak": 1.0,
+  "ConhostWorkingSetPeakMiB": 8.188,
+  "ConhostPrivatePeakMiB": 1.516,
+  "ProcessTreeStableDuringSample": true,
+  "ProcessIdsStableDuringSample": true,
+  "ProcessTreeSnapshot": [
+    {
+      "Id": 1468,
+      "ParentId": 14908,
+      "Name": "pwsh",
+      "WorkingSetMiB": 100.074,
+      "PrivateMiB": 35.809
+    },
+    {
+      "Id": 8664,
+      "ParentId": 1468,
+      "Name": "pwsh",
+      "WorkingSetMiB": 95.473,
+      "PrivateMiB": 33.293
+    },
+    {
+      "Id": 14908,
+      "ParentId": 5688,
+      "Name": "paneflow",
+      "WorkingSetMiB": 167.539,
+      "PrivateMiB": 136.996
+    },
+    {
+      "Id": 33664,
+      "ParentId": 14908,
+      "Name": "conhost",
+      "WorkingSetMiB": 8.148,
+      "PrivateMiB": 1.441
+    }
+  ],
+  "FirstSurfaceRenderDelta": {
+    "change_batches": 171,
+    "immediate_redraw_requests": 171,
+    "hidden_suppressed_redraw_requests": 0,
+    "resume_redraw_requests": 0
+  },
+  "LastSurfaceRenderDelta": {
+    "change_batches": 171,
+    "immediate_redraw_requests": 171,
+    "hidden_suppressed_redraw_requests": 0,
+    "resume_redraw_requests": 0
+  },
+  "AllFinalMarkersObserved": true,
+  "Completion": [
+    {
+      "SurfaceId": 4294967301,
+      "Workspace": 0,
+      "OutputGeneration": 305,
+      "Completed": true
+    }
+  ],
+  "SwitchCount": 32,
+  "SwitchP95Milliseconds": 63.613,
+  "SwitchMaxMilliseconds": 63.835,
+  "SwitchProcessIdsStable": true,
+  "TrackedProcessIds": [
+    1468,
+    14908,
+    33664
+  ],
+  "RemainingProcessIds": [],
+  "OverviewScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\P1.5性能数据\\p15-capacity-01终端-20260719-010503\\矩阵总览.png",
+  "MaximizedScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\P1.5性能数据\\p15-capacity-01终端-20260719-010503\\单窗口放大.png",
+  "SamplesCsv": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\P1.5性能数据\\p15-capacity-01终端-20260719-010503\\进程采样.csv"
+}
