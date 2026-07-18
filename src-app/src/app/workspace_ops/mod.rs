@@ -42,6 +42,14 @@ pub(crate) enum WorkspaceFocusTarget {
     },
 }
 
+/// 根据当前是否处于应用级放大态，把目标稳定 ID 对齐到新的活动工作区。
+fn reconciled_maximized_workspace_id(
+    current: Option<u64>,
+    active_workspace_id: Option<u64>,
+) -> Option<u64> {
+    current.and(active_workspace_id)
+}
+
 fn push_closed_pane_record(records: &mut Vec<ClosedPaneRecord>, mut record: ClosedPaneRecord) {
     for tab in &mut record.tabs {
         if let ClosedTabRecord::Terminal {
@@ -235,9 +243,7 @@ impl PaneFlowApp {
             return false;
         };
         self.maximized_workspace_id = Some(workspace_id);
-        let changed = self.activate_workspace_at(idx, WorkspaceFocusTarget::FirstPane, window, cx);
-        self.open_files_sidebar_for_maximized_workspace(window, cx);
-        changed
+        self.activate_workspace_at(idx, WorkspaceFocusTarget::FirstPane, window, cx)
     }
 
     /// 显式进入指定工作区的应用级放大视图。
@@ -265,6 +271,32 @@ impl PaneFlowApp {
         cx.notify();
     }
 
+    /// 在工作区集合或活动索引变化后维持应用级放大不变量。
+    ///
+    /// 仍有工作区时把目标对齐到活动项；最后一个工作区消失时才允许被动清空
+    /// 放大状态，并同步释放已经失去目录归属的文件树。
+    pub(crate) fn reconcile_maximized_workspace_after_change(&mut self, cx: &mut Context<Self>) {
+        let next_id = reconciled_maximized_workspace_id(
+            self.maximized_workspace_id,
+            self.workspaces
+                .get(self.active_idx)
+                .map(|workspace| workspace.id),
+        );
+        if self.maximized_workspace_id.is_none() {
+            return;
+        }
+        if let Some(workspace_id) = next_id {
+            self.maximized_workspace_id = Some(workspace_id);
+            self.retarget_files_sidebar_without_window(cx);
+        } else {
+            self.maximized_workspace_id = None;
+            self.workspace_grid_reveal_id = None;
+            if self.files_sidebar_open {
+                self.close_files_sidebar(cx);
+            }
+        }
+    }
+
     pub(crate) fn activate_workspace_at(
         &mut self,
         idx: usize,
@@ -279,6 +311,9 @@ impl PaneFlowApp {
         let changed = idx != self.active_idx;
         self.dismiss_transient_surfaces();
         self.active_idx = idx;
+        if self.maximized_workspace_id.is_some() {
+            self.maximized_workspace_id = Some(self.workspaces[idx].id);
+        }
 
         match focus_target {
             WorkspaceFocusTarget::FirstPane => {
@@ -311,6 +346,9 @@ impl PaneFlowApp {
                 None => self.close_sessions_sidebar(cx),
             }
         }
+        if self.maximized_workspace_id.is_some() {
+            self.open_files_sidebar_for_maximized_workspace(window, cx);
+        }
         self.save_session(cx);
         self.reconcile_diff_after_workspace_change(cx);
         cx.notify();
@@ -329,9 +367,15 @@ impl PaneFlowApp {
         let changed = idx != self.active_idx;
         self.dismiss_transient_surfaces();
         self.active_idx = idx;
+        if self.maximized_workspace_id.is_some() {
+            self.maximized_workspace_id = Some(self.workspaces[idx].id);
+        }
         self.reroot_files_tree(cx);
         if self.agent_sessions.sessions_sidebar_open {
             self.close_sessions_sidebar(cx);
+        }
+        if self.maximized_workspace_id.is_some() {
+            self.retarget_files_sidebar_without_window(cx);
         }
         self.save_session(cx);
         self.reconcile_diff_after_workspace_change(cx);
@@ -386,6 +430,7 @@ impl PaneFlowApp {
         self.workspaces.push(ws);
         self.active_idx = self.workspaces.len() - 1;
         self.workspaces[self.active_idx].focus_first(window, cx);
+        self.reconcile_maximized_workspace_after_change(cx);
         self.save_session(cx);
         cx.notify();
     }
@@ -431,6 +476,7 @@ impl PaneFlowApp {
                                 app.spawn_workspace_git_preparation(ws_id, workspace_cwd, cx);
                             }
                             app.active_idx = app.workspaces.len() - 1;
+                            app.reconcile_maximized_workspace_after_change(cx);
                             app.save_session(cx);
                             cx.notify();
                             // US-016 (prd-git-diff-mode-2026-Q3.md): a new repo
@@ -794,6 +840,7 @@ impl PaneFlowApp {
             }
             self.workspaces[self.active_idx].focus_first(window, cx);
         }
+        self.reconcile_maximized_workspace_after_change(cx);
         self.save_session(cx);
         cx.notify();
         // EP-001 (cli-cockpit): the closed workspace's panes may have carried
@@ -1299,6 +1346,16 @@ fn push_windows_editor_search_paths(paths: &mut Vec<std::path::PathBuf>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn maximized_workspace_follows_active_stable_id_until_no_workspace_remains() {
+        assert_eq!(
+            reconciled_maximized_workspace_id(Some(41), Some(72)),
+            Some(72)
+        );
+        assert_eq!(reconciled_maximized_workspace_id(Some(41), None), None);
+        assert_eq!(reconciled_maximized_workspace_id(None, Some(72)), None);
+    }
 
     // Pure-Rust tests only - spawning actual binaries is brittle in CI
     // (Linux runners may not have xdg-utils, macOS runners may not have

@@ -55,6 +55,16 @@ impl PaneFlowApp {
             .map(|terminal| terminal.entity_id().as_u64())
     }
 
+    /// 无窗口上下文时使用活动工作区第一个窗格的当前终端作为文件引用目标。
+    fn capture_active_files_surface_fallback(&self, cx: &Context<Self>) -> Option<u64> {
+        self.workspaces
+            .get(self.active_idx)
+            .and_then(|ws| ws.root.as_ref())
+            .and_then(|root| root.first_leaf())
+            .and_then(|pane| pane.read(cx).active_terminal_opt())
+            .map(|terminal| terminal.entity_id().as_u64())
+    }
+
     /// 为应用级放大的活动工作区自动打开或重定向文件树。
     ///
     /// 该入口不会把焦点移到文件树，确保用户点击放大后可以直接继续操作终端。
@@ -64,6 +74,16 @@ impl PaneFlowApp {
         cx: &mut Context<Self>,
     ) {
         self.files_surface_id = self.capture_active_files_surface(window, cx);
+        if self.files_sidebar_open {
+            self.reroot_files_tree(cx);
+        } else {
+            self.toggle_files_sidebar(cx);
+        }
+    }
+
+    /// 在 IPC、异步目录选择等没有 `Window` 的入口中重定向放大工作区文件树。
+    pub(crate) fn retarget_files_sidebar_without_window(&mut self, cx: &mut Context<Self>) {
+        self.files_surface_id = self.capture_active_files_surface_fallback(cx);
         if self.files_sidebar_open {
             self.reroot_files_tree(cx);
         } else {

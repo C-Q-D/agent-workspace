@@ -2463,6 +2463,7 @@ impl PaneFlowApp {
                 // 这样无效 IPC 请求不会在已经回滚的目录中留下 `.git` 副作用；
                 // 同时与界面目录选择器共享并发合并、稳定 ID 回填和 watcher 流程。
                 self.spawn_workspace_git_preparation(ws_id, workspace_cwd, cx);
+                self.reconcile_maximized_workspace_after_change(cx);
                 self.save_session(cx);
                 cx.notify();
                 serde_json::json!({"index": idx, "title": name, "panes": panes})
@@ -2504,6 +2505,7 @@ impl PaneFlowApp {
                         if self.active_idx >= self.workspaces.len() {
                             self.active_idx = self.workspaces.len() - 1;
                         }
+                        self.reconcile_maximized_workspace_after_change(cx);
                         self.save_session(cx);
                         cx.notify();
                         serde_json::json!({"closed": idx})
