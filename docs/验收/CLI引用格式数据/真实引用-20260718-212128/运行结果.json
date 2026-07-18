@@ -1,0 +1,54 @@
+{
+  "RunId": "真实引用-20260718-212128",
+  "Commit": "925f09ca2fd1395bc8a167fd0ceec6ffeb780a5f",
+  "BinaryPath": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\target\\release\\paneflow.exe",
+  "BinarySha256": "123025463B7BAC265A53F09C0DFDF44E737C07C048A3B32A6D8AC3908094D830",
+  "FixtureRoot": "F:\\AWRef-20260718-212128",
+  "WorkspaceFormatsBeforeRestart": [
+    "common",
+    "claude"
+  ],
+  "WorkspaceFormatsAfterRestart": [
+    "common",
+    "claude"
+  ],
+  "SurfaceId": 12884901889,
+  "InsertedTokens": [
+    "f:引用样例.rs",
+    "f:引用样例.rs",
+    "@引用样例.rs",
+    "'F:\\AWRef-20260718-212128\\引用样例.rs'",
+    "@引用样例.rs#L2-L4"
+  ],
+  "EchoChecks": {
+    "CommonAndCodexBothPresent": true,
+    "ClaudePresent": true,
+    "PowerShellPresent": true,
+    "ClaudeLineRangePresent": true
+  },
+  "PromptCount": 1,
+  "Submit": false,
+  "FirstTrackedProcessIds": [
+    6528,
+    13692,
+    20796,
+    27684,
+    34712
+  ],
+  "FirstRemainingProcessIds": [],
+  "RestoredTrackedProcessIds": [
+    5520,
+    5820,
+    14640,
+    25920,
+    33216
+  ],
+  "RestoredRemainingProcessIds": [],
+  "Screenshots": [
+    "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\CLI引用格式数据\\真实引用-20260718-212128\\真实右键菜单.png",
+    "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\CLI引用格式数据\\真实引用-20260718-212128\\四种路径格式.png",
+    "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\CLI引用格式数据\\真实引用-20260718-212128\\Claude行范围.png",
+    "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\CLI引用格式数据\\真实引用-20260718-212128\\重启恢复Claude格式.png"
+  ],
+  "Passed": true
+}
