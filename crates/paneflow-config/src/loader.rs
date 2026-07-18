@@ -1360,6 +1360,7 @@ mod tests {
         let state = SessionState {
             version: 1,
             active_workspace: 0,
+            workspace_grid_page: 0,
             workspaces: vec![WorkspaceSession {
                 title: "main".to_string(),
                 cwd: "/home/user/project".to_string(),
@@ -1387,6 +1388,7 @@ mod tests {
         let state = SessionState {
             version: 1,
             active_workspace: 1,
+            workspace_grid_page: 2,
             workspaces: vec![
                 WorkspaceSession {
                     title: "frontend".to_string(),
@@ -1428,6 +1430,7 @@ mod tests {
         let restored: SessionState = serde_json::from_str(&json).unwrap();
         assert_eq!(state, restored);
         assert_eq!(restored.active_workspace, 1);
+        assert_eq!(restored.workspace_grid_page, 2);
         assert_eq!(restored.workspaces.len(), 3);
     }
 
@@ -1436,6 +1439,7 @@ mod tests {
         let state = SessionState {
             version: 1,
             active_workspace: 0,
+            workspace_grid_page: 0,
             workspaces: vec![WorkspaceSession {
                 title: "dev".to_string(),
                 cwd: "/home/user".to_string(),
@@ -1486,6 +1490,7 @@ mod tests {
         let state = SessionState {
             version: 1,
             active_workspace: 0,
+            workspace_grid_page: 0,
             workspaces: vec![WorkspaceSession {
                 title: "main".to_string(),
                 cwd: "/tmp".to_string(),
@@ -1925,6 +1930,7 @@ mod tests {
         let state = SessionState {
             version: 1,
             active_workspace: 0,
+            workspace_grid_page: 0,
             workspaces: vec![WorkspaceSession {
                 title: "main".to_string(),
                 cwd: "/home/user".to_string(),
@@ -1978,6 +1984,7 @@ mod tests {
         let state = SessionState {
             version: 1,
             active_workspace: 0,
+            workspace_grid_page: 0,
             workspaces: vec![],
             projects: vec![ProjectSession {
                 id: 1,
@@ -2062,6 +2069,10 @@ mod tests {
             "mode": "agents"
         }"#;
         let restored: SessionState = serde_json::from_str(legacy).unwrap();
+        assert_eq!(
+            restored.workspace_grid_page, 0,
+            "旧会话缺少矩阵页码时必须恢复到第 0 页"
+        );
         assert!(restored.chats.is_empty(), "chats must default to []");
         assert!(
             !restored.projects[0].threads[0].pinned,

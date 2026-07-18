@@ -1249,6 +1249,12 @@ pub struct SessionState {
     pub version: u32,
     /// Index of the active workspace at save time.
     pub active_workspace: usize,
+    /// 动态工作区矩阵在保存时所在的零基页码。
+    ///
+    /// 旧版会话没有该字段时恢复为第 0 页；运行时会结合当前窗口尺寸再次夹紧，
+    /// 因此手工写入的异常大值不会造成空白页面。
+    #[serde(default)]
+    pub workspace_grid_page: usize,
     /// Ordered list of workspace snapshots.
     pub workspaces: Vec<WorkspaceSession>,
     /// Ordered list of project snapshots for the Agents view.
