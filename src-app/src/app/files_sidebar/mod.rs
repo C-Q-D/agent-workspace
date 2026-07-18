@@ -25,12 +25,12 @@ mod watch;
 use std::path::{Path, PathBuf};
 
 use gpui::{
-    AnyElement, Context, InteractiveElement, IntoElement, ParentElement, Pixels, Styled, Window,
-    div, prelude::*, px,
+    AnyElement, Context, Focusable, InteractiveElement, IntoElement, ParentElement, Pixels, Styled,
+    Window, div, prelude::*, px,
 };
 
 use crate::app::files_tree::{self, FilesTreeState};
-use crate::app::ipc_handler::find_pane_by_surface_id;
+use crate::app::ipc_handler::{find_pane_by_surface_id, find_terminal_by_surface_id};
 use crate::{PaneFlowApp, ToggleFilesSidebar};
 
 /// Fixed sidebar width - matches the sessions sidebar (a resizable width is
@@ -44,6 +44,27 @@ pub(super) const INDENT_STEP: f32 = 12.;
 pub(super) const DIMMED_OPACITY: f32 = 0.55;
 
 impl PaneFlowApp {
+    /// 把已经格式化的文件引用安全预填到当前放大工作区绑定终端。
+    ///
+    /// `inject_text` 会尊重 bracketed paste，但绝不追加回车；返回值表示目标终端
+    /// 是否仍然存在，调用方据此显示成功或失效提示。
+    pub(crate) fn inject_files_reference(
+        &mut self,
+        reference: &str,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        let Some(terminal) = self
+            .files_surface_id
+            .and_then(|surface_id| find_terminal_by_surface_id(&self.workspaces, surface_id, cx))
+        else {
+            return false;
+        };
+        terminal.read(cx).inject_text(&format!("{reference} "));
+        terminal.read(cx).focus_handle(cx).focus(window, cx);
+        true
+    }
+
     /// 记录活动工作区当前终端，供文件/目录引用发送回正确 CLI 对话。
     fn capture_active_files_surface(
         &self,

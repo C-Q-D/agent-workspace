@@ -245,6 +245,23 @@ pub(crate) fn model_path_reference(root: &Path, path: &Path) -> String {
     format!("f:{display}")
 }
 
+/// 将规范化后的 1-based 闭区间附加到模型路径引用。
+pub(crate) fn model_line_reference(
+    root: &Path,
+    path: &Path,
+    first_line: usize,
+    last_line: usize,
+) -> String {
+    let first = first_line.max(1).min(last_line.max(1));
+    let last = first_line.max(1).max(last_line.max(1));
+    let path_reference = model_path_reference(root, path);
+    if first == last {
+        format!("{path_reference}#L{first}")
+    } else {
+        format!("{path_reference}#L{first}-L{last}")
+    }
+}
+
 /// Coalesce a batch of affected directory paths into the minimal set to
 /// re-read (US-005): dedup, then drop any path that has an ancestor also in
 /// the set - a parent re-read subsumes its queued descendants (the burst-safe
@@ -523,6 +540,22 @@ mod tests {
             model_path_reference(Path::new("/r"), Path::new("/r/src/my file.rs")),
             "f:src/my file.rs"
         );
+    }
+
+    #[test]
+    fn model_line_reference_normalizes_forward_reverse_and_single_ranges() {
+        let root = Path::new("/r");
+        let path = Path::new("/r/src/main.rs");
+        assert_eq!(
+            model_line_reference(root, path, 23, 43),
+            "f:src/main.rs#L23-L43"
+        );
+        assert_eq!(
+            model_line_reference(root, path, 43, 23),
+            "f:src/main.rs#L23-L43"
+        );
+        assert_eq!(model_line_reference(root, path, 7, 7), "f:src/main.rs#L7");
+        assert_eq!(model_line_reference(root, path, 0, 0), "f:src/main.rs#L1");
     }
 
     #[cfg(windows)]

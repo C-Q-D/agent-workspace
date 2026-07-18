@@ -8,8 +8,8 @@
 //! clipboard and surface a confirmation toast.
 
 use gpui::{
-    AnyElement, ClickEvent, Context, Focusable, IntoElement, MouseButton, ParentElement, Styled,
-    deferred, div, prelude::*, px,
+    AnyElement, ClickEvent, Context, IntoElement, MouseButton, ParentElement, Styled, deferred,
+    div, prelude::*, px,
 };
 
 use crate::app::files_tree;
@@ -64,16 +64,7 @@ impl PaneFlowApp {
                 cx.listener(move |this, _: &ClickEvent, window, cx| {
                     let reference =
                         files_tree::model_path_reference(&reference_root, &reference_path);
-                    let terminal = this.files_surface_id.and_then(|surface_id| {
-                        crate::app::ipc_handler::find_terminal_by_surface_id(
-                            &this.workspaces,
-                            surface_id,
-                            cx,
-                        )
-                    });
-                    if let Some(terminal) = terminal {
-                        terminal.read(cx).inject_text(&format!("{reference} "));
-                        terminal.read(cx).focus_handle(cx).focus(window, cx);
+                    if this.inject_files_reference(&reference, window, cx) {
                         this.show_toast("Added path to prompt", cx);
                     } else {
                         this.show_toast("Target terminal is unavailable", cx);

@@ -32,17 +32,39 @@ pub(crate) struct FileLineDocument {
     selection: Option<(usize, usize)>,
     /// 当前分页，始终在渲染和切页时夹紧。
     page: usize,
+    /// 加载完成时的文件元数据，用于确认前检测行号漂移风险。
+    stamp: FileLineStamp,
+}
+
+/// 足以检测常规保存/替换的轻量文件版本标记。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct FileLineStamp {
+    /// 文件字节长度。
+    len: u64,
+    /// 文件系统提供的最后修改时间；不支持时为 `None`。
+    modified: Option<std::time::SystemTime>,
+}
+
+impl FileLineStamp {
+    /// 从真实文件元数据构建版本标记。
+    fn from_metadata(metadata: &std::fs::Metadata) -> Self {
+        Self {
+            len: metadata.len(),
+            modified: metadata.modified().ok(),
+        }
+    }
 }
 
 impl FileLineDocument {
     /// 创建尚未选择任何行的只读文档。
-    fn new(path: PathBuf, lines: Vec<String>) -> Self {
+    fn new(path: PathBuf, lines: Vec<String>, stamp: FileLineStamp) -> Self {
         Self {
             path,
             lines: Arc::new(lines),
             anchor_line: None,
             selection: None,
             page: 0,
+            stamp,
         }
     }
 
@@ -68,6 +90,13 @@ impl FileLineDocument {
     /// 切换分页并夹紧到真实页数。
     fn set_page(&mut self, page: usize) {
         self.page = page.min(self.page_count().saturating_sub(1));
+    }
+
+    /// 确认磁盘文件仍与加载完成时一致，避免发送已经漂移的行号。
+    fn is_current_on_disk(&self) -> bool {
+        std::fs::metadata(&self.path)
+            .map(|metadata| FileLineStamp::from_metadata(&metadata) == self.stamp)
+            .unwrap_or(false)
     }
 }
 
@@ -103,6 +132,7 @@ fn load_file_lines(path: PathBuf) -> Result<FileLineDocument, String> {
         return Err("文件超过 1 MiB 行选择上限".to_string());
     }
 
+    let initial_stamp = FileLineStamp::from_metadata(&metadata);
     let bytes = std::fs::read(&path).map_err(|error| format!("无法读取文件：{error}"))?;
     if bytes.contains(&0) {
         return Err("二进制文件不支持代码行选择".to_string());
@@ -120,7 +150,13 @@ fn load_file_lines(path: PathBuf) -> Result<FileLineDocument, String> {
         }
         lines
     };
-    Ok(FileLineDocument::new(path, lines))
+    let final_metadata =
+        std::fs::metadata(&path).map_err(|error| format!("无法复核文件：{error}"))?;
+    let final_stamp = FileLineStamp::from_metadata(&final_metadata);
+    if final_stamp != initial_stamp {
+        return Err("文件在读取过程中发生变化，请重新打开".to_string());
+    }
+    Ok(FileLineDocument::new(path, lines, final_stamp))
 }
 
 impl PaneFlowApp {
@@ -161,6 +197,32 @@ impl PaneFlowApp {
         self.files_line_picker = None;
         self.files_tree_scroll = gpui::ScrollHandle::new();
         cx.notify();
+    }
+
+    /// 校验当前选择并把行范围引用预填到绑定终端。
+    fn add_selected_line_reference(&mut self, window: &mut gpui::Window, cx: &mut Context<Self>) {
+        let Some(FileLinePickerState::Ready(document)) = self.files_line_picker.as_ref() else {
+            return;
+        };
+        let Some((first, last)) = document.selection else {
+            self.show_toast("Select one or more lines first", cx);
+            return;
+        };
+        if !document.is_current_on_disk() {
+            self.show_toast("File changed; reopen it before adding lines", cx);
+            return;
+        }
+        let reference = crate::app::files_tree::model_line_reference(
+            &self.files_tree.root,
+            &document.path,
+            first,
+            last,
+        );
+        if self.inject_files_reference(&reference, window, cx) {
+            self.show_toast("Added line reference to prompt", cx);
+        } else {
+            self.show_toast("Target terminal is unavailable", cx);
+        }
     }
 
     /// 渲染行选择器标题栏，保留返回文件树和关闭整个右栏两个显式动作。
@@ -325,10 +387,67 @@ impl PaneFlowApp {
                     .min_h_0()
                     .child(rows)
                     .child(render_line_picker_pager(page, page_count, ui, cx))
+                    .child(render_line_picker_action(selection, ui, cx))
                     .into_any_element()
             }
         }
     }
+}
+
+/// 渲染行范围确认按钮；没有选择时保留布局但不可点击。
+fn render_line_picker_action(
+    selection: Option<(usize, usize)>,
+    ui: crate::theme::UiColors,
+    cx: &mut Context<PaneFlowApp>,
+) -> AnyElement {
+    let label = selection.map_or_else(
+        || "Select lines".to_string(),
+        |(first, last)| {
+            if first == last {
+                format!("Add L{first} to Prompt")
+            } else {
+                format!("Add L{first}-L{last} to Prompt")
+            }
+        },
+    );
+    div()
+        .h(px(40.))
+        .flex_none()
+        .px(px(10.))
+        .pb(px(8.))
+        .child(
+            div()
+                .id("files-lines-add-reference")
+                .h(px(32.))
+                .w_full()
+                .flex()
+                .items_center()
+                .justify_center()
+                .rounded(px(6.))
+                .text_size(px(11.))
+                .font_weight(FontWeight::MEDIUM)
+                .text_color(if selection.is_some() {
+                    ui.base
+                } else {
+                    ui.muted
+                })
+                .bg(if selection.is_some() {
+                    ui.accent
+                } else {
+                    ui.subtle
+                })
+                .when(selection.is_some(), |button| {
+                    button
+                        .cursor_pointer()
+                        .hover(|style| style.opacity(0.88))
+                        .on_click(cx.listener(|this, _: &ClickEvent, window, cx| {
+                            this.add_selected_line_reference(window, cx);
+                            cx.stop_propagation();
+                        }))
+                })
+                .child(label),
+        )
+        .into_any_element()
 }
 
 /// 渲染加载、失败或空文件提示。
@@ -449,6 +568,10 @@ mod tests {
         let mut document = FileLineDocument::new(
             PathBuf::from("source.rs"),
             (1..=12).map(|line| format!("line {line}")).collect(),
+            FileLineStamp {
+                len: 0,
+                modified: None,
+            },
         );
 
         document.select_line(8, false);
@@ -471,5 +594,18 @@ mod tests {
         assert!(document.lines.is_empty());
         assert_eq!(document.selection, None);
         assert_eq!(document.page_count(), 1);
+    }
+
+    #[test]
+    fn real_file_change_invalidates_loaded_line_numbers() {
+        let directory = tempfile::tempdir().expect("应能创建真实临时目录");
+        let path = directory.path().join("changing.rs");
+        std::fs::write(&path, "one\ntwo").expect("应能写入初始真实文件");
+        let document = load_file_lines(path.clone()).expect("初始文件应成功加载");
+        assert!(document.is_current_on_disk());
+
+        std::fs::write(&path, "one\ntwo\nthree").expect("应能修改真实文件");
+
+        assert!(!document.is_current_on_disk());
     }
 }
