@@ -18,6 +18,50 @@ use crate::terminal::{self, TerminalView};
 use crate::window_chrome::title_bar;
 use crate::{PaneFlowApp, ai_types};
 
+/// 同一工作区根目录的后台 Git 准备登记表。
+///
+/// key 使用纯字符串归一化，不触碰文件系统，因此登记过程可以安全运行在 GPUI
+/// 主线程；value 保存等待同一结果的稳定 workspace ID，避免重复启动 `git init`。
+#[derive(Debug, Default)]
+pub(crate) struct GitPreparationRegistry {
+    batches: std::collections::HashMap<String, Vec<u64>>,
+}
+
+impl GitPreparationRegistry {
+    /// 登记一个等待者并返回批次 key 与“是否应启动后台任务”。
+    fn join(&mut self, cwd: &str, ws_id: u64) -> (String, bool) {
+        let key = git_preparation_key(cwd);
+        match self.batches.entry(key.clone()) {
+            std::collections::hash_map::Entry::Occupied(mut entry) => {
+                entry.get_mut().push(ws_id);
+                (key, false)
+            }
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                entry.insert(vec![ws_id]);
+                (key, true)
+            }
+        }
+    }
+
+    /// 完成并移除一个批次，返回所有仍需消费结果的稳定 workspace ID。
+    fn complete(&mut self, key: &str) -> Vec<u64> {
+        self.batches.remove(key).unwrap_or_default()
+    }
+}
+
+/// 生成不访问磁盘的工作区路径合并 key。
+fn git_preparation_key(cwd: &str) -> String {
+    let trimmed = cwd.trim_end_matches(['/', '\\']);
+    #[cfg(windows)]
+    {
+        trimmed.replace('/', "\\").to_lowercase()
+    }
+    #[cfg(not(windows))]
+    {
+        trimmed.to_string()
+    }
+}
+
 /// Cross-platform "is this PID still running?" probe used by the AI agent
 /// stale-PID sweep. Unix path preserves the pre-US-034 `kill(pid, 0)` +
 /// `ESRCH` semantics (EPERM ⇒ alive). Windows path mirrors the pattern in
@@ -1661,44 +1705,75 @@ impl PaneFlowApp {
     /// 所有文件系统操作和 Git 子进程都在 `smol::unblock` 中执行；回到 GPUI 主线程
     /// 后必须按稳定 `ws_id` 重新定位工作区，因为等待期间工作区可能被关闭或重排。
     /// 初始化失败不会关闭已经可用的终端，只记录错误并向用户显示提示。
-    pub(crate) fn spawn_workspace_git_preparation(ws_id: u64, cwd: String, cx: &mut Context<Self>) {
+    pub(crate) fn spawn_workspace_git_preparation(
+        &mut self,
+        ws_id: u64,
+        cwd: String,
+        cx: &mut Context<Self>,
+    ) {
+        let (batch_key, should_spawn) = self.git_preparations.join(&cwd, ws_id);
+        if !should_spawn {
+            return;
+        }
         cx.spawn(
             async move |this: gpui::WeakEntity<Self>, cx: &mut gpui::AsyncApp| {
-                let cwd_for_apply = cwd.clone();
                 let result = smol::unblock(move || prepare_workspace_git(&cwd)).await;
                 let _ = cx.update(|cx| {
                     this.update(cx, |app: &mut Self, cx: &mut Context<Self>| {
-                        let Some(ws_idx) = app.workspaces.iter().position(|ws| ws.id == ws_id)
-                        else {
-                            return;
-                        };
+                        let workspace_ids = app.git_preparations.complete(&batch_key);
                         let (prepared, branch, is_repo, stats) = match result {
                             Ok(result) => result,
                             Err(error) => {
                                 log::warn!(
-                                    "workspace Git preparation failed for {}: {error}",
-                                    cwd_for_apply
+                                    "workspace Git preparation failed for batch {batch_key}: {error}"
                                 );
-                                app.show_toast(
-                                    format!("Could not initialize local Git repository: {error}"),
-                                    cx,
-                                );
+                                if !workspace_ids.is_empty() {
+                                    app.show_toast(
+                                        format!(
+                                            "Could not initialize local Git repository: {error}"
+                                        ),
+                                        cx,
+                                    );
+                                }
                                 return;
                             }
                         };
 
-                        // 目录选择器路径没有在构造阶段预注册 watcher；后台准备成功后
-                        // 无论仓库是新建还是复用，都在这里且只在这里登记一次。
-                        let git_dir = prepared.git_dir.clone();
-                        app.workspaces[ws_idx].apply_prepared_git_repository(prepared);
-                        app.watch_git_path(&git_dir);
-                        let changed =
-                            app.apply_git_state_for_cwd(&cwd_for_apply, branch, is_repo, stats);
-                        let refreshed_diff =
-                            changed && app.refresh_agents_diff_if_open_for_cwd(&cwd_for_apply, cx);
+                        let mut tracked_cwds = std::collections::HashSet::new();
+                        for workspace_id in workspace_ids {
+                            let Some(ws_idx) =
+                                app.workspaces.iter().position(|ws| ws.id == workspace_id)
+                            else {
+                                continue;
+                            };
+                            // 每个工作区都拥有一份 watcher 引用；关闭时原有流程会按工作区
+                            // 各自释放，从而保持共享仓库的引用计数对称。
+                            let git_dir = prepared.git_dir.clone();
+                            tracked_cwds.insert(app.workspaces[ws_idx].cwd.clone());
+                            app.workspaces[ws_idx]
+                                .apply_prepared_git_repository(prepared.clone());
+                            app.watch_git_path(&git_dir);
+                        }
+
+                        if tracked_cwds.is_empty() {
+                            return;
+                        }
+                        let mut refreshed_diff = false;
+                        for tracked_cwd in tracked_cwds {
+                            let cwd_changed = app.apply_git_state_for_cwd(
+                                &tracked_cwd,
+                                branch.clone(),
+                                is_repo,
+                                stats.clone(),
+                            );
+                            refreshed_diff |= cwd_changed
+                                && app.refresh_agents_diff_if_open_for_cwd(&tracked_cwd, cx);
+                        }
                         app.save_session(cx);
                         app.reconcile_diff_after_workspace_change(cx);
-                        if changed && !refreshed_diff {
+                        // 即使分支和统计值没有变化，仓库身份元数据也刚刚完成回填，
+                        // 因此没有由 Diff 刷新触发重绘时仍需通知界面。
+                        if !refreshed_diff {
                             cx.notify();
                         }
                     })
@@ -1768,9 +1843,9 @@ fn prepare_workspace_git(
 #[cfg(test)]
 mod tests {
     use super::{
-        announced_port_conflicts, keep_session_after_surface_purge, merge_scan_workspace_state,
-        merge_service_label, parse_proc_stat_starttime, port_ownership, prepare_workspace_git,
-        stale_sweep_keeps_without_pid_probe,
+        GitPreparationRegistry, announced_port_conflicts, keep_session_after_surface_purge,
+        merge_scan_workspace_state, merge_service_label, parse_proc_stat_starttime, port_ownership,
+        prepare_workspace_git, stale_sweep_keeps_without_pid_probe,
     };
     use crate::agent_launcher::TerminalAgent;
     use crate::ai_types::{AgentSession, AgentState};
@@ -1792,6 +1867,30 @@ mod tests {
         assert!(!branch.is_empty());
         assert_eq!(stats.files_changed, 1);
         assert!(dir.path().join(".git").is_dir());
+    }
+
+    #[test]
+    fn git_preparation_registry_coalesces_real_workspace_root() {
+        let dir = tempfile::tempdir().expect("应能创建真实临时工作区");
+        let root = dir.path().to_string_lossy().into_owned();
+        let same_root_with_separator = format!("{root}{}", std::path::MAIN_SEPARATOR);
+        let mut registry = GitPreparationRegistry::default();
+
+        let (batch_key, first_should_spawn) = registry.join(&root, 41);
+        let (joined_key, second_should_spawn) = registry.join(&same_root_with_separator, 42);
+        assert!(first_should_spawn);
+        assert!(!second_should_spawn);
+        assert_eq!(batch_key, joined_key);
+
+        // 只有批次拥有者执行真实 Git 准备；第二个工作区直接等待同一结果。
+        let prepared = prepare_workspace_git(&root).expect("共享的真实 Git 准备应成功");
+        assert!(prepared.0.initialized);
+        assert_eq!(registry.complete(&batch_key), vec![41, 42]);
+        assert!(dir.path().join(".git").is_dir());
+
+        // 批次完成后再次创建工作区会启动新一轮检查，不会被旧状态永久吞掉。
+        let (_, next_should_spawn) = registry.join(&root, 43);
+        assert!(next_should_spawn);
     }
 
     #[test]

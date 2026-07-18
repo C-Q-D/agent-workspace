@@ -971,6 +971,8 @@ struct PaneFlowApp {
     git_event_rx: std::sync::mpsc::Receiver<notify::Result<notify::Event>>,
     /// Refcount for watched `.git` directories (multiple workspaces may share a repo).
     git_watch_counts: std::collections::HashMap<std::path::PathBuf, usize>,
+    /// 正在进行的工作区 Git 准备批次；同一路径的并发创建共享一个后台任务。
+    git_preparations: app::event_handlers::GitPreparationRegistry,
     /// Active settings section, or `None` if settings is closed.
     settings_section: Option<SettingsSection>,
     /// Scroll state for the inline settings page.
