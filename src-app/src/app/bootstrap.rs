@@ -30,6 +30,22 @@ fn clamped_restored_workspace_grid_page(saved_page: Option<usize>) -> usize {
         .min(MAX_WORKSPACES.saturating_sub(1))
 }
 
+/// 将持久化的顶层模式归一化为第一版允许直接启动的公开模式。
+///
+/// Review 必须由用户先放大具体工作区后主动进入，因此不能跨启动恢复；旧版
+/// Agents 模式已经退出公开产品面，也必须在构造应用和派生后台任务前回到 CLI，
+/// 避免短暂渲染隐藏界面或挂载历史 Agents 终端。
+fn restored_public_mode(
+    saved_mode: Option<paneflow_config::schema::AppMode>,
+) -> paneflow_config::schema::AppMode {
+    match saved_mode.unwrap_or_default() {
+        paneflow_config::schema::AppMode::Cli => paneflow_config::schema::AppMode::Cli,
+        paneflow_config::schema::AppMode::Diff | paneflow_config::schema::AppMode::Agents => {
+            paneflow_config::schema::AppMode::Cli
+        }
+    }
+}
+
 impl PaneFlowApp {
     fn default_workspace(cx: &mut Context<Self>) -> Workspace {
         let ws_id = next_workspace_id();
@@ -166,13 +182,9 @@ impl PaneFlowApp {
         // runs too early in bootstrap to call `self.telemetry`.
         let (saved_session, session_corruption) = Self::load_session();
 
-        // US-009 (prd-agents-view.md): pull the Agents-view bits out of
-        // the saved session BEFORE the workspaces match consumes it.
-        // The mode + project list are applied to the struct literal
-        // below; a no-agents-installed fallback runs afterwards so the
-        // UI never opens onto a blank Agents view if discovery returns
-        // empty (e.g. user uninstalled `bunx` between launches).
-        let restored_mode = saved_session.as_ref().map(|s| s.mode).unwrap_or_default();
+        // 顶层模式必须在构造应用前完成公开范围归一化。这样旧 Agents 会话不会
+        // 产生隐藏界面的首帧或终端挂载，Review 也继续遵守“先放大、后审查”。
+        let restored_mode = restored_public_mode(saved_session.as_ref().map(|s| s.mode));
         // 先保留会话页码，再消费 saved_session 恢复工作区。这里只做与工作区硬上限
         // 相关的防御性夹紧；首帧矩阵规划会按真实视口进一步夹紧到有效页。
         let restored_workspace_grid_page = clamped_restored_workspace_grid_page(
@@ -1032,10 +1044,7 @@ impl PaneFlowApp {
                 diff_collapsed_dirs: std::collections::HashSet::new(),
                 diff_file_filter,
             },
-            // US-008 (prd-agents-view.md): start in the mode the user
-            // left on quit. The Agents view is terminal-only and works
-            // without any agent installed, so there is no agent-presence
-            // gate on restore.
+            // 这里只接收已经归一化的公开启动模式，禁止构造阶段短暂进入隐藏模式。
             mode: restored_mode,
             // US-007 + US-009 (prd-agents-view.md): rehydrate project
             // metadata from session.json. Empty for users on first
@@ -1112,13 +1121,6 @@ impl PaneFlowApp {
             && let Some(target) = app.current_thread_view_target()
         {
             app.mount_agents_terminal_for_target(target, cx);
-        }
-
-        // 第一版不持久化应用级放大状态，而审查必须拥有明确的放大工作区归属。
-        // 因此启动时不能恢复旧 Diff 模式，否则会在矩阵总览中直接暴露仓库内容；
-        // 统一回到 CLI，等待用户主动放大工作区后再次进入审查。
-        if matches!(app.mode, paneflow_config::schema::AppMode::Diff) {
-            app.mode = paneflow_config::schema::AppMode::Cli;
         }
 
         // US-013 AC #1 - fire `app_started` once per launch. `Null` clients
@@ -1439,8 +1441,9 @@ pub(crate) fn warn_if_legacy_run_install() {
 
 #[cfg(test)]
 mod agent_workspace_tests {
-    use super::clamped_restored_workspace_grid_page;
+    use super::{clamped_restored_workspace_grid_page, restored_public_mode};
     use crate::workspace::MAX_WORKSPACES;
+    use paneflow_config::schema::AppMode;
 
     #[test]
     fn restored_grid_page_defaults_and_clamps_to_workspace_limit() {
@@ -1450,5 +1453,13 @@ mod agent_workspace_tests {
             clamped_restored_workspace_grid_page(Some(usize::MAX)),
             MAX_WORKSPACES.saturating_sub(1)
         );
+    }
+
+    #[test]
+    fn restored_mode_only_allows_cli_to_start_directly() {
+        assert_eq!(restored_public_mode(None), AppMode::Cli);
+        assert_eq!(restored_public_mode(Some(AppMode::Cli)), AppMode::Cli);
+        assert_eq!(restored_public_mode(Some(AppMode::Diff)), AppMode::Cli);
+        assert_eq!(restored_public_mode(Some(AppMode::Agents)), AppMode::Cli);
     }
 }
