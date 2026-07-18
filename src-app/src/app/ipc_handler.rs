@@ -2431,9 +2431,7 @@ impl PaneFlowApp {
                     let pane = self.create_pane(terminal, ws_id, cx);
                     Workspace::with_id(ws_id, name, pane)
                 };
-                self.watch_git_dir(&ws);
-                // US-013: deferred git-stats probe off the render thread.
-                Self::spawn_initial_git_stats(ws_id, ws.cwd.clone(), cx);
+                let workspace_cwd = ws.cwd.clone();
                 self.workspaces.push(ws);
                 let idx = self.workspaces.len() - 1;
 
@@ -2449,9 +2447,6 @@ impl PaneFlowApp {
                     if let Err(e) = self.apply_layout_from_json(layout, cx) {
                         // Roll back: drop the just-created workspace so the
                         // caller sees a clean -32602 and no orphan workspace.
-                        if let Some(dir) = self.workspaces[idx].git_dir.clone() {
-                            self.unwatch_git_dir(&dir);
-                        }
                         self.workspaces.remove(idx);
                         self.active_idx = previous_idx.min(self.workspaces.len().saturating_sub(1));
                         return JsonRpcError::invalid_params(format!(
@@ -2464,6 +2459,10 @@ impl PaneFlowApp {
                     1
                 };
 
+                // 只有工作区及可选布局全部创建成功后，才登记后台 Git 准备。
+                // 这样无效 IPC 请求不会在已经回滚的目录中留下 `.git` 副作用；
+                // 同时与界面目录选择器共享并发合并、稳定 ID 回填和 watcher 流程。
+                self.spawn_workspace_git_preparation(ws_id, workspace_cwd, cx);
                 self.save_session(cx);
                 cx.notify();
                 serde_json::json!({"index": idx, "title": name, "panes": panes})
@@ -4877,6 +4876,40 @@ mod tests {
         // canonicalize resolves to an absolute path.
         assert!(resolved.is_absolute());
         assert!(resolved.is_dir());
+    }
+
+    /// 验证 IPC 接受的真实目录可以直接进入共享 Git 准备流程，且不会生成远端。
+    #[test]
+    fn workspace_create_explicit_cwd_prepares_real_local_git_repository() {
+        let tmp = tempfile::tempdir().expect("应能创建真实 IPC 工作区");
+        std::fs::write(tmp.path().join("任务.txt"), "来自真实 IPC 工作区\n")
+            .expect("应能写入真实工作区文件");
+        let params = serde_json::json!({
+            "name": "真实 IPC 工作区",
+            "cwd": tmp.path().to_string_lossy(),
+        });
+        let raw_cwd = params["cwd"].as_str().expect("IPC cwd 应为字符串");
+        let canonical =
+            super::canonicalize_workspace_cwd(raw_cwd).expect("真实 IPC cwd 应通过生产校验");
+
+        let prepared = crate::workspace::ensure_local_repository(&canonical)
+            .expect("共享生产流程应初始化真实本地仓库");
+        let remotes = std::process::Command::new("git")
+            .args(["-C"])
+            .arg(&canonical)
+            .arg("remote")
+            .env("GIT_TERMINAL_PROMPT", "0")
+            .output()
+            .expect("测试环境必须提供真实 Git");
+
+        assert!(prepared.initialized);
+        assert!(canonical.join(".git").is_dir());
+        assert!(remotes.status.success());
+        assert!(remotes.stdout.is_empty());
+        assert_eq!(
+            std::fs::read_to_string(canonical.join("任务.txt")).unwrap(),
+            "来自真实 IPC 工作区\n"
+        );
     }
 
     #[test]
