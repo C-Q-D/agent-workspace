@@ -1,0 +1,47 @@
+{
+  "RunId": "真实CLI优先界面-20260719-002906",
+  "Commit": "2d9eca5b7f61b391f105cbb4ae1fed230a883c49",
+  "BinaryPath": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\target\\release\\paneflow.exe",
+  "BinarySha256": "ECA985E4B65632F017CB894F4EA5CA1C392CF44AF0AF7D36A3AB45E8E4EF2A91",
+  "LegacySessionModeWritten": "agents",
+  "ModeAfterRestore": "cli",
+  "OldAgentsSessionNormalized": true,
+  "ModeAfterCtrlShiftA": "cli",
+  "CtrlShiftACannotEnterAgents": true,
+  "ModeAfterReviewReturn": "cli",
+  "BackgroundOutputObserved": true,
+  "OutputGeneration": 43,
+  "ProcessTreeBeforeClose": [
+    {
+      "Id": 12704,
+      "ParentId": 25732,
+      "Name": "conhost"
+    },
+    {
+      "Id": 20272,
+      "ParentId": 25732,
+      "Name": "pwsh"
+    },
+    {
+      "Id": 25732,
+      "ParentId": 16260,
+      "Name": "paneflow"
+    }
+  ],
+  "AgentsSpecificProcesses": [],
+  "AppCpuAveragePercent": 0.2313,
+  "AppWorkingSetPeakMiB": 149.641,
+  "AppPrivatePeakMiB": 119.039,
+  "RestoreScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\CLI优先界面数据\\真实CLI优先界面-20260719-002906\\旧Agents会话回退-CLI.png",
+  "ShortcutScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\CLI优先界面数据\\真实CLI优先界面-20260719-002906\\快捷键后-仍为CLI.png",
+  "ReviewScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\CLI优先界面数据\\真实CLI优先界面-20260719-002906\\Review.png",
+  "ReturnCliScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\CLI优先界面数据\\真实CLI优先界面-20260719-002906\\返回CLI.png",
+  "RestoreRemainingProcessIds": [],
+  "ShortcutRemainingProcessIds": [],
+  "FinalTrackedProcessIds": [
+    12704,
+    20272,
+    25732
+  ],
+  "FinalRemainingProcessIds": []
+}
