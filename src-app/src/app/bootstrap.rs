@@ -17,8 +17,18 @@ use crate::telemetry;
 use crate::terminal::TerminalView;
 use crate::terminal::blink::{BlinkPhase, BlinkPhaseGlobal, CURSOR_BLINK_INTERVAL};
 use crate::window_chrome::title_bar;
-use crate::workspace::{Workspace, next_workspace_id};
+use crate::workspace::{MAX_WORKSPACES, Workspace, next_workspace_id};
 use crate::{PaneFlowApp, ipc, keybindings, update};
+
+/// 将可选的持久化矩阵页码限制在工作区硬上限内。
+///
+/// 真实有效页数依赖启动后的视口尺寸，因此这里只防止异常大值；首帧的
+/// `WorkspaceGridPlan` 会完成最终夹紧。
+fn clamped_restored_workspace_grid_page(saved_page: Option<usize>) -> usize {
+    saved_page
+        .unwrap_or(0)
+        .min(MAX_WORKSPACES.saturating_sub(1))
+}
 
 impl PaneFlowApp {
     fn default_workspace(cx: &mut Context<Self>) -> Workspace {
@@ -163,6 +173,13 @@ impl PaneFlowApp {
         // UI never opens onto a blank Agents view if discovery returns
         // empty (e.g. user uninstalled `bunx` between launches).
         let restored_mode = saved_session.as_ref().map(|s| s.mode).unwrap_or_default();
+        // 先保留会话页码，再消费 saved_session 恢复工作区。这里只做与工作区硬上限
+        // 相关的防御性夹紧；首帧矩阵规划会按真实视口进一步夹紧到有效页。
+        let restored_workspace_grid_page = clamped_restored_workspace_grid_page(
+            saved_session
+                .as_ref()
+                .map(|session| session.workspace_grid_page),
+        );
         // US-015 (prd-git-diff-mode-2026-Q3.md): restore the diff scope (an
         // unknown / absent value falls back to the default, Project).
         let restored_diff_scope = saved_session
@@ -939,7 +956,7 @@ impl PaneFlowApp {
             closed_panes: Vec::new(),
             show_about_dialog: false,
             pending_workspace_close: None,
-            workspace_grid_page: 0,
+            workspace_grid_page: restored_workspace_grid_page,
             maximized_workspace_id: None,
             workspace_grid_reveal_id: None,
             show_theme_picker: false,
@@ -1418,6 +1435,22 @@ pub(crate) fn warn_if_legacy_run_install() {
             "legacy .run install detected at {} - see README for migration \
              to the .tar.gz / .deb / .AppImage formats",
             legacy_bin.display()
+        );
+    }
+}
+
+#[cfg(test)]
+mod agent_workspace_tests {
+    use super::clamped_restored_workspace_grid_page;
+    use crate::workspace::MAX_WORKSPACES;
+
+    #[test]
+    fn restored_grid_page_defaults_and_clamps_to_workspace_limit() {
+        assert_eq!(clamped_restored_workspace_grid_page(None), 0);
+        assert_eq!(clamped_restored_workspace_grid_page(Some(3)), 3);
+        assert_eq!(
+            clamped_restored_workspace_grid_page(Some(usize::MAX)),
+            MAX_WORKSPACES.saturating_sub(1)
         );
     }
 }

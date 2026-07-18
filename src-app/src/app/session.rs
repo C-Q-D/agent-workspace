@@ -87,6 +87,9 @@ impl PaneFlowApp {
         paneflow_config::schema::SessionState {
             version: paneflow_config::schema::SESSION_SCHEMA_VERSION,
             active_workspace: self.active_idx,
+            // 页码与活动窗口分开保存：活动项可能位于其他页，但用户主动翻到的页面
+            // 仍是独立布局状态，重启后应保持原样。
+            workspace_grid_page: self.workspace_grid_page,
             workspaces: self
                 .workspaces
                 .iter()
