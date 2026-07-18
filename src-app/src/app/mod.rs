@@ -37,5 +37,6 @@ pub mod sidebar_actions_menu;
 pub mod telemetry_events;
 pub mod theme_picker;
 pub mod workspace_close_dialog;
+pub mod workspace_focus;
 pub mod workspace_grid;
 pub mod workspace_ops;

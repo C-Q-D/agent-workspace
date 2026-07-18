@@ -29,7 +29,7 @@ impl PaneFlowApp {
             .get(self.active_idx)
             .map(|workspace| workspace.id);
         if crate::app::diff_view_actions::focused_review_allowed(
-            self.maximized_workspace_id,
+            self.workspace_focus.workspace_id(),
             active_workspace_id,
         ) {
             let workspace_label = self

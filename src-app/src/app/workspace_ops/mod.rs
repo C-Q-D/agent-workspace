@@ -42,14 +42,6 @@ pub(crate) enum WorkspaceFocusTarget {
     },
 }
 
-/// 根据当前是否处于应用级放大态，把目标稳定 ID 对齐到新的活动工作区。
-fn reconciled_maximized_workspace_id(
-    current: Option<u64>,
-    active_workspace_id: Option<u64>,
-) -> Option<u64> {
-    current.and(active_workspace_id)
-}
-
 fn push_closed_pane_record(records: &mut Vec<ClosedPaneRecord>, mut record: ClosedPaneRecord) {
     for tab in &mut record.tabs {
         if let ClosedTabRecord::Terminal {
@@ -239,10 +231,14 @@ impl PaneFlowApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
-        let Some(workspace_id) = self.workspaces.get(idx).map(|workspace| workspace.id) else {
+        let Some((workspace_id, workspace_root)) = self
+            .workspaces
+            .get(idx)
+            .map(|workspace| (workspace.id, workspace.cwd.clone()))
+        else {
             return false;
         };
-        self.maximized_workspace_id = Some(workspace_id);
+        self.workspace_focus.focus(workspace_id, workspace_root);
         self.activate_workspace_at(idx, WorkspaceFocusTarget::FirstPane, window, cx)
     }
 
@@ -258,13 +254,9 @@ impl PaneFlowApp {
 
     /// 仅由放大视图的恢复按钮退出应用级放大，并标记活动工作区所在矩阵页。
     pub(crate) fn restore_workspace_grid(&mut self, cx: &mut Context<Self>) {
-        if self.maximized_workspace_id.take().is_none() {
+        if !self.workspace_focus.restore_grid() {
             return;
         }
-        self.workspace_grid_reveal_id = self
-            .workspaces
-            .get(self.active_idx)
-            .map(|workspace| workspace.id);
         if self.files_sidebar_open {
             self.close_files_sidebar(cx);
         }
@@ -276,24 +268,21 @@ impl PaneFlowApp {
     /// 仍有工作区时把目标对齐到活动项；最后一个工作区消失时才允许被动清空
     /// 放大状态，并同步释放已经失去目录归属的文件树。
     pub(crate) fn reconcile_maximized_workspace_after_change(&mut self, cx: &mut Context<Self>) {
-        let next_id = reconciled_maximized_workspace_id(
-            self.maximized_workspace_id,
-            self.workspaces
-                .get(self.active_idx)
-                .map(|workspace| workspace.id),
-        );
-        if self.maximized_workspace_id.is_none() {
+        if !self.workspace_focus.is_focused() {
             return;
         }
-        if let Some(workspace_id) = next_id {
-            self.maximized_workspace_id = Some(workspace_id);
+        if let Some((workspace_id, workspace_root)) = self
+            .workspaces
+            .get(self.active_idx)
+            .map(|workspace| (workspace.id, workspace.cwd.clone()))
+        {
+            self.workspace_focus.focus(workspace_id, workspace_root);
             // Diff 模式的可见上下文只能是当前仓库改动；文件树等返回 CLI 后再恢复。
             if matches!(self.mode, paneflow_config::schema::AppMode::Cli) {
                 self.retarget_files_sidebar_without_window(cx);
             }
         } else {
-            self.maximized_workspace_id = None;
-            self.workspace_grid_reveal_id = None;
+            self.workspace_focus.clear();
             if self.files_sidebar_open {
                 self.close_files_sidebar(cx);
             }
@@ -314,8 +303,10 @@ impl PaneFlowApp {
         let changed = idx != self.active_idx;
         self.dismiss_transient_surfaces();
         self.active_idx = idx;
-        if self.maximized_workspace_id.is_some() {
-            self.maximized_workspace_id = Some(self.workspaces[idx].id);
+        if self.workspace_focus.is_focused() {
+            let workspace = &self.workspaces[idx];
+            self.workspace_focus
+                .focus(workspace.id, workspace.cwd.clone());
         }
 
         match focus_target {
@@ -349,7 +340,7 @@ impl PaneFlowApp {
                 None => self.close_sessions_sidebar(cx),
             }
         }
-        if self.maximized_workspace_id.is_some()
+        if self.workspace_focus.is_focused()
             && matches!(self.mode, paneflow_config::schema::AppMode::Cli)
         {
             self.open_files_sidebar_for_maximized_workspace(window, cx);
@@ -372,14 +363,16 @@ impl PaneFlowApp {
         let changed = idx != self.active_idx;
         self.dismiss_transient_surfaces();
         self.active_idx = idx;
-        if self.maximized_workspace_id.is_some() {
-            self.maximized_workspace_id = Some(self.workspaces[idx].id);
+        if self.workspace_focus.is_focused() {
+            let workspace = &self.workspaces[idx];
+            self.workspace_focus
+                .focus(workspace.id, workspace.cwd.clone());
         }
         self.reroot_files_tree(cx);
         if self.agent_sessions.sessions_sidebar_open {
             self.close_sessions_sidebar(cx);
         }
-        if self.maximized_workspace_id.is_some()
+        if self.workspace_focus.is_focused()
             && matches!(self.mode, paneflow_config::schema::AppMode::Cli)
         {
             self.retarget_files_sidebar_without_window(cx);
@@ -422,7 +415,7 @@ impl PaneFlowApp {
             .get(self.active_idx)
             .map(|workspace| workspace.id);
         if !crate::app::diff_view_actions::focused_review_allowed(
-            self.maximized_workspace_id,
+            self.workspace_focus.workspace_id(),
             active_workspace_id,
         ) {
             // 最后一个工作区关闭后审查已经没有合法归属，立即退回 CLI 并释放监听器。
@@ -1374,16 +1367,6 @@ fn push_windows_editor_search_paths(paths: &mut Vec<std::path::PathBuf>) {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn maximized_workspace_follows_active_stable_id_until_no_workspace_remains() {
-        assert_eq!(
-            reconciled_maximized_workspace_id(Some(41), Some(72)),
-            Some(72)
-        );
-        assert_eq!(reconciled_maximized_workspace_id(Some(41), None), None);
-        assert_eq!(reconciled_maximized_workspace_id(None, Some(72)), None);
-    }
 
     // Pure-Rust tests only - spawning actual binaries is brittle in CI
     // (Linux runners may not have xdg-utils, macOS runners may not have

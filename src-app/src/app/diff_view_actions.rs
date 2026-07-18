@@ -144,7 +144,7 @@ impl PaneFlowApp {
             .workspaces
             .get(self.active_idx)
             .map(|workspace| workspace.id);
-        if !focused_review_allowed(self.maximized_workspace_id, active_workspace_id) {
+        if !focused_review_allowed(self.workspace_focus.workspace_id(), active_workspace_id) {
             self.show_toast("Maximize a workspace before reviewing changes", cx);
             return;
         }
@@ -569,7 +569,7 @@ impl PaneFlowApp {
             .workspaces
             .get(self.active_idx)
             .map(|workspace| workspace.id);
-        if focused_review_allowed(self.maximized_workspace_id, active_workspace_id) {
+        if focused_review_allowed(self.workspace_focus.workspace_id(), active_workspace_id) {
             self.open_files_sidebar_for_maximized_workspace(window, cx);
         }
         self.save_session(cx);

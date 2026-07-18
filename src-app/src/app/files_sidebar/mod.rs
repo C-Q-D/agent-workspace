@@ -100,7 +100,8 @@ impl PaneFlowApp {
         cx: &mut Context<Self>,
     ) -> bool {
         let Some(terminal) = self
-            .files_surface_id
+            .workspace_focus
+            .terminal_surface_id()
             .and_then(|surface_id| find_terminal_by_surface_id(&self.workspaces, surface_id, cx))
         else {
             return false;
@@ -142,7 +143,8 @@ impl PaneFlowApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.files_surface_id = self.capture_active_files_surface(window, cx);
+        let surface_id = self.capture_active_files_surface(window, cx);
+        self.workspace_focus.set_terminal_surface_id(surface_id);
         if self.files_sidebar_open {
             self.reroot_files_tree(cx);
         } else {
@@ -152,7 +154,8 @@ impl PaneFlowApp {
 
     /// 在 IPC、异步目录选择等没有 `Window` 的入口中重定向放大工作区文件树。
     pub(crate) fn retarget_files_sidebar_without_window(&mut self, cx: &mut Context<Self>) {
-        self.files_surface_id = self.capture_active_files_surface_fallback(cx);
+        let surface_id = self.capture_active_files_surface_fallback(cx);
+        self.workspace_focus.set_terminal_surface_id(surface_id);
         if self.files_sidebar_open {
             self.reroot_files_tree(cx);
         } else {
@@ -171,14 +174,15 @@ impl PaneFlowApp {
     ) {
         // 第一版把文件树定义为放大工作区的上下文面板；矩阵状态不允许手动挂载，
         // 避免右侧目录与多个同时可见终端之间产生含糊归属。
-        if self.maximized_workspace_id.is_none() {
+        if !self.workspace_focus.is_focused() {
             if self.files_sidebar_open {
                 self.close_files_sidebar(cx);
             }
             return;
         }
         if !self.files_sidebar_open {
-            self.files_surface_id = self.capture_active_files_surface(window, cx);
+            let surface_id = self.capture_active_files_surface(window, cx);
+            self.workspace_focus.set_terminal_surface_id(surface_id);
         }
         self.toggle_files_sidebar(cx);
         if self.files_sidebar_open {
@@ -194,7 +198,9 @@ impl PaneFlowApp {
         let Some(ws) = self.workspaces.get(self.active_idx) else {
             return;
         };
-        let root = PathBuf::from(&ws.cwd);
+        let Some(root) = self.workspace_focus.workspace_root().map(PathBuf::from) else {
+            return;
+        };
         // US-007: restore this workspace's expansion (held on the Workspace,
         // so it survives a previous close within the session and a restart).
         let persisted = ws.files_expanded.clone();
@@ -300,7 +306,7 @@ impl PaneFlowApp {
         self.files_watcher = None;
         self.files_event_rx = None;
         self.files_menu_open = None;
-        self.files_surface_id = None;
+        self.workspace_focus.set_terminal_surface_id(None);
         self.files_selected = 0;
     }
 
@@ -315,7 +321,9 @@ impl PaneFlowApp {
         let Some(ws) = self.workspaces.get(self.active_idx) else {
             return;
         };
-        let root = PathBuf::from(&ws.cwd);
+        let Some(root) = self.workspace_focus.workspace_root().map(PathBuf::from) else {
+            return;
+        };
         if self.files_tree.root == root {
             return;
         }
@@ -369,7 +377,8 @@ impl PaneFlowApp {
             return;
         };
         let target = self
-            .files_surface_id
+            .workspace_focus
+            .terminal_surface_id()
             .and_then(|surface_id| find_pane_by_surface_id(&self.workspaces, surface_id, cx))
             .and_then(|(ws_idx, pane, _tab_idx)| {
                 (ws_idx == self.active_idx && root.contains_leaf(&pane)).then_some(pane)

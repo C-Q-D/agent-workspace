@@ -122,8 +122,8 @@ impl PaneFlowApp {
             self.workspace_grid_page,
         );
         let requested_page = self
-            .workspace_grid_reveal_id
-            .take()
+            .workspace_focus
+            .take_reveal_workspace_id()
             .and_then(|workspace_id| {
                 self.workspaces
                     .iter()
@@ -317,7 +317,7 @@ impl PaneFlowApp {
         ui: crate::theme::UiColors,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        let Some(workspace_id) = self.maximized_workspace_id else {
+        let Some(workspace_id) = self.workspace_focus.workspace_id() else {
             return self.render_workspace_grid(window, available_width, available_height, ui, cx);
         };
         let Some(index) = self
@@ -326,7 +326,7 @@ impl PaneFlowApp {
             .position(|workspace| workspace.id == workspace_id)
         else {
             // 生命周期原子会在关闭入口主动清理；这里保留防御性回退，避免空白主区域。
-            self.maximized_workspace_id = None;
+            self.workspace_focus.clear();
             return self.render_workspace_grid(window, available_width, available_height, ui, cx);
         };
 

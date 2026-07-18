@@ -1072,10 +1072,6 @@ struct PaneFlowApp {
     files_selected: usize,
     /// Focus target for keyboard navigation inside the docked Files sidebar.
     files_focus: FocusHandle,
-    /// Surface id of the terminal that opened the Files sidebar. Markdown
-    /// rows open into the pane that still owns this surface, falling back to
-    /// the active focused pane if that surface is gone.
-    files_surface_id: Option<u64>,
     /// Recursive `notify` watcher on the Files tree root (EP-002 US-005).
     /// `None` when the sidebar is closed or the watch could not be installed
     /// (US-006 graceful degradation - the tree then refreshes on expand).
@@ -1110,10 +1106,8 @@ struct PaneFlowApp {
     pending_workspace_close: Option<u64>,
     /// 动态终端矩阵的当前页；窗口数量或尺寸变化时由布局计划自动夹紧。
     workspace_grid_page: usize,
-    /// 应用级放大的稳定 workspace ID；不复用工作区内部 pane zoom 状态。
-    maximized_workspace_id: Option<u64>,
-    /// 恢复矩阵后需要显示到可见页的 workspace ID。
-    workspace_grid_reveal_id: Option<u64>,
+    /// 应用级聚焦的唯一上下文；统一稳定 ID、绑定目录、终端 Surface 与矩阵恢复目标。
+    workspace_focus: app::workspace_focus::WorkspaceFocusState,
     /// Whether the command-palette-style theme picker is visible.
     show_theme_picker: bool,
     /// Typeahead filter for the theme picker (case-insensitive substring).
@@ -1603,7 +1597,7 @@ impl Render for PaneFlowApp {
             let available_width =
                 (f32::from(viewport.width) - primary_sidebar_width - right_sidebar_width).max(1.0);
             let available_height = (f32::from(viewport.height) - f32::from(title_bar_h)).max(1.0);
-            if self.maximized_workspace_id.is_some() {
+            if self.workspace_focus.is_focused() {
                 self.render_maximized_workspace(window, available_width, available_height, ui, cx)
             } else {
                 self.render_workspace_grid(window, available_width, available_height, ui, cx)

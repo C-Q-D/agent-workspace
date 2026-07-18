@@ -605,10 +605,11 @@ impl PaneFlowApp {
                 // folder. Mutual exclusion with the sessions sidebar is handled
                 // inside `toggle_files_sidebar`.
                 if !self.files_sidebar_open {
-                    self.files_surface_id = pane
+                    let surface_id = pane
                         .read(cx)
                         .active_terminal_opt()
                         .map(|terminal| terminal.entity_id().as_u64());
+                    self.workspace_focus.set_terminal_surface_id(surface_id);
                 }
                 self.toggle_files_sidebar(cx);
             }
