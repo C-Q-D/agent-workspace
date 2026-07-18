@@ -265,6 +265,19 @@ pub enum TerminalLifecycleStatus {
     AbnormalExited,
 }
 
+impl TerminalLifecycleStatus {
+    /// 返回稳定的只读 IPC 字段值；该字符串不是用户可编辑配置。
+    pub fn as_wire_name(self) -> &'static str {
+        match self {
+            Self::Starting => "starting",
+            Self::Running => "running",
+            Self::NormalExited => "normal_exited",
+            Self::LaunchFailed => "launch_failed",
+            Self::AbnormalExited => "abnormal_exited",
+        }
+    }
+}
+
 pub struct TerminalState {
     pub term: Arc<FairMutex<Term<ZedListener>>>,
     pub notifier: PtyNotifier,
@@ -2938,6 +2951,20 @@ mod tests {
             state.lifecycle_status(),
             TerminalLifecycleStatus::LaunchFailed
         );
+    }
+
+    #[test]
+    fn lifecycle_wire_names_are_stable_and_distinct() {
+        let values = [
+            (TerminalLifecycleStatus::Starting, "starting"),
+            (TerminalLifecycleStatus::Running, "running"),
+            (TerminalLifecycleStatus::NormalExited, "normal_exited"),
+            (TerminalLifecycleStatus::LaunchFailed, "launch_failed"),
+            (TerminalLifecycleStatus::AbnormalExited, "abnormal_exited"),
+        ];
+        for (status, expected) in values {
+            assert_eq!(status.as_wire_name(), expected);
+        }
     }
 
     #[test]

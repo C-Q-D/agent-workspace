@@ -43,6 +43,7 @@ use crate::ai_types::AgentSession;
 use crate::launch_cwd;
 use crate::layout::LayoutTree;
 use crate::pane::Pane;
+use crate::terminal::TerminalLifecycleStatus;
 
 use self::git::parse_head;
 
@@ -359,6 +360,22 @@ impl Workspace {
         panes
     }
 
+    /// 聚合当前工作区全部真实终端的基础生命周期。
+    ///
+    /// 失败优先于启动和运行，确保分屏中任一需要处理的终端不会被其他运行终端掩盖；
+    /// 仅有正常退出终端时才报告正常退出。空布局是短暂构造状态，保守显示为启动中。
+    pub fn terminal_status(&self, cx: &App) -> TerminalLifecycleStatus {
+        let mut statuses = Vec::new();
+        for pane in self.collect_panes() {
+            statuses.extend(
+                pane.read(cx)
+                    .terminals()
+                    .map(|terminal| terminal.read(cx).terminal.lifecycle_status()),
+            );
+        }
+        aggregate_terminal_lifecycle(statuses)
+    }
+
     pub fn focus_first(&self, window: &mut Window, cx: &mut App) {
         if let Some(root) = &self.root {
             root.focus_first(window, cx);
@@ -434,6 +451,80 @@ fn walk_and_push_buttons(node: &LayoutTree, buttons: &[ButtonCommand], cx: &mut 
                 walk_and_push_buttons(&child.node, buttons, cx);
             }
         }
+    }
+}
+
+/// 按产品优先级聚合一组终端状态，保持算法可独立测试且不依赖 GPUI 实体。
+pub(crate) fn aggregate_terminal_lifecycle(
+    statuses: impl IntoIterator<Item = TerminalLifecycleStatus>,
+) -> TerminalLifecycleStatus {
+    let mut has_abnormal_exit = false;
+    let mut has_starting = false;
+    let mut has_running = false;
+    let mut has_normal_exit = false;
+    for status in statuses {
+        match status {
+            TerminalLifecycleStatus::LaunchFailed => {
+                return TerminalLifecycleStatus::LaunchFailed;
+            }
+            TerminalLifecycleStatus::AbnormalExited => has_abnormal_exit = true,
+            TerminalLifecycleStatus::Starting => has_starting = true,
+            TerminalLifecycleStatus::Running => has_running = true,
+            TerminalLifecycleStatus::NormalExited => has_normal_exit = true,
+        }
+    }
+    if has_abnormal_exit {
+        TerminalLifecycleStatus::AbnormalExited
+    } else if has_starting {
+        TerminalLifecycleStatus::Starting
+    } else if has_running {
+        TerminalLifecycleStatus::Running
+    } else if has_normal_exit {
+        TerminalLifecycleStatus::NormalExited
+    } else {
+        TerminalLifecycleStatus::Starting
+    }
+}
+
+#[cfg(test)]
+mod terminal_status_tests {
+    use super::aggregate_terminal_lifecycle;
+    use crate::terminal::TerminalLifecycleStatus as Status;
+
+    /// 每个状态独立存在时必须原样成为工作区状态。
+    #[test]
+    fn aggregate_keeps_each_single_terminal_status() {
+        for status in [
+            Status::Starting,
+            Status::Running,
+            Status::NormalExited,
+            Status::LaunchFailed,
+            Status::AbnormalExited,
+        ] {
+            assert_eq!(aggregate_terminal_lifecycle([status]), status);
+        }
+    }
+
+    /// 多窗格时失败优先，其次启动中、运行中，最后才是全部正常退出。
+    #[test]
+    fn aggregate_prioritizes_actionable_terminal_states() {
+        assert_eq!(
+            aggregate_terminal_lifecycle([Status::Running, Status::NormalExited]),
+            Status::Running
+        );
+        assert_eq!(
+            aggregate_terminal_lifecycle([Status::Running, Status::Starting]),
+            Status::Starting
+        );
+        assert_eq!(
+            aggregate_terminal_lifecycle([Status::Starting, Status::AbnormalExited]),
+            Status::AbnormalExited
+        );
+        assert_eq!(
+            aggregate_terminal_lifecycle([Status::AbnormalExited, Status::LaunchFailed]),
+            Status::LaunchFailed
+        );
+        assert_eq!(aggregate_terminal_lifecycle([]), Status::Starting);
     }
 }
 

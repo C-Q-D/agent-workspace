@@ -2368,6 +2368,7 @@ impl PaneFlowApp {
                             "title": ws.title,
                             "cwd": ws.cwd,
                             "panes": ws.pane_count(),
+                            "terminal_status": ws.terminal_status(cx).as_wire_name(),
                             "active": i == self.active_idx,
                         })
                     })

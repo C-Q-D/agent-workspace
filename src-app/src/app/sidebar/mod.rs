@@ -69,6 +69,8 @@ const SIDEBAR_CARD_PADDING_X: f32 = 10.0;
 const SIDEBAR_TITLE_ROW_GAP: f32 = 6.0;
 const SIDEBAR_AGENT_STATUS_SLOT_WIDTH: f32 = 48.0;
 const SIDEBAR_AGENT_ICON_SLOT_WIDTH: f32 = 20.0;
+/// 基础终端状态在元数据行中的最大宽度，长文案在此边界内保持完整。
+const SIDEBAR_TERMINAL_STATUS_MAX_WIDTH: f32 = 76.0;
 const SIDEBAR_WORKSPACE_CARD_CONTENT_WIDTH: f32 =
     SIDEBAR_WIDTH - SIDEBAR_CARD_MARGIN_X * 2.0 - SIDEBAR_CARD_PADDING_X * 2.0;
 
@@ -204,6 +206,20 @@ fn sidebar_diff_summary(stats: &crate::workspace::GitDiffStats) -> SidebarDiffSu
 
 fn sidebar_file_change_label(files_changed: usize) -> String {
     format!("{files_changed} changed")
+}
+
+/// 将基础终端事实映射为左侧可读文案和无推断含义的说明。
+fn sidebar_terminal_status_copy(
+    status: crate::terminal::TerminalLifecycleStatus,
+) -> (&'static str, &'static str) {
+    use crate::terminal::TerminalLifecycleStatus as Status;
+    match status {
+        Status::Starting => ("Starting", "PowerShell terminal is starting"),
+        Status::Running => ("Running", "PowerShell terminal is running"),
+        Status::NormalExited => ("Exited", "PowerShell terminal exited normally"),
+        Status::LaunchFailed => ("Launch failed", "PowerShell terminal could not start"),
+        Status::AbnormalExited => ("Crashed", "PowerShell terminal exited with an error"),
+    }
 }
 
 fn sidebar_agent_summary<'a, I>(sessions: I, completion_unread: bool) -> Option<SidebarAgentSummary>
@@ -678,8 +694,16 @@ impl PaneFlowApp {
         ui: crate::theme::UiColors,
         cx: &mut Context<Self>,
     ) -> Option<AnyElement> {
-        // Branch, diff, and service summary stay on one clipped line so a
-        // workspace row keeps its compact 48px rhythm.
+        // 终端状态、分支、Diff 和服务摘要共用一条裁剪行，保持 48px 紧凑节奏。
+        let terminal_status = ws.terminal_status(cx);
+        let (terminal_label, terminal_tooltip) = sidebar_terminal_status_copy(terminal_status);
+        let terminal_color = match terminal_status {
+            crate::terminal::TerminalLifecycleStatus::Starting => ui.muted,
+            crate::terminal::TerminalLifecycleStatus::Running => ui.vc_added,
+            crate::terminal::TerminalLifecycleStatus::NormalExited => ui.agent_stalled,
+            crate::terminal::TerminalLifecycleStatus::LaunchFailed
+            | crate::terminal::TerminalLifecycleStatus::AbnormalExited => ui.agent_error,
+        };
         let has_branch = !ws.git_branch.is_empty();
         let git_error = match &ws.git_preparation_status {
             crate::workspace::GitPreparationStatus::Failed(error) => Some(error.clone()),
@@ -690,222 +714,243 @@ impl PaneFlowApp {
         let has_stats = diff_summary.is_visible();
         let service_summary = sidebar_service_summary(&ws.active_ports, &ws.service_labels);
         let has_ports = service_summary.is_some();
-        if has_git_error || has_branch || has_stats || has_ports {
-            let mut meta_row = div()
+        let mut meta_row = div()
+            .flex()
+            .flex_row()
+            .items_center()
+            .gap(px(6.))
+            .w(px(SIDEBAR_WORKSPACE_CARD_CONTENT_WIDTH))
+            .max_w(px(SIDEBAR_WORKSPACE_CARD_CONTENT_WIDTH))
+            .h(px(14.))
+            .overflow_x_hidden()
+            .whitespace_nowrap()
+            .text_xs()
+            .text_color(ui.muted);
+
+        let terminal_tooltip: SharedString = terminal_tooltip.into();
+        meta_row = meta_row.child(
+            div()
+                .id(SharedString::from(format!(
+                    "workspace-terminal-status-{idx}"
+                )))
+                .flex_none()
+                .max_w(px(SIDEBAR_TERMINAL_STATUS_MAX_WIDTH))
+                .overflow_x_hidden()
                 .flex()
                 .flex_row()
                 .items_center()
-                .gap(px(6.))
-                .w(px(SIDEBAR_WORKSPACE_CARD_CONTENT_WIDTH))
-                .max_w(px(SIDEBAR_WORKSPACE_CARD_CONTENT_WIDTH))
-                .h(px(14.))
-                .overflow_x_hidden()
-                .whitespace_nowrap()
-                .text_xs()
-                .text_color(ui.muted);
+                .gap(px(4.))
+                .font_weight(FontWeight::MEDIUM)
+                .text_color(terminal_color)
+                .tooltip(move |_window, cx| {
+                    cx.new(|_| SidebarTooltip {
+                        label: terminal_tooltip.clone(),
+                    })
+                    .into()
+                })
+                .child(div().size(px(6.)).rounded_full().bg(terminal_color))
+                .child(terminal_label),
+        );
 
-            if let Some(error) = git_error {
-                let error_tooltip: SharedString = error.into();
-                meta_row = meta_row.child(
-                    div()
-                        .id(SharedString::from(format!("workspace-git-error-{idx}")))
-                        .min_w_0()
-                        .max_w(px(if has_ports {
-                            126.0
-                        } else {
-                            SIDEBAR_WORKSPACE_CARD_CONTENT_WIDTH
-                        }))
-                        .overflow_x_hidden()
-                        .whitespace_nowrap()
-                        .text_ellipsis()
-                        .font_weight(FontWeight::MEDIUM)
-                        .text_color(ui.agent_error)
-                        .tooltip(move |_window, cx| {
-                            cx.new(|_| SidebarTooltip {
-                                label: error_tooltip.clone(),
-                            })
-                            .into()
+        if let Some(error) = git_error {
+            let error_tooltip: SharedString = error.into();
+            meta_row = meta_row.child(
+                div()
+                    .id(SharedString::from(format!("workspace-git-error-{idx}")))
+                    .min_w_0()
+                    .max_w(px(if has_ports {
+                        126.0
+                    } else {
+                        SIDEBAR_WORKSPACE_CARD_CONTENT_WIDTH
+                    }))
+                    .overflow_x_hidden()
+                    .whitespace_nowrap()
+                    .text_ellipsis()
+                    .font_weight(FontWeight::MEDIUM)
+                    .text_color(ui.agent_error)
+                    .tooltip(move |_window, cx| {
+                        cx.new(|_| SidebarTooltip {
+                            label: error_tooltip.clone(),
                         })
-                        .child("Git unavailable"),
-                );
-            }
+                        .into()
+                    })
+                    .child("Git unavailable"),
+            );
+        }
 
-            if has_branch {
-                let branch_width = match (has_stats, has_ports) {
-                    (true, true) => 64.0,
-                    (true, false) => 112.0,
-                    (false, true) => 126.0,
-                    (false, false) => SIDEBAR_WORKSPACE_CARD_CONTENT_WIDTH,
-                };
-                meta_row = meta_row.child(
-                    div()
-                        .min_w_0()
-                        .max_w(px(branch_width))
-                        .overflow_x_hidden()
-                        .flex()
-                        .flex_row()
-                        .items_center()
-                        .gap(px(4.))
-                        .child(
-                            svg()
-                                .size(px(10.))
-                                .flex_none()
-                                .path("icons/git-branch-sidebar.svg")
-                                .text_color(ui.muted),
-                        )
-                        .child(
-                            div()
-                                .min_w_0()
-                                .flex_1()
-                                .overflow_x_hidden()
-                                .whitespace_nowrap()
-                                .text_ellipsis()
-                                .child(ws.git_branch.clone()),
-                        ),
-                );
-            }
+        if has_branch {
+            let branch_width = match (has_stats, has_ports) {
+                (true, true) => 64.0,
+                (true, false) => 112.0,
+                (false, true) => 126.0,
+                (false, false) => SIDEBAR_WORKSPACE_CARD_CONTENT_WIDTH,
+            };
+            meta_row = meta_row.child(
+                div()
+                    .min_w_0()
+                    .max_w(px(branch_width))
+                    .overflow_x_hidden()
+                    .flex()
+                    .flex_row()
+                    .items_center()
+                    .gap(px(4.))
+                    .child(
+                        svg()
+                            .size(px(10.))
+                            .flex_none()
+                            .path("icons/git-branch-sidebar.svg")
+                            .text_color(ui.muted),
+                    )
+                    .child(
+                        div()
+                            .min_w_0()
+                            .flex_1()
+                            .overflow_x_hidden()
+                            .whitespace_nowrap()
+                            .text_ellipsis()
+                            .child(ws.git_branch.clone()),
+                    ),
+            );
+        }
 
-            if has_stats {
-                // Shared diff palette (Codex green/red on dark, theme vc_* on
-                // light) so the CLI sidebar diffstat matches the Diff/Review
-                // view and the Agents dock instead of inlining its own hex.
-                let diff = ui.diff_colors();
-                match diff_summary {
-                    SidebarDiffSummary::Lines {
-                        insertions,
-                        deletions,
-                    } => {
-                        if insertions > 0 {
-                            meta_row = meta_row.child(
-                                div()
-                                    .flex_none()
-                                    .font_weight(FontWeight::MEDIUM)
-                                    .text_color(diff.added)
-                                    .child(format!("+{insertions}")),
-                            );
-                        }
-                        if deletions > 0 {
-                            meta_row = meta_row.child(
-                                div()
-                                    .flex_none()
-                                    .font_weight(FontWeight::MEDIUM)
-                                    .text_color(diff.deleted)
-                                    .child(format!("-{deletions}")),
-                            );
-                        }
-                    }
-                    SidebarDiffSummary::Files { files_changed } => {
+        if has_stats {
+            // Shared diff palette (Codex green/red on dark, theme vc_* on
+            // light) so the CLI sidebar diffstat matches the Diff/Review
+            // view and the Agents dock instead of inlining its own hex.
+            let diff = ui.diff_colors();
+            match diff_summary {
+                SidebarDiffSummary::Lines {
+                    insertions,
+                    deletions,
+                } => {
+                    if insertions > 0 {
                         meta_row = meta_row.child(
                             div()
                                 .flex_none()
                                 .font_weight(FontWeight::MEDIUM)
-                                .text_color(ui.muted)
-                                .child(sidebar_file_change_label(files_changed)),
+                                .text_color(diff.added)
+                                .child(format!("+{insertions}")),
                         );
                     }
-                    SidebarDiffSummary::None => {}
+                    if deletions > 0 {
+                        meta_row = meta_row.child(
+                            div()
+                                .flex_none()
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_color(diff.deleted)
+                                .child(format!("-{deletions}")),
+                        );
+                    }
                 }
-            }
-
-            // Separator before the ports, only when branch/diff preceded
-            // them (a leading `·` would otherwise dangle).
-            if (has_git_error || has_branch || has_stats) && has_ports {
-                meta_row = meta_row.child(div().flex_none().text_color(ui.muted).child("·"));
-            }
-
-            if let Some(service) = service_summary {
-                let port = service.primary;
-                let info = ws.service_labels.get(&port);
-                let is_frontend = info.is_some_and(|service| service.is_frontend);
-                let service_name = info
-                    .and_then(|service| service.label.clone())
-                    .unwrap_or_else(|| "Local service".to_string());
-                let service_tooltip: SharedString = format!("{service_name}  :{port}").into();
-
-                if is_frontend {
-                    let url = info
-                        .and_then(|service| service.url.clone())
-                        .unwrap_or_else(|| format!("http://localhost:{port}"));
+                SidebarDiffSummary::Files { files_changed } => {
                     meta_row = meta_row.child(
                         div()
-                            .id(SharedString::from(format!("port-{idx}-{port}")))
-                            .flex()
-                            .flex_row()
-                            .items_center()
-                            .gap(px(2.))
-                            .text_size(px(10.))
-                            .font_weight(FontWeight::MEDIUM)
-                            .text_color(ui.muted)
-                            .cursor_pointer()
-                            .hover(|style| style.text_color(crate::theme::ui_colors().text))
-                            .tooltip({
-                                let label = service_tooltip.clone();
-                                move |_w, cx| {
-                                    cx.new(|_| SidebarTooltip {
-                                        label: label.clone(),
-                                    })
-                                    .into()
-                                }
-                            })
-                            .on_click(cx.listener(move |this, _: &ClickEvent, _window, cx| {
-                                this.open_workspace_service_url(&url, cx);
-                                cx.stop_propagation();
-                            }))
-                            .child(
-                                svg()
-                                    .size(px(10.))
-                                    .flex_none()
-                                    .path("icons/world.svg")
-                                    .text_color(ui.muted),
-                            )
-                            .child(format!(":{port}")),
-                    );
-                } else {
-                    meta_row = meta_row.child(
-                        div()
-                            .id(SharedString::from(format!("port-{idx}-{port}-info")))
-                            .text_size(px(10.))
-                            .text_color(ui.muted)
-                            .tooltip({
-                                let label = service_tooltip.clone();
-                                move |_w, cx| {
-                                    cx.new(|_| SidebarTooltip {
-                                        label: label.clone(),
-                                    })
-                                    .into()
-                                }
-                            })
-                            .child(format!(":{port}")),
-                    );
-                }
-
-                if service.overflow > 0 {
-                    let overflow = service.overflow;
-                    meta_row = meta_row.child(
-                        div()
-                            .id(SharedString::from(format!("ports-{idx}-overflow")))
                             .flex_none()
-                            .text_size(px(10.))
                             .font_weight(FontWeight::MEDIUM)
                             .text_color(ui.muted)
-                            .tooltip(move |_w, cx| {
+                            .child(sidebar_file_change_label(files_changed)),
+                    );
+                }
+                SidebarDiffSummary::None => {}
+            }
+        }
+
+        // Separator before the ports, only when branch/diff preceded
+        // them (a leading `·` would otherwise dangle).
+        if (has_git_error || has_branch || has_stats) && has_ports {
+            meta_row = meta_row.child(div().flex_none().text_color(ui.muted).child("·"));
+        }
+
+        if let Some(service) = service_summary {
+            let port = service.primary;
+            let info = ws.service_labels.get(&port);
+            let is_frontend = info.is_some_and(|service| service.is_frontend);
+            let service_name = info
+                .and_then(|service| service.label.clone())
+                .unwrap_or_else(|| "Local service".to_string());
+            let service_tooltip: SharedString = format!("{service_name}  :{port}").into();
+
+            if is_frontend {
+                let url = info
+                    .and_then(|service| service.url.clone())
+                    .unwrap_or_else(|| format!("http://localhost:{port}"));
+                meta_row = meta_row.child(
+                    div()
+                        .id(SharedString::from(format!("port-{idx}-{port}")))
+                        .flex()
+                        .flex_row()
+                        .items_center()
+                        .gap(px(2.))
+                        .text_size(px(10.))
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(ui.muted)
+                        .cursor_pointer()
+                        .hover(|style| style.text_color(crate::theme::ui_colors().text))
+                        .tooltip({
+                            let label = service_tooltip.clone();
+                            move |_w, cx| {
                                 cx.new(|_| SidebarTooltip {
-                                    label: format!(
-                                        "{overflow} more services · Right-click workspace to view"
-                                    )
-                                    .into(),
+                                    label: label.clone(),
                                 })
                                 .into()
-                            })
-                            .child(format!("+{overflow}")),
-                    );
-                }
+                            }
+                        })
+                        .on_click(cx.listener(move |this, _: &ClickEvent, _window, cx| {
+                            this.open_workspace_service_url(&url, cx);
+                            cx.stop_propagation();
+                        }))
+                        .child(
+                            svg()
+                                .size(px(10.))
+                                .flex_none()
+                                .path("icons/world.svg")
+                                .text_color(ui.muted),
+                        )
+                        .child(format!(":{port}")),
+                );
+            } else {
+                meta_row = meta_row.child(
+                    div()
+                        .id(SharedString::from(format!("port-{idx}-{port}-info")))
+                        .text_size(px(10.))
+                        .text_color(ui.muted)
+                        .tooltip({
+                            let label = service_tooltip.clone();
+                            move |_w, cx| {
+                                cx.new(|_| SidebarTooltip {
+                                    label: label.clone(),
+                                })
+                                .into()
+                            }
+                        })
+                        .child(format!(":{port}")),
+                );
             }
 
-            Some(meta_row.into_any_element())
-        } else {
-            None
+            if service.overflow > 0 {
+                let overflow = service.overflow;
+                meta_row = meta_row.child(
+                    div()
+                        .id(SharedString::from(format!("ports-{idx}-overflow")))
+                        .flex_none()
+                        .text_size(px(10.))
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(ui.muted)
+                        .tooltip(move |_w, cx| {
+                            cx.new(|_| SidebarTooltip {
+                                label: format!(
+                                    "{overflow} more services · Right-click workspace to view"
+                                )
+                                .into(),
+                            })
+                            .into()
+                        })
+                        .child(format!("+{overflow}")),
+                );
+            }
         }
+
+        Some(meta_row.into_any_element())
     }
 
     /// Items rendered inside the bottom Settings popover when in CLI
@@ -1225,11 +1270,12 @@ mod tests {
         SIDEBAR_WORKSPACE_CARD_CONTENT_WIDTH, SidebarAgentState, SidebarAgentSummary,
         SidebarDiffSummary, SidebarServiceSummary, collapse_home, sidebar_agent_summary,
         sidebar_diff_summary, sidebar_file_change_label, sidebar_service_summary,
-        sidebar_workspace_title_slot_width, visible_service_ports,
+        sidebar_terminal_status_copy, sidebar_workspace_title_slot_width, visible_service_ports,
     };
     use crate::agent_launcher::TerminalAgent;
     use crate::ai_types::{AgentSession, AgentState};
     use crate::terminal::ServiceInfo;
+    use crate::terminal::TerminalLifecycleStatus as TerminalStatus;
     use crate::workspace::GitDiffStats;
     use std::collections::HashMap;
 
@@ -1405,6 +1451,22 @@ mod tests {
     fn sidebar_file_change_label_is_compact_for_unmeasured_diffs() {
         assert_eq!(sidebar_file_change_label(1), "1 changed");
         assert_eq!(sidebar_file_change_label(2), "2 changed");
+    }
+
+    #[test]
+    fn terminal_status_copy_distinguishes_all_five_process_facts() {
+        let cases = [
+            (TerminalStatus::Starting, "Starting"),
+            (TerminalStatus::Running, "Running"),
+            (TerminalStatus::NormalExited, "Exited"),
+            (TerminalStatus::LaunchFailed, "Launch failed"),
+            (TerminalStatus::AbnormalExited, "Crashed"),
+        ];
+        for (status, expected) in cases {
+            let (label, tooltip) = sidebar_terminal_status_copy(status);
+            assert_eq!(label, expected);
+            assert!(!tooltip.is_empty());
+        }
     }
 
     #[test]
