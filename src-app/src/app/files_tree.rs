@@ -235,14 +235,16 @@ pub(crate) fn workspace_relative_path(root: &Path, path: &Path) -> String {
 /// 引用始终优先使用 workspaceRoot 相对路径，并统一为 `/` 分隔符；根目录使用
 /// `.`，避免生成内容为空的 `f:`。这里只提供路径，不读取或拼接文件正文。
 pub(crate) fn model_path_reference(root: &Path, path: &Path) -> String {
-    let relative = workspace_relative_path(root, path);
-    let normalized = relative.replace('\\', "/");
-    let display = if normalized.is_empty() {
-        "."
-    } else {
-        normalized.as_str()
-    };
-    format!("f:{display}")
+    crate::reference_formatter::format_reference(
+        crate::reference_formatter::ReferenceFormat::Common,
+        crate::reference_formatter::ReferenceRequest {
+            workspace_root: root,
+            target_path: path,
+            // 旧入口没有携带节点类型；UNIT-16 的调用方会改为传入真实目录事实。
+            is_directory: false,
+            lines: None,
+        },
+    )
 }
 
 /// 将规范化后的 1-based 闭区间附加到模型路径引用。
@@ -252,14 +254,15 @@ pub(crate) fn model_line_reference(
     first_line: usize,
     last_line: usize,
 ) -> String {
-    let first = first_line.max(1).min(last_line.max(1));
-    let last = first_line.max(1).max(last_line.max(1));
-    let path_reference = model_path_reference(root, path);
-    if first == last {
-        format!("{path_reference}#L{first}")
-    } else {
-        format!("{path_reference}#L{first}-L{last}")
-    }
+    crate::reference_formatter::format_reference(
+        crate::reference_formatter::ReferenceFormat::Common,
+        crate::reference_formatter::ReferenceRequest {
+            workspace_root: root,
+            target_path: path,
+            is_directory: false,
+            lines: Some((first_line, last_line)),
+        },
+    )
 }
 
 /// Coalesce a batch of affected directory paths into the minimal set to

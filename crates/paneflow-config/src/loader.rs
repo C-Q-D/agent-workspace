@@ -1369,6 +1369,7 @@ mod tests {
                 }),
                 custom_buttons: vec![],
                 expanded_paths: vec![],
+                reference_format: String::new(),
                 managed_worktrees: vec![],
             }],
             projects: Vec::new(),
@@ -1398,6 +1399,7 @@ mod tests {
                     }),
                     custom_buttons: vec![],
                     expanded_paths: vec![],
+                    reference_format: String::new(),
                     managed_worktrees: vec![],
                 },
                 WorkspaceSession {
@@ -1408,6 +1410,7 @@ mod tests {
                     }),
                     custom_buttons: vec![],
                     expanded_paths: vec![],
+                    reference_format: String::new(),
                     managed_worktrees: vec![],
                 },
                 WorkspaceSession {
@@ -1416,6 +1419,7 @@ mod tests {
                     layout: None,
                     custom_buttons: vec![],
                     expanded_paths: vec![],
+                    reference_format: String::new(),
                     managed_worktrees: vec![],
                 },
             ],
@@ -1445,6 +1449,7 @@ mod tests {
                 cwd: "/home/user".to_string(),
                 custom_buttons: vec![],
                 expanded_paths: vec![],
+                reference_format: String::new(),
                 managed_worktrees: vec![],
                 layout: Some(LayoutNode::Split {
                     direction: "horizontal".to_string(),
@@ -1496,6 +1501,7 @@ mod tests {
                 cwd: "/tmp".to_string(),
                 custom_buttons: vec![],
                 expanded_paths: vec![],
+                reference_format: String::new(),
                 managed_worktrees: vec![],
                 layout: Some(LayoutNode::Pane {
                     surfaces: vec![SurfaceDefinition {
@@ -1939,6 +1945,7 @@ mod tests {
                 }),
                 custom_buttons: vec![],
                 expanded_paths: vec![],
+                reference_format: String::new(),
                 managed_worktrees: vec![],
             }],
             projects: vec![ProjectSession {

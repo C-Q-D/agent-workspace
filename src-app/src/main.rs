@@ -56,6 +56,7 @@ mod pane_drag;
 mod pi_sessions;
 mod pricing;
 mod project;
+mod reference_formatter;
 mod runtime_paths;
 mod search;
 mod settings;

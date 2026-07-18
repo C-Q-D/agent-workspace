@@ -157,6 +157,8 @@ pub struct Workspace {
     /// the implicit root. Persisted as workspace-relative paths in
     /// `session.json`; the sidebar's visibility itself is never persisted.
     pub files_expanded: Vec<std::path::PathBuf>,
+    /// 当前工作区的引用文本策略；每个终端窗口可以独立选择对应 CLI。
+    pub reference_format: crate::reference_formatter::ReferenceFormat,
     /// Git worktrees Paneflow created for this workspace's panes via
     /// `paneflow up` (`worktree = "branch"`, EP-002 orchestration-v2). Torn
     /// down - clean ones only, branch never deleted - when the workspace
@@ -225,6 +227,7 @@ impl Workspace {
             detected_agents: std::collections::HashSet::new(),
             custom_buttons: Vec::new(),
             files_expanded: Vec::new(),
+            reference_format: crate::reference_formatter::ReferenceFormat::default(),
             managed_worktrees: Vec::new(),
         }
     }

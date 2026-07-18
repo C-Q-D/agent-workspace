@@ -1422,6 +1422,9 @@ pub struct WorkspaceSession {
     /// deliberately NOT persisted.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub expanded_paths: Vec<String>,
+    /// 当前工作区选择的 CLI 引用格式名称。旧会话缺少该字段时由应用回退公共格式。
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub reference_format: String,
     /// Git worktrees Paneflow created for this workspace via `paneflow up`
     /// (EP-002, prd-orchestration-v2). Persisted so a crash/restart keeps the
     /// ownership record (teardown at close, `git worktree prune` at startup).

@@ -105,6 +105,8 @@ impl PaneFlowApp {
                     // root. A path that can't be made relative (symlinked
                     // outside the root) is dropped rather than persisted absolute.
                     expanded_paths: persisted_expanded_paths(&ws.cwd, &ws.files_expanded),
+                    // 引用格式属于工作区元数据；不同终端窗口可以分别面向 Codex、Claude 或 Shell。
+                    reference_format: ws.reference_format.as_persisted().to_string(),
                     // EP-002 (orchestration-v2): persist worktree ownership so
                     // a crash/restart keeps the teardown + prune record.
                     managed_worktrees: ws
@@ -462,6 +464,11 @@ impl PaneFlowApp {
                 .iter()
                 .filter_map(|rel| rehydrate_expanded_path(&workspace.cwd, rel))
                 .collect();
+            // 旧会话缺字段或未来未知值时安全回退公共格式，不影响其他窗口恢复。
+            workspace.reference_format =
+                crate::reference_formatter::ReferenceFormat::from_persisted(
+                    &ws_session.reference_format,
+                );
             workspace.propagate_custom_buttons(cx);
             // US-013: kick off the deferred git-stats probe (off render thread).
             Self::spawn_initial_git_stats(ws_id, workspace.cwd.clone(), cx);
