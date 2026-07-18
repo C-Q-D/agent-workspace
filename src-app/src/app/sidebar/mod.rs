@@ -254,13 +254,13 @@ fn sidebar_workspace_title_slot_width(summary: Option<SidebarAgentSummary>) -> f
 impl PaneFlowApp {
     fn begin_workspace_rename(&mut self, index: usize, cx: &gpui::App) {
         self.commit_rename(cx);
-        if let Some(title) = self
+        if let Some((workspace_id, title)) = self
             .workspaces
             .get(index)
-            .map(|workspace| workspace.title.clone())
+            .map(|workspace| (workspace.id, workspace.title.clone()))
         {
             self.rename_text = title;
-            self.renaming_idx = Some(index);
+            self.renaming_workspace_id = Some(workspace_id);
         }
     }
 
@@ -561,7 +561,7 @@ impl PaneFlowApp {
             }))
             .on_key_down(cx.listener(move |this, e: &KeyDownEvent, _window, cx| {
                 let key = e.keystroke.key.as_str();
-                if this.renaming_idx != Some(idx) {
+                if this.renaming_workspace_id != Some(ws_id) {
                     if key == "f2" {
                         this.begin_workspace_rename(idx, cx);
                         cx.stop_propagation();
@@ -575,7 +575,7 @@ impl PaneFlowApp {
                         cx.notify();
                     }
                     "escape" => {
-                        this.renaming_idx = None;
+                        this.renaming_workspace_id = None;
                         this.rename_text.clear();
                         cx.notify();
                     }
@@ -608,7 +608,7 @@ impl PaneFlowApp {
         );
         let title_slot_width = sidebar_workspace_title_slot_width(row_agent_status);
 
-        let title_el = if self.renaming_idx == Some(i) {
+        let title_el = if self.renaming_workspace_id == Some(ws_id) {
             div()
                 .w(px(title_slot_width))
                 .max_w(px(title_slot_width))

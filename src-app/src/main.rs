@@ -764,7 +764,7 @@ pub(crate) struct AgentsGitState {
 /// page, search filter, and the per-thread terminal cache).
 struct AgentsViewState {
     /// US-011 (prd-agents-view.md): which sidebar row is currently in
-    /// inline-rename mode (mirrors [`Self::renaming_idx`] but for the
+    /// inline-rename mode (mirrors [`PaneFlowApp::renaming_workspace_id`] but for the
     /// Agents domain). `None` when no rename is active.
     pub(crate) agents_renaming: Option<crate::app::agents_sidebar::AgentsRenameTarget>,
     /// Inline rename input. `Some` only while a rename is in flight;
@@ -925,7 +925,8 @@ pub(crate) struct BottomTerminal {
 struct PaneFlowApp {
     workspaces: Vec<Workspace>,
     active_idx: usize,
-    renaming_idx: Option<usize>,
+    /// 正在编辑名称的稳定 workspace ID；重排不会改变重命名目标。
+    renaming_workspace_id: Option<u64>,
     rename_text: String,
     /// Shared slot for config changes from the background `ConfigWatcher` thread.
     /// The watcher writes `Some(config)` on every successful reload; the main

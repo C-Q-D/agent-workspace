@@ -845,7 +845,7 @@ impl PaneFlowApp {
         let mut app = Self {
             workspaces,
             active_idx,
-            renaming_idx: None,
+            renaming_workspace_id: None,
             rename_text: String::new(),
             pending_config,
             save_seq: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),

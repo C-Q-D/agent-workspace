@@ -882,12 +882,16 @@ impl PaneFlowApp {
     }
 
     pub(crate) fn commit_rename(&mut self, cx: &App) {
-        if let Some(idx) = self.renaming_idx.take() {
+        if let Some(workspace_id) = self.renaming_workspace_id.take() {
             let text = std::mem::take(&mut self.rename_text);
             if !text.is_empty()
-                && let Some(ws) = self.workspaces.get_mut(idx)
+                && let Some(workspace) = self
+                    .workspaces
+                    .iter_mut()
+                    .find(|workspace| workspace.id == workspace_id)
             {
-                ws.title = text;
+                // 重命名唯一写入显示标题；根目录、布局、Pane 和 Terminal 实体均保持原样。
+                workspace.title = text;
                 self.save_session(cx);
             }
         }
