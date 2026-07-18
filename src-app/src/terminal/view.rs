@@ -510,6 +510,9 @@ impl TerminalView {
                     match spawned {
                         Ok(spawned) => {
                             view.terminal.promote(spawned);
+                            cx.emit(TerminalEvent::LifecycleChanged(
+                                view.terminal.lifecycle_status(),
+                            ));
                             if let Some(size) = view.recorded_window_size() {
                                 view.terminal.notifier.notify_window_size(size);
                             }
@@ -521,8 +524,12 @@ impl TerminalView {
                             log::error!("PTY creation failed: {e:#}");
                             view.needs_initial_clear
                                 .store(false, std::sync::atomic::Ordering::Relaxed);
+                            view.terminal.mark_spawn_failed();
                             view.terminal
                                 .write_output(spawn_error_message(&e).as_bytes());
+                            cx.emit(TerminalEvent::LifecycleChanged(
+                                view.terminal.lifecycle_status(),
+                            ));
                         }
                     }
                     view.notify_terminal_change(cx);
@@ -596,6 +603,7 @@ impl TerminalView {
                         this.update(cx, |view: &mut Self, cx: &mut Context<Self>| {
                             let old_title = view.terminal.title.clone();
                             let old_cwd = view.terminal.current_cwd.clone();
+                            let old_lifecycle = view.terminal.lifecycle_status();
                             view.terminal.sync_channels();
                             if had_wakeup {
                                 view.terminal.process_event(AlacEvent::Wakeup);
@@ -670,15 +678,18 @@ impl TerminalView {
                                 view.terminal.notifier.notify(response.into_bytes());
                             }
 
-                            // US-002: close only on a user-initiated or clean
-                            // exit. A non-zero exit with no prior user input is
-                            // a spawn/launch failure (bad shell, missing agent
-                            // binary) - keep the pane open so the exit overlay
-                            // renders the code instead of vanishing silently.
-                            if view.terminal.exited.is_some()
-                                && view.terminal.should_close_on_exit()
-                            {
-                                cx.emit(TerminalEvent::ChildExited);
+                            let lifecycle = view.terminal.lifecycle_status();
+                            if lifecycle != old_lifecycle {
+                                cx.emit(TerminalEvent::LifecycleChanged(lifecycle));
+                                // 退出标签保留在原窗格供用户查看；ChildExited 仍通知
+                                // 应用清理 Agent 会话，但 Pane 不再据此自动删标签。
+                                if matches!(
+                                    lifecycle,
+                                    crate::terminal::TerminalLifecycleStatus::NormalExited
+                                        | crate::terminal::TerminalLifecycleStatus::AbnormalExited
+                                ) {
+                                    cx.emit(TerminalEvent::ChildExited);
+                                }
                             }
                             if view.terminal.title != old_title {
                                 cx.emit(TerminalEvent::TitleChanged);
@@ -1072,11 +1083,13 @@ impl TerminalView {
 // ---------------------------------------------------------------------------
 
 /// Events emitted by TerminalView via GPUI's EventEmitter.
-/// Pane subscribes for ChildExited/TitleChanged; PaneFlowApp subscribes
-/// for CwdChanged/ActivityBurst/ServiceDetected to drive sidebar updates.
+/// Pane 订阅退出、标题和生命周期变化以更新终端区域；PaneFlowApp 订阅同一事件流，
+/// 驱动左侧状态、CWD、端口与服务信息，无需为生命周期增加轮询。
 pub enum TerminalEvent {
-    /// The shell process exited (e.g. user typed `exit`).
+    /// Shell 已退出；应用据此清理关联会话，终端标签本身保留供用户查看。
     ChildExited,
+    /// PTY 创建或退出事件推进了基础生命周期。
+    LifecycleChanged(crate::terminal::TerminalLifecycleStatus),
     /// The terminal title changed (via OSC 0/2 escape sequence).
     TitleChanged,
     /// The shell's working directory changed (detected via OSC 7 escape sequence).

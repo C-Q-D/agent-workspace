@@ -1127,6 +1127,12 @@ impl PaneFlowApp {
                 // agent launched without the shim).
                 self.purge_sessions_for_surface(terminal.entity_id().as_u64(), cx);
             }
+            terminal::TerminalEvent::LifecycleChanged(status) => {
+                // 左侧状态直接读取终端生命周期；事件只负责让父级应用立即重绘，
+                // 不增加任何每窗口轮询或内容启发式判断。
+                let _ = status;
+                cx.notify();
+            }
             // TitleChanged is handled by Pane's subscription
             _ => {}
         }

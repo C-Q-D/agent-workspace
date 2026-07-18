@@ -246,18 +246,38 @@ pub(super) fn hsla_to_alac_rgb(hsla: gpui::Hsla) -> AlacRgb {
 // Terminal state
 // ---------------------------------------------------------------------------
 
+/// 终端进程的基础生命周期事实。
+///
+/// 该状态只来自 PTY 创建结果和子进程退出事件，不解释终端内容，也不推断模型是否
+/// 正在思考、等待输入或已经完成任务。退出码和信号仍保存在 [`TerminalState`] 的
+/// 既有字段中，状态枚举只提供稳定、低成本的界面分类。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TerminalLifecycleStatus {
+    /// 后台 PTY 创建尚未完成。
+    Starting,
+    /// PTY 已创建且子进程仍在运行。
+    Running,
+    /// 子进程以退出码 0 正常结束。
+    NormalExited,
+    /// PTY 无法创建，或未接受用户输入的初始进程以非零码退出。
+    LaunchFailed,
+    /// 已接受用户输入的进程以非零码、信号或无状态 EOF 异常结束。
+    AbnormalExited,
+}
+
 pub struct TerminalState {
     pub term: Arc<FairMutex<Term<ZedListener>>>,
     pub notifier: PtyNotifier,
     pub(super) events_rx: Option<UnboundedReceiver<AlacEvent>>,
     cwd_rx: Option<UnboundedReceiver<String>>,
     pub exited: Option<i32>,
+    /// 当前基础生命周期；仅由 PTY 创建和退出事件推进，不通过定时轮询更新。
+    lifecycle_status: TerminalLifecycleStatus,
     /// US-002: set true once any user input (keystroke, paste, mouse report,
     /// IME commit, user scroll) has been written via `write_to_pty`.
-    /// Distinguishes a user-initiated exit (always close the pane) from a
-    /// spawn/launch failure (keep the pane open so the exit overlay is
-    /// visible). Atomic because `write_to_pty` takes `&self`. Mirrors Zed's
-    /// keyboard_input_sent (crates/terminal/src/terminal.rs:2572-2576).
+    /// Distinguishes an abnormal exit after interaction from an initial
+    /// spawn/launch failure. Atomic because `write_to_pty` takes `&self`.
+    /// Mirrors Zed's keyboard_input_sent (crates/terminal/src/terminal.rs:2572-2576).
     keyboard_input_sent: std::sync::atomic::AtomicBool,
     /// EP-002 US-005: numeric signal + name if the child was terminated by a
     /// signal (crash), formatted "N (Name)" e.g. "11 (Segmentation fault)".
@@ -1118,6 +1138,7 @@ impl TerminalState {
         self.notifier = PtyNotifier(sender);
         self.cwd_rx = Some(spawned.cwd_rx);
         self.child_pid = spawned.child_pid;
+        self.lifecycle_status = TerminalLifecycleStatus::Running;
         #[cfg(all(unix, not(test)))]
         {
             self.pty_guard = spawned.pty_guard;
@@ -1215,6 +1236,7 @@ impl TerminalState {
             events_rx: Some(events_rx),
             cwd_rx: None,
             exited: None,
+            lifecycle_status: TerminalLifecycleStatus::Starting,
             keyboard_input_sent: std::sync::atomic::AtomicBool::new(false),
             exit_signal: None,
             child_pid: 0,
@@ -1361,7 +1383,9 @@ impl TerminalState {
                 {
                     self.exit_signal = Some(format_signal(sig));
                 }
-                self.exited = Some(status.code().unwrap_or(-1));
+                let code = status.code().unwrap_or(-1);
+                self.exited = Some(code);
+                self.lifecycle_status = self.classify_exit(code);
                 self.dirty = true;
                 self.cached_foreground_command = None;
                 #[cfg(all(unix, not(test)))]
@@ -1379,6 +1403,7 @@ impl TerminalState {
                 // stores a status and Exit is a status no-op.
                 if self.exited.is_none() {
                     self.exited = Some(-1);
+                    self.lifecycle_status = self.classify_exit(-1);
                 }
                 self.dirty = true;
                 self.cached_foreground_command = None;
@@ -1666,15 +1691,30 @@ impl TerminalState {
         self.notifier.notify(input);
     }
 
-    /// US-002: whether a child exit should close the pane. A user-initiated
-    /// session (any input was sent) always closes; otherwise only a clean exit
-    /// (code 0) closes - a non-zero exit with no input is a spawn/launch
-    /// failure and stays open so the exit overlay shows the code. Mirrors Zed's
-    /// discriminator (crates/terminal/src/terminal.rs:2572-2576).
-    pub fn should_close_on_exit(&self) -> bool {
-        self.keyboard_input_sent
+    /// 返回当前生命周期快照，供事件和只读界面投影使用。
+    pub fn lifecycle_status(&self) -> TerminalLifecycleStatus {
+        self.lifecycle_status
+    }
+
+    /// 记录后台 PTY 创建失败。
+    ///
+    /// 错误正文继续写入终端滚动区；生命周期只保存分类，避免在每帧克隆大字符串。
+    pub(super) fn mark_spawn_failed(&mut self) {
+        self.lifecycle_status = TerminalLifecycleStatus::LaunchFailed;
+    }
+
+    /// 按真实退出码和用户输入事实分类退出，保持与既有启动失败判定一致。
+    fn classify_exit(&self, code: i32) -> TerminalLifecycleStatus {
+        if code == 0 {
+            TerminalLifecycleStatus::NormalExited
+        } else if self
+            .keyboard_input_sent
             .load(std::sync::atomic::Ordering::Relaxed)
-            || self.exited == Some(0)
+        {
+            TerminalLifecycleStatus::AbnormalExited
+        } else {
+            TerminalLifecycleStatus::LaunchFailed
+        }
     }
 
     /// Extract scrollback as plain text (ANSI stripped) for session persistence.
@@ -2824,6 +2864,11 @@ mod tests {
                 Some(42),
                 "US-003: the real exit code must be recorded, not -1"
             );
+            assert_eq!(
+                state.lifecycle_status(),
+                TerminalLifecycleStatus::LaunchFailed,
+                "未接受输入的初始非零退出应由真实 ChildExit 事件归为启动失败"
+            );
         }
     }
 
@@ -2853,33 +2898,45 @@ mod tests {
     }
 
     // -----------------------------------------------------------------
-    // US-002 - keep pane open on launch failure (keyboard_input_sent).
+    // UNIT-15 - event-driven lifecycle classification.
     // -----------------------------------------------------------------
 
     #[test]
-    fn close_on_exit_discriminator_covers_both_branches() {
-        // US-002 AC: clean exit (code 0) closes even with no input.
+    fn lifecycle_classifies_clean_launch_failure_and_abnormal_exit() {
+        // 退出码 0 始终是正常退出，不依赖用户是否输入过内容。
         let mut clean = TerminalState::new_display_only(24, 80);
-        clean.exited = Some(0);
-        assert!(
-            clean.should_close_on_exit(),
-            "US-002: a clean exit (code 0) must close the pane"
+        clean.lifecycle_status = clean.classify_exit(0);
+        assert_eq!(
+            clean.lifecycle_status(),
+            TerminalLifecycleStatus::NormalExited
         );
 
-        // Non-zero exit with NO user input = spawn/launch failure → stays open
-        // so the exit overlay can render the code.
+        // 未接受用户输入的初始非零退出沿用既有语义，归为启动失败。
         let mut failed = TerminalState::new_display_only(24, 80);
-        failed.exited = Some(127);
-        assert!(
-            !failed.should_close_on_exit(),
-            "US-002: a non-zero exit with no input must keep the pane open"
+        failed.lifecycle_status = failed.classify_exit(127);
+        assert_eq!(
+            failed.lifecycle_status(),
+            TerminalLifecycleStatus::LaunchFailed
         );
 
-        // ...but once the user has interacted, ANY exit closes.
+        // 一旦用户已经操作终端，同一非零码就是运行过程异常退出。
         failed.write_to_pty(b"x".as_slice());
-        assert!(
-            failed.should_close_on_exit(),
-            "US-002: after user input, a non-zero exit must close the pane"
+        failed.lifecycle_status = failed.classify_exit(127);
+        assert_eq!(
+            failed.lifecycle_status(),
+            TerminalLifecycleStatus::AbnormalExited
+        );
+    }
+
+    #[test]
+    fn pending_and_explicit_spawn_failure_have_distinct_lifecycle() {
+        let mut state = TerminalState::new_display_only(24, 80);
+        assert_eq!(state.lifecycle_status(), TerminalLifecycleStatus::Starting);
+
+        state.mark_spawn_failed();
+        assert_eq!(
+            state.lifecycle_status(),
+            TerminalLifecycleStatus::LaunchFailed
         );
     }
 

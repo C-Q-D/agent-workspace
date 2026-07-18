@@ -820,20 +820,17 @@ impl Pane {
         self.selected_idx = self.tabs.len().saturating_sub(1);
     }
 
-    /// Subscribe to a terminal's events - close tab on exit, repaint on title change.
+    /// 订阅终端事件；退出标签保留供用户查看，标题和生命周期变化触发重绘。
     fn subscribe_terminal(terminal: &Entity<TerminalView>, cx: &mut Context<Self>) {
-        cx.subscribe(terminal, |this, terminal, event: &TerminalEvent, cx| {
+        cx.subscribe(terminal, |_this, terminal, event: &TerminalEvent, cx| {
             match event {
                 TerminalEvent::ChildExited => {
-                    if let Some(idx) = this
-                        .tabs
-                        .iter()
-                        .position(|t| t.as_terminal() == Some(&terminal))
-                    {
-                        this.close_tab_at(idx, cx);
-                    }
+                    // 用户需要看到退出码和失败原因；主动关闭该标签时，既有
+                    // PaneEvent::Remove 路径仍会为最后一个窗格补建新终端。
+                    let _ = terminal;
+                    cx.notify();
                 }
-                TerminalEvent::TitleChanged => {
+                TerminalEvent::TitleChanged | TerminalEvent::LifecycleChanged(_) => {
                     cx.notify();
                 }
                 // CwdChanged, ActivityBurst, ServiceDetected, SelectionCopied are

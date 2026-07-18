@@ -17,7 +17,7 @@ pub mod types;
 pub mod view;
 
 pub use listener::{SpikeTermSize, ZedListener};
-pub use pty_session::{PtyNotifier, TerminalState};
+pub use pty_session::{PtyNotifier, TerminalLifecycleStatus, TerminalState};
 pub use service_detector::ServiceInfo;
 pub use view::{TerminalEvent, TerminalView};
 
