@@ -1,0 +1,46 @@
+{
+  "RunId": "真实中文终端-20260719-004803",
+  "Commit": "46d37f9a5d363e560a2b54399beedff49cb4fedc",
+  "BinaryPath": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\target\\release\\paneflow.exe",
+  "BinarySha256": "8CE227222347A18F94148C4BF95F80201E5C657122E33D3764D5D85589602784",
+  "WindowDpi": 96,
+  "WindowScalePercent": 100.0,
+  "FontSizesTestedPt": [
+    14,
+    17,
+    21
+  ],
+  "ExactReadbackPassed": true,
+  "OutputGeneration": 7,
+  "ExpectedLines": [
+    "=== 中文宽字符真实验收 ===",
+    "A中B文C",
+    "A  B  C",
+    "中文AB",
+    "    AB",
+    "路径：F:\\中文目录\\示例文件.rs",
+    "标点：【测试】，“正常”。",
+    "CJK_ACCEPTANCE_DONE"
+  ],
+  "DefaultScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\中文终端数据\\真实中文终端-20260719-004803\\中文终端-14pt.png",
+  "MediumScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\中文终端数据\\真实中文终端-20260719-004803\\中文终端-17pt.png",
+  "LargeScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\中文终端数据\\真实中文终端-20260719-004803\\中文终端-21pt.png",
+  "TrackedProcesses": [
+    {
+      "Id": 2904,
+      "ParentId": 6312,
+      "Name": "conhost"
+    },
+    {
+      "Id": 6312,
+      "ParentId": 34904,
+      "Name": "paneflow"
+    },
+    {
+      "Id": 34228,
+      "ParentId": 6312,
+      "Name": "pwsh"
+    }
+  ],
+  "RemainingProcessIds": []
+}
