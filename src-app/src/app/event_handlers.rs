@@ -1825,6 +1825,31 @@ impl PaneFlowApp {
         .detach();
     }
 
+    /// 对一个失败工作区重新执行本地 Git 准备。
+    ///
+    /// 重试只复用稳定 workspace ID 和创建时根目录，不创建或替换终端、窗格及工作区；
+    /// 若索引已失效或状态不是失败则保持无操作。
+    pub(crate) fn retry_workspace_git_preparation(
+        &mut self,
+        workspace_idx: usize,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        let Some(workspace) = self.workspaces.get(workspace_idx) else {
+            return false;
+        };
+        if !matches!(
+            workspace.git_preparation_status,
+            crate::workspace::GitPreparationStatus::Failed(_)
+        ) {
+            return false;
+        }
+        let workspace_id = workspace.id;
+        let workspace_root = workspace.cwd.clone();
+        self.spawn_workspace_git_preparation(workspace_id, workspace_root, cx);
+        cx.notify();
+        true
+    }
+
     /// US-013: populate a freshly-created workspace's `git diff --shortstat`
     /// stats off the GPUI main thread. The constructors build with
     /// `git_stats: default()` (0/0) so the blocking `git` subprocess never runs
@@ -1950,6 +1975,38 @@ mod tests {
         assert!(visible.chars().count() <= 513);
         assert!(!visible.contains('\n'));
         assert!(visible.ends_with('…'));
+    }
+
+    #[test]
+    fn real_git_preparation_succeeds_after_metadata_repair() {
+        let dir = tempfile::tempdir().expect("应能创建真实重试工作区");
+        let original = "终端任务产生的真实内容\n";
+        std::fs::write(dir.path().join("任务.txt"), original).expect("应能写入工作区文件");
+        std::fs::write(dir.path().join(".git"), "broken git metadata\n")
+            .expect("应能制造真实 Git 故障");
+        let root = dir.path().to_string_lossy();
+
+        prepare_workspace_git(&root).expect_err("首次真实准备必须失败");
+        std::fs::remove_file(dir.path().join(".git")).expect("应能修复损坏元数据");
+        let (prepared, _branch, is_repo, _stats) =
+            prepare_workspace_git(&root).expect("修复后真实重试必须成功");
+        let remotes = std::process::Command::new("git")
+            .args(["-C"])
+            .arg(dir.path())
+            .arg("remote")
+            .env("GIT_TERMINAL_PROMPT", "0")
+            .output()
+            .expect("测试环境必须提供真实 Git");
+
+        assert!(prepared.initialized);
+        assert!(is_repo);
+        assert!(dir.path().join(".git").is_dir());
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join("任务.txt")).unwrap(),
+            original
+        );
+        assert!(remotes.status.success());
+        assert!(remotes.stdout.is_empty());
     }
 
     #[test]

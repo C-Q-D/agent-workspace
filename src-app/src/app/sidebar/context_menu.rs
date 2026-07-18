@@ -183,6 +183,12 @@ impl PaneFlowApp {
         let idx = menu.idx;
         let can_close = !self.workspaces.is_empty();
         let workflow_template = self.workspace_template_for_workspace(idx);
+        let can_retry_git = self.workspaces.get(idx).is_some_and(|workspace| {
+            matches!(
+                workspace.git_preparation_status,
+                crate::workspace::GitPreparationStatus::Failed(_)
+            )
+        });
         let services: Vec<_> = self
             .workspaces
             .get(idx)
@@ -204,7 +210,11 @@ impl PaneFlowApp {
         let workflow_rows = usize::from(workflow_template.is_some());
         let service_rows = services.len();
         let separator_rows = 3 + usize::from(service_rows > 0);
-        let menu_rows = EDITOR_CONTEXT_MENU_ITEMS.len() + 5 + workflow_rows + service_rows;
+        let menu_rows = EDITOR_CONTEXT_MENU_ITEMS.len()
+            + 5
+            + workflow_rows
+            + service_rows
+            + usize::from(can_retry_git);
         let menu_height = px(8. + menu_rows as f32 * 28. + separator_rows as f32 * 9.);
         let menu_pos = clamped_context_menu_position(menu.position, px(248.), menu_height, window);
 
@@ -232,6 +242,20 @@ impl PaneFlowApp {
                 cx.notify();
             }),
         ));
+
+        if can_retry_git {
+            context_menu = context_menu.child(self.render_select_menu_item(
+                "workspace-context-retry-git".into(),
+                "Retry Git Setup",
+                None,
+                ui,
+                cx.listener(move |this, _: &ClickEvent, _window, cx| {
+                    this.workspace_menu_open = None;
+                    this.retry_workspace_git_preparation(idx, cx);
+                    cx.stop_propagation();
+                }),
+            ));
+        }
 
         if let Some(template_idx) = workflow_template {
             context_menu = context_menu.child(self.render_select_menu_item(
