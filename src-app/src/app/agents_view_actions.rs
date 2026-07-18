@@ -7,14 +7,10 @@
 //! thread renders its PTY, and the no-thread state renders the agent
 //! picker for the active project (the home/empty state).
 //!
-//! Toggled by the [`crate::OpenAgentsView`] action (Ctrl+Shift+A on
-//! Linux/Windows, Cmd+Shift+A on macOS). Both render branches
-//! ([`PaneFlowApp::render_agents_main`] and
-//! [`PaneFlowApp::render_agents_sidebar`]) are no-ops when
-//! `self.mode == AppMode::Cli` -- main `render` only calls them on the
-//! Agents arm.
+//! 第一版公开界面不再注册 Agents 入口；本模块暂时保留为后续迁移时可逐步裁剪的
+//! 历史实现。公开启动、导航、快捷键、Rosetta 和 IPC 均不能进入该模式。
 
-use crate::{AgentsBranchMenuState, OpenAgentsView, PaneFlowApp};
+use crate::{AgentsBranchMenuState, PaneFlowApp};
 use gpui::{
     AppContext, ClickEvent, Context, CursorStyle, Focusable, FontWeight, InteractiveElement,
     IntoElement, MouseButton, ParentElement, SharedString, StatefulInteractiveElement, Styled,
@@ -65,32 +61,6 @@ fn oldest_evictable_terminal_id(
 }
 
 impl PaneFlowApp {
-    /// Toggle between [`AppMode::Cli`] and [`AppMode::Agents`].
-    ///
-    /// Focus contract (US-008 AC): when toggling back to CLI, the
-    /// previously active workspace's first pane re-receives focus.
-    /// The reverse direction (CLI -> Agents) does not steal focus
-    /// proactively; the Agents view rendering takes over the main
-    /// surface and any subsequent keystroke targets the new tree.
-    pub(crate) fn handle_open_agents_view(
-        &mut self,
-        _: &OpenAgentsView,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        match self.mode {
-            AppMode::Agents => {
-                self.exit_agents_mode(window, cx);
-            }
-            // From CLI or the Diff mode, pressing the Agents binding
-            // switches into Agents (US-003 of prd-git-diff-mode-2026-Q3.md;
-            // `enter_agents_mode` clears any other non-CLI surface).
-            AppMode::Cli | AppMode::Diff => {
-                self.enter_agents_mode(cx);
-            }
-        }
-    }
-
     /// Switch the main pane to the Skills browser (~/.claude/skills,
     /// ~/.codex/skills, ~/.agents/skills).
     ///
@@ -142,36 +112,6 @@ impl PaneFlowApp {
             });
         })
         .detach();
-    }
-
-    pub(crate) fn enter_agents_mode(&mut self, cx: &mut Context<Self>) {
-        self.mode = AppMode::Agents;
-        // US-016 warm-resume: entering Agents from Diff suspends the diff host
-        // (releases its watchers + ends its debounce loop) while the cache keeps
-        // its computed rows for an instant warm return; no-op from CLI (already
-        // parked). Keeps the non-CLI surfaces mutually exclusive (prd-git-diff
-        // US-003/US-005) without throwing away the diff.
-        self.park_displayed_diff(cx);
-        if let Some(target) = self.current_thread_view_target() {
-            self.mount_agents_terminal_for_target(target, cx);
-        }
-        self.save_session(cx);
-        cx.notify();
-    }
-
-    fn exit_agents_mode(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.mode = AppMode::Cli;
-        // Focus contract: restore focus to the active workspace's
-        // first pane so the keyboard immediately targets the
-        // terminal the user left, not a stray top-level handler.
-        // Terminal PTYs are detached, so the previously running
-        // process is still alive (verified by spawning and switching
-        // mid-stream).
-        if let Some(ws) = self.workspaces.get_mut(self.active_idx) {
-            ws.focus_first(window, cx);
-        }
-        self.save_session(cx);
-        cx.notify();
     }
 
     /// Main-content render branch for [`AppMode::Agents`].

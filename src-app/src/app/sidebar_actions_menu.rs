@@ -361,13 +361,6 @@ impl PaneFlowApp {
                 matches!(mode, AppMode::Diff),
                 Box::new(|this, _window, cx| this.enter_diff_mode(cx)),
             ))
-            .child(mode_button(
-                "sidebar-mode-agents",
-                "Agents",
-                "icons/sparkles.svg",
-                matches!(mode, AppMode::Agents),
-                Box::new(|this, _window, cx| this.enter_agents_mode(cx)),
-            ))
             .child(settings_trigger)
             .into_any_element();
 

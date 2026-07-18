@@ -128,10 +128,9 @@ pub(crate) fn focused_review_allowed(
 }
 
 impl PaneFlowApp {
-    /// Toggle the Git Diff mode. Mirrors `handle_open_agents_view`:
-    /// pressing the binding (or the action) from CLI/Agents enters
-    /// diff mode; pressing it again from within diff mode returns to
-    /// CLI.
+    /// 切换 Git Diff 模式；公开版本只在 CLI 与 Review 之间转换：从 CLI 触发
+    /// 时进入 Review，在 Review 内再次触发时返回 CLI。旧 Agents 会话已经在
+    /// 启动阶段归一化，不能从公开交互到达这里的 Agents 分支。
     pub(crate) fn handle_open_diff_view(
         &mut self,
         _: &OpenDiffView,

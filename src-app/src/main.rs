@@ -1203,12 +1203,8 @@ struct PaneFlowApp {
     theme_changed: std::sync::Arc<std::sync::atomic::AtomicBool>,
     /// US-053: Git Diff mode state (see `DiffModeState`).
     diff_mode: DiffModeState,
-    /// US-008 (prd-agents-view.md): top-level UI mode. `Cli` = the
-    /// traditional terminal multiplexer; `Agents` = the projects +
-    /// threads sidebar and chat thread view. Toggled by the
-    /// `OpenAgentsView` action (Ctrl/Cmd+Shift+A) and by the title-bar
-    /// icon (US-009). Persisted to / restored from `session.json`
-    /// (US-009 wires the restore branch).
+    /// 顶层界面模式。第一版公开入口只允许 `Cli` 与 `Diff`；`Agents` 仅为读取
+    /// 旧会话和后续源码迁移保留，启动恢复与公开交互都不能进入该分支。
     pub(crate) mode: paneflow_config::schema::AppMode,
     /// US-007 (prd-agents-view.md): in-memory list of Agents-view
     /// projects, persisted to `session.json` via [`save_session`].
@@ -1811,7 +1807,6 @@ impl Render for PaneFlowApp {
             }))
             .on_action(cx.listener(Self::handle_start_self_update))
             .on_action(cx.listener(Self::handle_dismiss_update))
-            .on_action(cx.listener(Self::handle_open_agents_view))
             .on_action(cx.listener(Self::handle_toggle_rosetta_surface))
             .on_action(cx.listener(Self::handle_toggle_files_sidebar))
             // US-011: title-bar `⋯` overflow menu for the current Agents thread.

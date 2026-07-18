@@ -94,11 +94,6 @@ actions!(
         MarkdownFindPrev,
         MarkdownFindDismiss,
         MarkdownCopy,
-        // US-005 of tasks/prd-agents-view.md - toggles the lightweight
-        // Agents-view shell that hosts the auth-required card and the
-        // missing-agents empty state. US-008 will repurpose the same
-        // action as the full AppMode toggle.
-        OpenAgentsView,
         // US-003 of tasks/prd-multi-worktree-diff-2026-Q3.md - open the
         // multi-worktree diff view for the active workspace's repo. Resolves
         // the repo from `active_idx`'s `repo_root` and opens a `DiffView` tab

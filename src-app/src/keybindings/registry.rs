@@ -410,13 +410,6 @@ pub(super) const ACTIONS: &[ActionMeta] = &[
         context: "MarkdownSearch",
         description: "Markdown: close find bar",
     },
-    // US-005 (prd-agents-view.md): toggle the lightweight Agents view.
-    ActionMeta {
-        name: "open_agents_view",
-        factory: || Box::new(crate::OpenAgentsView),
-        context: "",
-        description: "Toggle Agents view",
-    },
     // US-003 (prd-git-diff-mode-2026-Q3.md): toggle the dedicated Git
     // Diff mode (AppMode::Diff).
     ActionMeta {
@@ -548,6 +541,11 @@ mod tests {
     fn action_from_name_unknown_returns_none() {
         assert!(action_from_name("nonexistent_action").is_none());
         assert!(action_from_name("").is_none());
+    }
+
+    #[test]
+    fn hidden_agents_view_is_not_a_public_action() {
+        assert!(action_from_name("open_agents_view").is_none());
     }
 
     #[test]

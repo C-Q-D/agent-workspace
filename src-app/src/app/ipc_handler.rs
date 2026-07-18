@@ -1680,42 +1680,13 @@ impl PaneFlowApp {
 
     fn focus_agents_surface(
         &mut self,
-        surface_id: u64,
-        scope: SurfaceScope,
-        cx: &mut Context<Self>,
+        _surface_id: u64,
+        _scope: SurfaceScope,
+        _cx: &mut Context<Self>,
     ) -> Option<serde_json::Value> {
-        let terminal = self.find_surface_terminal_by_id(surface_id, cx)?;
-        match scope {
-            SurfaceScope::AgentsThread(thread_id) => {
-                let target = self.agents_thread_target_by_id(thread_id)?;
-                self.enter_agents_mode(cx);
-                self.select_agents_target(target, cx);
-            }
-            SurfaceScope::AgentsBottom(bottom_id) => {
-                self.enter_agents_mode(cx);
-                self.agents_view.agents_skills_visible = false;
-                self.agents_view.bottom_panel_open = true;
-                self.agents_view.bottom_panel_active = Some(bottom_id);
-            }
-            SurfaceScope::Workspace(_) => return None,
-        }
-        cx.defer(move |cx| {
-            for handle in cx.windows() {
-                if let Some(main) = handle.downcast::<PaneFlowApp>() {
-                    let _ = main.update(cx, |_, window, cx| {
-                        terminal.read(cx).focus_handle(cx).focus(window, cx);
-                    });
-                }
-            }
-        });
-        self.save_session(cx);
-        cx.notify();
-        Some(serde_json::json!({
-            "focused": true,
-            "surface_id": surface_id,
-            "workspace": serde_json::Value::Null,
-            "scope": scope.as_wire(),
-        }))
+        // 第一版只允许 IPC 聚焦公开工作区 Surface。即使旧进程内状态仍残留
+        // Agents Surface，也按不存在处理，避免外部调用绕过界面重新进入隐藏模式。
+        None
     }
 
     /// Resolve a `surface.*` target from the request params to a terminal

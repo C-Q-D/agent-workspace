@@ -349,13 +349,14 @@ struct WorkspaceSessionRef<'a> {
 
 impl crate::PaneFlowApp {
     pub(crate) fn rosetta_projection(&self, now: Instant) -> RosettaProjection {
-        build_rosetta_projection(
+        let projection = build_rosetta_projection(
             &self.workspaces,
-            &self.projects,
-            &self.chats,
+            &[],
+            &[],
             &self.rosetta_recent_history,
             now,
-        )
+        );
+        public_rosetta_projection(projection)
     }
 
     pub(crate) fn record_workspace_rosetta_event(
@@ -1094,26 +1095,10 @@ impl crate::PaneFlowApp {
                 cx.notify();
                 true
             }
-            RosettaFocusTarget::AgentsThread { thread_id } => {
-                let Some(target) = self.agents_thread_target_by_id(thread_id) else {
-                    cx.notify();
-                    return false;
-                };
-                self.enter_agents_mode(cx);
-                self.select_agents_target(target, cx);
-                if let Some(view) = self
-                    .agents_view
-                    .agents_terminal_view_cache
-                    .get(&thread_id)
-                    .cloned()
-                {
-                    view.read(cx).focus_handle(cx).focus(window, cx);
-                }
-                self.rosetta_surface_expanded = false;
-                self.rosetta_surface_selected = 0;
-                self.rosetta_surface_selected_key = None;
+            RosettaFocusTarget::AgentsThread { .. } => {
+                // 兼容旧事件枚举，但公开版本不得借历史行重新进入隐藏模式。
                 cx.notify();
-                true
+                false
             }
         }
     }
@@ -1252,6 +1237,20 @@ impl crate::PaneFlowApp {
         self.rosetta_surface_selected_key = None;
         self.rosetta_surface_pending_focus = false;
     }
+}
+
+/// 从公开 Rosetta 列表中剔除旧 Agents 目标。
+///
+/// 项目与聊天集合已经不参与实时投影；这里继续过滤短期历史事件，防止应用
+/// 升级期间尚未过期的 Agents 通知行成为隐藏模式的间接入口。
+fn public_rosetta_projection(mut projection: RosettaProjection) -> RosettaProjection {
+    projection.rows.retain(|row| {
+        !matches!(
+            row.focus_target,
+            Some(RosettaFocusTarget::AgentsThread { .. })
+        )
+    });
+    projection
 }
 
 pub(crate) fn build_rosetta_projection(
@@ -1982,6 +1981,19 @@ mod tests {
         );
 
         assert!(projection.is_empty());
+    }
+
+    #[test]
+    fn public_projection_omits_legacy_agents_targets() {
+        let mut hidden = sample_row(RosettaRowState::Thinking, "legacy", None);
+        hidden.focus_target = Some(RosettaFocusTarget::AgentsThread { thread_id: 9 });
+        let visible = sample_row(RosettaRowState::Thinking, "workspace", None);
+
+        let projection = public_rosetta_projection(RosettaProjection {
+            rows: vec![hidden, visible.clone()],
+        });
+
+        assert_eq!(projection.rows, vec![visible]);
     }
 
     #[test]
