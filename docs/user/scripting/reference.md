@@ -24,7 +24,7 @@ launching the app.
 | `search <target> <pattern>`                | `surface.search`                   | No                         | Search pane scrollback                 |
 | `ps [--json]`                              | `fleet.list`                       | No                         | List detected agents across workspaces |
 | `status <target> [--json]`                 | `surface.status`                   | No                         | Read one surface's agent state         |
-| `new`                                      | `workspace.create`                 | No                         | Create a workspace                     |
+| `new --cwd <DIR>`                          | `workspace.create`                 | No                         | Create a workspace with an explicit root |
 | `select <index>`                           | `workspace.select`                 | No                         | Select a workspace                     |
 | `split <h\|v>`                             | `surface.split`                    | No                         | Split a pane                           |
 | `focus <target>`                           | `surface.focus`                    | No                         | Focus a terminal surface               |
@@ -214,7 +214,7 @@ printf '%s\\n' '{"jsonrpc":"2.0","method":"system.capabilities","params":{},"id"
 | `system.identify`          | -                                                                                               | `{name, version, protocol}`                              |
 | `workspace.list`           | -                                                                                               | Workspaces with indexes and titles                       |
 | `workspace.current`        | -                                                                                               | Active workspace                                         |
-| `workspace.create`         | `name?`, `cwd?`, `layout?`                                                                      | Create a workspace                                       |
+| `workspace.create`         | `cwd`, `name?`, `layout?`                                                                       | Create a workspace with an explicit stable root          |
 | `workspace.select`         | `index`                                                                                         | Switch workspace                                         |
 | `workspace.close`          | `index?`                                                                                        | Close a workspace                                        |
 | `workspace.up`             | `name`, `layout`, `panes[]`                                                                     | Declarative spawn used by `up` and flow roots            |

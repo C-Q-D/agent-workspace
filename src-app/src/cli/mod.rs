@@ -165,9 +165,9 @@ enum Commands {
         /// Workspace title.
         #[arg(long)]
         name: Option<String>,
-        /// Working directory for the first pane (must exist).
+        /// Stable workspace root for the first pane (must exist).
         #[arg(long)]
-        cwd: Option<String>,
+        cwd: String,
     },
     /// Select a workspace by index.
     Select {
@@ -424,9 +424,7 @@ fn dispatch(command: Commands, client: &IpcClient) -> Result<i32, CliError> {
         } => read_cmds::search(client, &target, &pattern, max, human),
         Commands::Ps { json } => read_cmds::ps(client, json),
         Commands::Status { target, json } => read_cmds::status(client, &target, json),
-        Commands::New { name, cwd } => {
-            control_cmds::new_workspace(client, name.as_deref(), cwd.as_deref())
-        }
+        Commands::New { name, cwd } => control_cmds::new_workspace(client, name.as_deref(), &cwd),
         Commands::Select { index } => control_cmds::select(client, index),
         Commands::Split { direction, target } => {
             control_cmds::split(client, direction.as_ipc(), target.as_deref())

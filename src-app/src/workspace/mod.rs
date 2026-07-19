@@ -40,7 +40,6 @@ use gpui::{App, Entity, Window};
 use paneflow_config::schema::{ButtonCommand, LayoutNode};
 
 use crate::ai_types::AgentSession;
-use crate::launch_cwd;
 use crate::layout::LayoutTree;
 use crate::pane::Pane;
 use crate::terminal::TerminalLifecycleStatus;
@@ -230,12 +229,6 @@ impl Workspace {
             reference_format: crate::reference_formatter::ReferenceFormat::default(),
             managed_worktrees: Vec::new(),
         }
-    }
-
-    /// Create a workspace with a pre-allocated ID (use `next_workspace_id()` to obtain one).
-    pub fn with_id(id: u64, title: impl Into<String>, pane: Entity<Pane>) -> Self {
-        let cwd = launch_cwd::implicit_launch_cwd().display().to_string();
-        Self::build(id, title.into(), cwd, LayoutTree::Leaf(pane))
     }
 
     /// Create a workspace with a pre-allocated ID and explicit CWD.

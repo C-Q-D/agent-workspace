@@ -409,10 +409,6 @@ impl TerminalView {
         }
     }
 
-    pub fn new(workspace_id: u64, cx: &mut Context<Self>) -> Self {
-        Self::with_cwd(workspace_id, None, None, cx)
-    }
-
     pub fn with_cwd(
         workspace_id: u64,
         cwd: Option<std::path::PathBuf>,

@@ -2380,34 +2380,19 @@ impl PaneFlowApp {
                     .get("name")
                     .and_then(|n| n.as_str())
                     .unwrap_or("Terminal");
-                // US-014 (cli-hardening-followup-2026-Q3):
-                // canonicalize the `cwd` field before handing it to
-                // `TerminalView::with_cwd`. Validation lives in the
-                // free helper `canonicalize_workspace_cwd` so the
-                // contract is unit-testable in isolation (see the
-                // `workspace_create_rejects_nonexistent_cwd` test
-                // below).
-                let cwd = match params.get("cwd").and_then(|c| c.as_str()) {
-                    Some(raw) => match canonicalize_workspace_cwd(raw) {
-                        Ok(canonical) => Some(canonical),
-                        Err(err) => return err.into_value(),
-                    },
-                    None => None,
+                // 每个公开工作区都必须由调用方显式绑定稳定根目录。省略 cwd 不再
+                // 回退 GUI 进程的 current_dir，避免 IPC 重新引入首启已经移除的隐式
+                // 目录行为；解析与 canonicalize 由同一个可测试 helper 完成。
+                let cwd = match required_workspace_create_cwd(params) {
+                    Ok(canonical) => canonical,
+                    Err(err) => return err.into_value(),
                 };
-                let ws_id = next_workspace_id();
-                let ws = if let Some(dir) = cwd {
-                    let terminal =
-                        cx.new(|cx| TerminalView::with_cwd(ws_id, Some(dir.clone()), None, cx));
-                    let pane = self.create_pane(terminal, ws_id, cx);
-                    Workspace::with_cwd_and_id(ws_id, name, dir, pane)
-                } else {
-                    let terminal = cx.new(|cx| TerminalView::new(ws_id, cx));
-                    let pane = self.create_pane(terminal, ws_id, cx);
-                    Workspace::with_id(ws_id, name, pane)
+                let previous_idx = self.active_idx;
+                let Some(creation) = self.append_workspace_from_root(name.to_string(), cwd, cx)
+                else {
+                    return serde_json::json!({"error": "Workspace limit reached"});
                 };
-                let workspace_cwd = ws.cwd.clone();
-                self.workspaces.push(ws);
-                let idx = self.workspaces.len() - 1;
+                let idx = creation.index;
 
                 // US-001: when a layout is provided, apply it to the freshly
                 // created workspace. `apply_layout_from_json` operates on the
@@ -2416,8 +2401,6 @@ impl PaneFlowApp {
                 // layout doesn't strand the caller on a half-initialised
                 // workspace they didn't ask to land on.
                 let panes = if let Some(ref mut layout) = layout {
-                    let previous_idx = self.active_idx;
-                    self.active_idx = idx;
                     if let Err(e) = self.apply_layout_from_json(layout, cx) {
                         // Roll back: drop the just-created workspace so the
                         // caller sees a clean -32602 and no orphan workspace.
@@ -2436,10 +2419,7 @@ impl PaneFlowApp {
                 // 只有工作区及可选布局全部创建成功后，才登记后台 Git 准备。
                 // 这样无效 IPC 请求不会在已经回滚的目录中留下 `.git` 副作用；
                 // 同时与界面目录选择器共享并发合并、稳定 ID 回填和 watcher 流程。
-                self.spawn_workspace_git_preparation(ws_id, workspace_cwd, cx);
-                self.reconcile_maximized_workspace_after_change(cx);
-                self.save_session(cx);
-                cx.notify();
+                self.finish_workspace_creations(std::slice::from_ref(&creation), cx);
                 // 创建响应在当前 GPUI 更新内同步生成，后台 PTY promote 尚未回写；
                 // 暴露这一同源快照，让调用方能观察真实 starting 边界而无需高频轮询。
                 let terminal_status = self.workspaces[idx].terminal_status(cx).as_wire_name();
@@ -4180,6 +4160,21 @@ pub(crate) fn canonicalize_workspace_cwd(raw: &str) -> Result<std::path::PathBuf
     Ok(spawn_cwd)
 }
 
+/// 读取 `workspace.create` 必需的稳定工作区根目录。
+///
+/// 缺失、非字符串或空白 cwd 均返回 JSON-RPC `-32602`，不会构造 PTY；合法值
+/// 继续复用既有 canonicalize 与目录类型校验。
+fn required_workspace_create_cwd(
+    params: &serde_json::Value,
+) -> Result<std::path::PathBuf, JsonRpcError> {
+    let raw = params
+        .get("cwd")
+        .and_then(serde_json::Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| JsonRpcError::invalid_params("cwd is required and must be a directory"))?;
+    canonicalize_workspace_cwd(raw)
+}
+
 fn expand_tilde(raw: &str) -> PathBuf {
     expand_tilde_with_home(raw, dirs::home_dir().as_deref())
 }
@@ -4821,6 +4816,23 @@ mod tests {
     // canonicalization
     // -----------------------------------------------------------------
 
+    /// 工作区创建必须显式给出稳定目录；缺失、空白和错误类型都应在构造 PTY
+    /// 之前返回统一的 Invalid params。
+    #[test]
+    fn workspace_create_requires_explicit_nonempty_cwd() {
+        for params in [
+            serde_json::json!({}),
+            serde_json::json!({"cwd": ""}),
+            serde_json::json!({"cwd": "   "}),
+            serde_json::json!({"cwd": 42}),
+        ] {
+            let err = super::required_workspace_create_cwd(&params)
+                .expect_err("缺失或无效 cwd 必须被拒绝");
+            assert_eq!(err.code, JsonRpcError::INVALID_PARAMS);
+            assert!(err.message.contains("cwd is required"));
+        }
+    }
+
     /// AC #6: a non-existent `cwd` must surface as JSON-RPC `-32602
     /// Invalid params` without attempting to spawn a PTY. Exercises
     /// the free helper `canonicalize_workspace_cwd` directly so the
@@ -4878,9 +4890,8 @@ mod tests {
             "name": "真实 IPC 工作区",
             "cwd": tmp.path().to_string_lossy(),
         });
-        let raw_cwd = params["cwd"].as_str().expect("IPC cwd 应为字符串");
         let canonical =
-            super::canonicalize_workspace_cwd(raw_cwd).expect("真实 IPC cwd 应通过生产校验");
+            super::required_workspace_create_cwd(&params).expect("真实 IPC cwd 应通过生产校验");
 
         let prepared = crate::workspace::ensure_local_repository(&canonical)
             .expect("共享生产流程应初始化真实本地仓库");

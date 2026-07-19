@@ -1,9 +1,9 @@
 //! Workspace and pane lifecycle operations for `PaneFlowApp`.
 //!
 //! Hosts the action handlers and helpers that create, select, split, close,
-//! reorder, zoom, and re-layout workspaces and their pane trees. All methods
-//! are pure code-motion from `main.rs` (US-023 of the src-app refactor PRD) -
-//! behaviour is unchanged.
+//! reorder, zoom, and re-layout workspaces and their pane trees. The module was
+//! originally extracted from `main.rs` (US-023) and now owns the shared
+//! explicit-root creation lifecycle used by both UI and IPC entry points.
 //!
 //! Rendering (sidebar, context menus), IPC plumbing, toasts, settings, and
 //! session persistence live in their own siblings under `app/`.
@@ -40,6 +40,18 @@ pub(crate) enum WorkspaceFocusTarget {
         pane: gpui::Entity<crate::pane::Pane>,
         tab_idx: usize,
     },
+}
+
+/// 一次显式目录工作区创建在应用内的稳定回执。
+///
+/// UI 目录选择器和 IPC 创建入口共享该回执，把“构造并加入列表”与“确认成功后
+/// 启动 Git 准备及持久化”分开。这样 IPC 布局校验失败时可以先回滚，绝不会在
+/// 已删除的工作区目录中留下 `.git` 副作用。
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct WorkspaceCreation {
+    pub(crate) workspace_id: u64,
+    pub(crate) index: usize,
+    pub(crate) workspace_root: String,
 }
 
 fn push_closed_pane_record(records: &mut Vec<ClosedPaneRecord>, mut record: ClosedPaneRecord) {
@@ -456,25 +468,58 @@ impl PaneFlowApp {
         });
     }
 
-    #[allow(dead_code)]
-    pub(crate) fn create_workspace(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    /// 从用户或调用方明确指定的目录构造并加入一个真实终端工作区。
+    ///
+    /// 本方法只完成无外部文件系统副作用的内存构造；调用方完成自身校验后必须
+    /// 调用 [`Self::finish_workspace_creations`]，统一登记 Git 准备、聚焦上下文和
+    /// 会话持久化。达到上限时返回 `None`，且不创建 PTY。
+    pub(crate) fn append_workspace_from_root(
+        &mut self,
+        title: String,
+        workspace_root: std::path::PathBuf,
+        cx: &mut Context<Self>,
+    ) -> Option<WorkspaceCreation> {
         if self.workspaces.len() >= MAX_WORKSPACES {
-            return;
+            return None;
         }
-        let n = self.workspaces.len() + 1;
         let ws_id = next_workspace_id();
-        let terminal = cx.new(|cx| TerminalView::new(ws_id, cx));
+        let terminal =
+            cx.new(|cx| TerminalView::with_cwd(ws_id, Some(workspace_root.clone()), None, cx));
         let pane = self.create_pane(terminal, ws_id, cx);
-        let ws = Workspace::with_id(ws_id, format!("Terminal {n}"), pane);
-        // US-013: deferred git-stats probe off the render thread.
-        Self::spawn_initial_git_stats(ws_id, ws.cwd.clone(), cx);
-        self.watch_git_dir(&ws);
+        let ws = Workspace::with_cwd_and_id(ws_id, title, workspace_root, pane);
+        let workspace_root = ws.cwd.clone();
         self.workspaces.push(ws);
         self.active_idx = self.workspaces.len() - 1;
-        self.workspaces[self.active_idx].focus_first(window, cx);
+        Some(WorkspaceCreation {
+            workspace_id: ws_id,
+            index: self.active_idx,
+            workspace_root,
+        })
+    }
+
+    /// 完成一批已经成功加入列表的显式目录工作区。
+    ///
+    /// Git 初始化保持后台执行，终端不会等待；跨入口共享同一顺序可以避免首个、
+    /// 后续和 IPC 工作区在 watcher、聚焦状态、会话保存及 Diff 刷新上继续漂移。
+    pub(crate) fn finish_workspace_creations(
+        &mut self,
+        creations: &[WorkspaceCreation],
+        cx: &mut Context<Self>,
+    ) {
+        if creations.is_empty() {
+            return;
+        }
+        for creation in creations {
+            self.spawn_workspace_git_preparation(
+                creation.workspace_id,
+                creation.workspace_root.clone(),
+                cx,
+            );
+        }
         self.reconcile_maximized_workspace_after_change(cx);
         self.save_session(cx);
         cx.notify();
+        self.reconcile_diff_after_workspace_change(cx);
     }
 
     pub(crate) fn create_workspace_with_picker(
@@ -496,34 +541,23 @@ impl PaneFlowApp {
                 if let Ok(Ok(Some(paths))) = receiver.await {
                     let _ = cx.update(|cx| {
                         this.update(cx, |app, cx| {
+                            let mut creations = Vec::new();
                             for path in paths {
                                 if app.workspaces.len() >= MAX_WORKSPACES {
                                     break;
                                 }
                                 let n = app.workspaces.len() + 1;
-                                let dir = path.clone();
-                                let title = dir
-                                    .file_name()
-                                    .map(|n| n.to_string_lossy().into_owned())
-                                    .unwrap_or_else(|| format!("Terminal {n}"));
-                                let ws_id = next_workspace_id();
-                                let terminal = cx
-                                    .new(|cx| TerminalView::with_cwd(ws_id, Some(path), None, cx));
-                                let pane = app.create_pane(terminal, ws_id, cx);
-                                let ws = Workspace::with_cwd_and_id(ws_id, title, dir, pane);
-                                // 目录选择器创建的工作区在后台确保本地 Git 仓库存在；
-                                // 终端先进入可交互状态，初始化不会阻塞 GPUI 主线程。
-                                let workspace_cwd = ws.cwd.clone();
-                                app.workspaces.push(ws);
-                                app.spawn_workspace_git_preparation(ws_id, workspace_cwd, cx);
+                                let title = crate::launch_cwd::title_for_cwd_or(
+                                    &path,
+                                    format!("Terminal {n}"),
+                                );
+                                if let Some(creation) =
+                                    app.append_workspace_from_root(title, path, cx)
+                                {
+                                    creations.push(creation);
+                                }
                             }
-                            app.active_idx = app.workspaces.len() - 1;
-                            app.reconcile_maximized_workspace_after_change(cx);
-                            app.save_session(cx);
-                            cx.notify();
-                            // US-016 (prd-git-diff-mode-2026-Q3.md): a new repo
-                            // must surface in Multi-project / re-target the diff.
-                            app.reconcile_diff_after_workspace_change(cx);
+                            app.finish_workspace_creations(&creations, cx);
                         })
                     });
                 }

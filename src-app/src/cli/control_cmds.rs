@@ -4,7 +4,7 @@
 //! Thin wrappers over `workspace.create` / `workspace.select` / `surface.split`
 //! / `surface.focus`. Each prints the server's `result` envelope as JSON so
 //! scripts can read back the new workspace index / pane count. Server-side
-//! caps (MAX_WORKSPACES, MAX_PANES) and validation (a non-existent `--cwd` is
+//! caps (MAX_WORKSPACES, MAX_PANES) and validation (a missing or non-existent `--cwd` is
 //! rejected with -32602) propagate as a clear message + non-zero exit.
 
 use paneflow_ipc_client::IpcTransport;
@@ -13,18 +13,17 @@ use serde_json::json;
 use super::selector::resolve_target;
 use super::{CliError, EXIT_OK};
 
-/// `paneflow new [--name N] [--cwd DIR]`.
+/// `paneflow new [--name N] --cwd DIR`。
+///
+/// cwd 是稳定工作区根目录，CLI 不允许省略后回退到调用进程的当前目录。
 pub fn new_workspace(
     client: &impl IpcTransport,
     name: Option<&str>,
-    cwd: Option<&str>,
+    cwd: &str,
 ) -> Result<i32, CliError> {
-    let mut params = json!({});
+    let mut params = json!({ "cwd": cwd });
     if let Some(name) = name {
         params["name"] = json!(name);
-    }
-    if let Some(cwd) = cwd {
-        params["cwd"] = json!(cwd);
     }
     let result = super::reject_legacy_error(
         client
