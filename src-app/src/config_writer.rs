@@ -515,6 +515,58 @@ mod tests {
         assert_eq!(saved["future_setting"]["enabled"], json!(true));
     }
 
+    /// 逐项模拟七类设置控件的真实读改写，验证十个键和未来字段最终全部保留。
+    #[test]
+    fn stable_settings_sequential_writes_preserve_all_keys_and_unknown_fields() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("settings.json");
+        std::fs::write(
+            &path,
+            serde_json::to_vec_pretty(&json!({
+                "future_setting": {"preserved": true},
+                "existing_sibling": "keep"
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        let updates = [
+            ("default_shell", json!("pwsh.exe")),
+            ("claude_code_command", json!("claude --model sonnet")),
+            ("codex_command", json!("codex --model gpt-5")),
+            ("theme_mode", json!("dark")),
+            ("theme", json!("One Dark")),
+            ("font_family", json!("Geist Mono")),
+            ("font_size", json!(15.0)),
+            ("default_reference_format", json!("claude")),
+            ("workspace_grid_density", json!("compact")),
+            ("git_auto_init", json!(false)),
+        ];
+
+        for (key, value) in &updates {
+            assert!(save_config_values_to_path_checked(
+                &path,
+                [(*key, value.clone())],
+                || true
+            ));
+        }
+
+        let saved: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        for (key, value) in updates {
+            assert_eq!(saved[key], value, "联合设置写入后字段 {key} 必须保持");
+        }
+        assert_eq!(saved["future_setting"]["preserved"], json!(true));
+        assert_eq!(saved["existing_sibling"], json!("keep"));
+        assert_eq!(
+            std::fs::read_dir(dir.path())
+                .unwrap()
+                .filter_map(Result::ok)
+                .filter(|entry| entry.file_name().to_string_lossy().contains(".tmp."))
+                .count(),
+            0,
+            "每次原子替换后都不得遗留临时文件"
+        );
+    }
+
     #[test]
     fn superseded_generation_skips_stale_real_file_write() {
         let dir = tempfile::TempDir::new().unwrap();

@@ -1171,9 +1171,9 @@ mod tests {
             windows_chrome_material: None,
             line_height: None,
             cell_width: None,
-            font_family: None,
+            font_family: Some("Geist Mono".to_string()),
             font_fallbacks: None,
-            font_size: None,
+            font_size: Some(15.0),
             font_weight: None,
             option_as_meta: None,
             shell_integration: None,
@@ -1238,6 +1238,49 @@ mod tests {
         assert_eq!(reparsed.claude_code_command, config.claude_code_command);
         assert_eq!(reparsed.codex_command, config.codex_command);
         assert_eq!(reparsed.theme, config.theme);
+    }
+
+    /// 联合解析 P2-05 的七类设置，防止字段在同一份配置中互相覆盖或串值。
+    #[test]
+    fn test_stable_settings_contract_parses_all_ten_keys_together() {
+        let config = parse_and_validate(
+            r#"{
+                "default_shell": "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+                "claude_code_command": "claude --model sonnet",
+                "codex_command": "codex --model gpt-5",
+                "theme_mode": "dark",
+                "theme": "One Dark",
+                "font_family": "Geist Mono",
+                "font_size": 15.0,
+                "default_reference_format": "claude",
+                "workspace_grid_density": "compact",
+                "git_auto_init": false,
+                "future_setting": {"preserved": true}
+            }"#,
+        );
+
+        assert_eq!(
+            config.default_shell.as_deref(),
+            Some("C:\\Program Files\\PowerShell\\7\\pwsh.exe")
+        );
+        assert_eq!(
+            config.resolved_claude_code_command(),
+            "claude --model sonnet"
+        );
+        assert_eq!(config.resolved_codex_command(), "codex --model gpt-5");
+        assert_eq!(config.theme_mode.as_deref(), Some("dark"));
+        assert_eq!(config.theme.as_deref(), Some("One Dark"));
+        assert_eq!(config.font_family.as_deref(), Some("Geist Mono"));
+        assert_eq!(config.font_size, Some(15.0));
+        assert_eq!(config.resolved_default_reference_format(), "claude");
+        assert_eq!(
+            config.resolved_workspace_grid_density(),
+            crate::schema::WorkspaceGridDensity::Compact
+        );
+        assert!(!config.git_auto_init_enabled());
+
+        let reparsed = parse_and_validate(&serde_json::to_string(&config).unwrap());
+        assert_eq!(reparsed, config);
     }
 
     #[test]
