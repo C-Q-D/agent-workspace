@@ -1,29 +1,21 @@
-//! "General" settings page - the default landing section.
+//! “General”通用设置页。
 //!
-//! Hosts two top-level preferences, each rendered with the shared Codex-style
-//! select primitives (`components::select_*`):
-//! - **Default editor** (`external_editor`) - the app used to open files and
-//!   folders (Auto-detect / Zed / Cursor / Windsurf / VS Code / Visual Studio /
-//!   System), each with its brand logo.
-//! - **Shell in the integrated terminal** (`default_shell`) - a curated set of
-//!   platform shells. Empty = fall back to `$SHELL` / the platform default.
-//!
-//! Both persist through [`PaneFlowApp::persist_setting`] (cache-mutate, repaint,
-//! off-thread write). Only one select is open at a time, tracked by
-//! [`crate::GeneralDropdown`]; the menu closes on select, on click-outside, on
-//! the trigger, on Escape, and on a tab change.
+//! 本页承载默认编辑器、新终端 Shell，以及新工作区的引用格式和 Git 初始化策略。
+//! 所有控件复用共享设置组件与 [`PaneFlowApp::persist_setting`]，点击后先更新内存
+//! 并重绘，再由后台原子写入配置文件；页面本身不创建轮询或常驻任务。
 
 use gpui::{
-    AnyElement, ClickEvent, Context, IntoElement, MouseButton, ParentElement, SharedString, Styled,
-    div, prelude::*, px,
+    AnyElement, ClickEvent, Context, CursorStyle, InteractiveElement, IntoElement, MouseButton,
+    ParentElement, SharedString, Styled, div, prelude::*, px,
 };
 use serde_json::Value;
 
 use crate::GeneralDropdown;
 use crate::PaneFlowApp;
+use crate::reference_formatter::ReferenceFormat;
 use crate::settings::components::{
-    Logo, deferred_select_menu, hairline, render_logo, select_chevron, select_item, select_menu,
-    select_trigger, setting_card, setting_text,
+    Logo, deferred_select_menu, hairline, render_logo, section_header, select_chevron, select_item,
+    select_menu, select_trigger, setting_card, setting_text, toggle_pill,
 };
 
 /// One select option: display label, optional leading logo, the JSON value
@@ -130,12 +122,49 @@ impl PaneFlowApp {
             cx,
         );
 
-        let card = setting_card(ui)
+        let launch_card = setting_card(ui)
             .child(editor_row)
             .child(hairline(ui))
             .child(shell_row);
 
-        div().flex().flex_col().gap(px(20.)).child(card)
+        // 新工作区引用格式只读取稳定枚举，不探测正在运行的 CLI。
+        let reference_format = ReferenceFormat::from_new_workspace_config(config);
+        let reference_opts = reference_format_setting_options(reference_format);
+        let reference_row = self.general_select_row(
+            GeneralDropdown::ReferenceFormat,
+            "Default reference format",
+            "Choose how file and line references are inserted in new workspaces. Existing workspaces keep their saved format.",
+            reference_format_setting_label(reference_format).to_string(),
+            None,
+            reference_opts,
+            "default_reference_format",
+            ui,
+            cx,
+        );
+        let git_auto_init = config.git_auto_init_enabled();
+        let git_auto_init_row = self.general_toggle_row(
+            "general-git-auto-init",
+            "Initialize Git repositories automatically",
+            "Run git init when a new or restored workspace root is not already a repository. Existing repositories remain available when disabled.",
+            git_auto_init,
+            "git_auto_init",
+            ui,
+            cx,
+        );
+        let workspace_card = setting_card(ui)
+            .child(reference_row)
+            .child(hairline(ui))
+            .child(git_auto_init_row);
+
+        div()
+            .flex()
+            .flex_col()
+            .child(section_header(ui, "Launch defaults"))
+            .child(launch_card)
+            .child(div().h(px(20.)).flex_none())
+            .child(section_header(ui, "New workspace defaults"))
+            .child(workspace_card)
+            .child(div().h(px(120.)).flex_none())
     }
 
     /// One General-page setting row: label/description on the left, a Codex-style
@@ -245,6 +274,66 @@ impl PaneFlowApp {
             .child(div().flex_shrink_0().child(trigger))
             .into_any_element()
     }
+
+    /// 渲染顶层布尔设置；目标值在本次渲染时固定，快速点击仍由统一配置写入器串行化。
+    #[allow(clippy::too_many_arguments)]
+    fn general_toggle_row(
+        &self,
+        id: &'static str,
+        title: &'static str,
+        description: &'static str,
+        current: bool,
+        config_key: &'static str,
+        ui: crate::theme::UiColors,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let target_value = !current;
+        div()
+            .id(SharedString::from(format!("{id}-row")))
+            .flex()
+            .flex_row()
+            .items_center()
+            .gap(px(16.))
+            .px(px(12.))
+            .py(px(10.))
+            .child(setting_text(ui, title, description))
+            .child(
+                div()
+                    .id(SharedString::from(id))
+                    .flex_shrink_0()
+                    .cursor(CursorStyle::PointingHand)
+                    .on_click(cx.listener(move |this, _: &ClickEvent, _window, cx| {
+                        this.persist_setting(false, config_key, Value::Bool(target_value), cx);
+                    }))
+                    .child(toggle_pill(current, ui)),
+            )
+            .into_any_element()
+    }
+}
+
+/// 设置页使用完整的产品名称，避免把普通 PowerShell 默认值误解成任意 Shell。
+fn reference_format_setting_label(format: ReferenceFormat) -> &'static str {
+    match format {
+        ReferenceFormat::Common => "Common",
+        ReferenceFormat::Codex => "Codex",
+        ReferenceFormat::Claude => "Claude Code",
+        ReferenceFormat::PowerShell => "PowerShell",
+    }
+}
+
+/// 生成稳定顺序的引用格式选项，并直接携带写入配置的规范小写值。
+fn reference_format_setting_options(current: ReferenceFormat) -> Vec<SelectOption> {
+    ReferenceFormat::ALL
+        .into_iter()
+        .map(|format| {
+            (
+                reference_format_setting_label(format).to_string(),
+                None,
+                Value::String(format.as_persisted().to_string()),
+                format == current,
+            )
+        })
+        .collect()
 }
 
 /// Per-editor leading logo for the Default-editor select. Brand-color logos
@@ -305,6 +394,8 @@ fn shell_preset_eq(stored: &str, chip: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use crate::reference_formatter::ReferenceFormat;
+
     #[test]
     fn shell_preset_matches_bare_names_by_basename() {
         assert!(super::shell_preset_eq(
@@ -323,5 +414,28 @@ mod tests {
             r"C:\Windows\System32\bash.exe",
             r"C:\Program Files\Git\bin\bash.exe"
         ));
+    }
+
+    #[test]
+    fn reference_format_options_keep_labels_values_and_selection_stable() {
+        let options = super::reference_format_setting_options(ReferenceFormat::Claude);
+        let simplified: Vec<_> = options
+            .into_iter()
+            .map(|(label, _icon, value, selected)| (label, value, selected))
+            .collect();
+
+        assert_eq!(
+            simplified,
+            vec![
+                ("Common".to_string(), serde_json::json!("common"), false),
+                ("Codex".to_string(), serde_json::json!("codex"), false),
+                ("Claude Code".to_string(), serde_json::json!("claude"), true),
+                (
+                    "PowerShell".to_string(),
+                    serde_json::json!("powershell"),
+                    false
+                ),
+            ]
+        );
     }
 }

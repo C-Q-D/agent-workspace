@@ -190,13 +190,16 @@ pub(crate) enum TerminalDropdown {
     FontWeight,
 }
 
-/// Which General-page select dropdown is currently open (only one at a time).
-/// `None` = all closed. Mirrors `TerminalDropdown` so navigating away or opening
-/// the other select never leaves a ghost popover.
+/// General 设置页当前打开的下拉框；同一时间只允许一个菜单保持展开。
+/// `None` 表示全部关闭，切换页面或打开另一个下拉框时不会残留悬浮菜单。
 #[derive(Clone, Copy, PartialEq)]
 pub(crate) enum GeneralDropdown {
+    /// 默认外部编辑器。
     Editor,
+    /// 新终端默认 Shell。
     Shell,
+    /// 新工作区默认文件引用格式。
+    ReferenceFormat,
 }
 
 /// Which Workspaces-page dropdown is currently open.

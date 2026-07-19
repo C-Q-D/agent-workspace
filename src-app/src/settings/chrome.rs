@@ -67,7 +67,22 @@ const NAV_GROUPS: &[NavGroup] = &[
                 section: SettingsSection::General,
                 label: "General",
                 icon: "icons/settings.svg",
-                keywords: &["window", "decorations", "mode", "shell", "default shell"],
+                keywords: &[
+                    "window",
+                    "decorations",
+                    "mode",
+                    "shell",
+                    "default shell",
+                    "workspace",
+                    "reference",
+                    "file reference",
+                    "codex",
+                    "claude",
+                    "powershell",
+                    "git",
+                    "git init",
+                    "repository",
+                ],
             },
             NavItem {
                 section: SettingsSection::Appearance,
@@ -619,6 +634,24 @@ mod tests {
             assert!(
                 nav_item_matches(item, query),
                 "查询词 {query} 应匹配 AI Agent 页面"
+            );
+        }
+        assert!(!nav_item_matches(item, "font size"));
+    }
+
+    /// General 导航应能通过新工作区引用与 Git 初始化相关词汇被检索到。
+    #[test]
+    fn general_navigation_matches_workspace_default_keywords() {
+        let item = NAV_GROUPS
+            .iter()
+            .flat_map(|group| group.items.iter())
+            .find(|item| item.section == SettingsSection::General)
+            .expect("General 导航项应当存在");
+
+        for query in ["workspace", "reference", "claude", "git init", "repository"] {
+            assert!(
+                nav_item_matches(item, query),
+                "查询词 {query} 应匹配 General 页面"
             );
         }
         assert!(!nav_item_matches(item, "font size"));
