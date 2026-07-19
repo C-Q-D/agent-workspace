@@ -1,0 +1,24 @@
+AgentWorkspace Windows x64 便携版
+
+一、运行方式
+
+1. 请先完整解压 ZIP，不要直接在压缩包预览窗口中运行。
+2. 双击 agent-workspace.exe，或在 PowerShell 中执行 .\agent-workspace.exe。
+3. 便携版不会修改系统 PATH，也不会创建开始菜单快捷方式。
+
+二、用户数据
+
+便携版与安装版使用相同的数据规则：会话、设置和工作区状态保存在当前用户目录下的 .agent-workspace，而不是保存在解压目录。移动或删除便携版目录不会自动删除用户数据，也不会删除用户项目。
+
+三、目录内容
+
+- agent-workspace.exe：主程序。
+- bin：Codex CLI、Claude Code CLI 等命令的本地 helper shim。
+- licenses：GNU GPL、Paneflow 上游归属与第三方许可证材料。
+- License.rtf：安装与离线查看使用的 GNU GPL v3 许可证正文。
+
+四、完整性
+
+发布 ZIP 旁的 .sha256 文件记录压缩包 SHA-256。下载后可使用 PowerShell 的 Get-FileHash 命令核对。
+
+AgentWorkspace 是 Paneflow 的修改版，并非 Paneflow 官方发行。程序按 GNU GPL v3 或更高版本发布，不提供担保。详细信息见 licenses 目录。
