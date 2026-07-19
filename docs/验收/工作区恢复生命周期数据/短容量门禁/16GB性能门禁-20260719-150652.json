@@ -1,0 +1,1017 @@
+{
+  "RunId": "16GB性能门禁-20260719-150652",
+  "Commit": "0ae989b891199d6610d50c57ca59362ee1a3e25e",
+  "BinaryPath": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\target\\release\\paneflow.exe",
+  "BinarySha256": "A5F5AE9220224B5A2B3D3EB587D8CBCF16B3186A64BDDB870B301BE0FDD83373",
+  "CapacityDurationSeconds": 30,
+  "ReusedCapacitySummary": false,
+  "ReusedStabilityResult": false,
+  "StabilityIncluded": false,
+  "StabilityDurationSeconds": 0,
+  "CapacityResults": [
+    {
+      "RunId": "p15-capacity-01终端-20260719-150652",
+      "Commit": "0ae989b891199d6610d50c57ca59362ee1a3e25e",
+      "BinaryPath": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\target\\release\\paneflow.exe",
+      "BinarySha256": "A5F5AE9220224B5A2B3D3EB587D8CBCF16B3186A64BDDB870B301BE0FDD83373",
+      "TerminalCount": 1,
+      "DurationSeconds": 30,
+      "OutputIntervalMilliseconds": 250,
+      "AppCpuAveragePercent": 0.1926,
+      "AppWorkingSetPeakMiB": 183.301,
+      "AppWorkingSetFirstMiB": 183.301,
+      "AppWorkingSetLastMiB": 166.387,
+      "AppPrivatePeakMiB": 154.633,
+      "AppPrivateFirstMiB": 154.633,
+      "AppPrivateLastMiB": 137.613,
+      "TreeProcessCountPeak": 4.0,
+      "TreeWorkingSetPeakMiB": 382.516,
+      "TreePrivatePeakMiB": 226.441,
+      "PowerShellCountPeak": 2.0,
+      "PowerShellWorkingSetPeakMiB": 191.141,
+      "PowerShellPrivatePeakMiB": 70.348,
+      "ConhostCountPeak": 1.0,
+      "ConhostWorkingSetPeakMiB": 8.207,
+      "ConhostPrivatePeakMiB": 1.523,
+      "ProcessTreeStableDuringSample": true,
+      "ProcessIdsStableDuringSample": true,
+      "SampleElapsedSeconds": 30.077,
+      "SampleTimestampSpanSeconds": 28.993,
+      "ProcessTreeSnapshot": [
+        {
+          "Id": 524,
+          "ParentId": 42160,
+          "Name": "pwsh",
+          "WorkingSetMiB": 87.09,
+          "PrivateMiB": 29.863
+        },
+        {
+          "Id": 22960,
+          "ParentId": 9620,
+          "Name": "paneflow",
+          "WorkingSetMiB": 166.461,
+          "PrivateMiB": 137.688
+        },
+        {
+          "Id": 35952,
+          "ParentId": 22960,
+          "Name": "conhost",
+          "WorkingSetMiB": 8.168,
+          "PrivateMiB": 1.449
+        },
+        {
+          "Id": 42160,
+          "ParentId": 22960,
+          "Name": "pwsh",
+          "WorkingSetMiB": 100.211,
+          "PrivateMiB": 36.375
+        }
+      ],
+      "FirstSurfaceRenderDelta": {
+        "change_batches": 171,
+        "immediate_redraw_requests": 171,
+        "hidden_suppressed_redraw_requests": 0,
+        "resume_redraw_requests": 0
+      },
+      "LastSurfaceRenderDelta": {
+        "change_batches": 171,
+        "immediate_redraw_requests": 171,
+        "hidden_suppressed_redraw_requests": 0,
+        "resume_redraw_requests": 0
+      },
+      "AllFinalMarkersObserved": true,
+      "Completion": [
+        {
+          "SurfaceId": 12884901889,
+          "Workspace": 0,
+          "OutputGeneration": 294,
+          "Completed": true
+        }
+      ],
+      "SwitchCount": 32,
+      "SwitchP95Milliseconds": 62.467,
+      "SwitchMaxMilliseconds": 63.071,
+      "SwitchProcessIdsStable": true,
+      "TrackedProcessIds": [
+        22960,
+        35952,
+        42160
+      ],
+      "RemainingProcessIds": [],
+      "OverviewScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\工作区恢复生命周期数据\\短容量门禁\\p15-capacity-01终端-20260719-150652\\矩阵总览.png",
+      "MaximizedScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\工作区恢复生命周期数据\\短容量门禁\\p15-capacity-01终端-20260719-150652\\单窗口放大.png",
+      "SamplesCsv": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\工作区恢复生命周期数据\\短容量门禁\\p15-capacity-01终端-20260719-150652\\进程采样.csv"
+    },
+    {
+      "RunId": "p15-capacity-09终端-20260719-150826",
+      "Commit": "0ae989b891199d6610d50c57ca59362ee1a3e25e",
+      "BinaryPath": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\target\\release\\paneflow.exe",
+      "BinarySha256": "A5F5AE9220224B5A2B3D3EB587D8CBCF16B3186A64BDDB870B301BE0FDD83373",
+      "TerminalCount": 9,
+      "DurationSeconds": 30,
+      "OutputIntervalMilliseconds": 250,
+      "AppCpuAveragePercent": 0.5152,
+      "AppWorkingSetPeakMiB": 201.359,
+      "AppWorkingSetFirstMiB": 197.508,
+      "AppWorkingSetLastMiB": 201.352,
+      "AppPrivatePeakMiB": 200.867,
+      "AppPrivateFirstMiB": 197.066,
+      "AppPrivateLastMiB": 200.867,
+      "TreeProcessCountPeak": 28.0,
+      "TreeWorkingSetPeakMiB": 1985.371,
+      "TreePrivatePeakMiB": 841.07,
+      "PowerShellCountPeak": 18.0,
+      "PowerShellWorkingSetPeakMiB": 1710.504,
+      "PowerShellPrivatePeakMiB": 626.875,
+      "ConhostCountPeak": 9.0,
+      "ConhostWorkingSetPeakMiB": 73.461,
+      "ConhostPrivatePeakMiB": 13.422,
+      "ProcessTreeStableDuringSample": true,
+      "ProcessIdsStableDuringSample": true,
+      "SampleElapsedSeconds": 30.245,
+      "SampleTimestampSpanSeconds": 29.011,
+      "ProcessTreeSnapshot": [
+        {
+          "Id": 6336,
+          "ParentId": 14024,
+          "Name": "pwsh",
+          "WorkingSetMiB": 99.734,
+          "PrivateMiB": 35.965
+        },
+        {
+          "Id": 8568,
+          "ParentId": 14024,
+          "Name": "conhost",
+          "WorkingSetMiB": 8.109,
+          "PrivateMiB": 1.418
+        },
+        {
+          "Id": 14024,
+          "ParentId": 12424,
+          "Name": "paneflow",
+          "WorkingSetMiB": 201.438,
+          "PrivateMiB": 200.867
+        },
+        {
+          "Id": 15056,
+          "ParentId": 14024,
+          "Name": "pwsh",
+          "WorkingSetMiB": 99.941,
+          "PrivateMiB": 36.203
+        },
+        {
+          "Id": 15708,
+          "ParentId": 15056,
+          "Name": "pwsh",
+          "WorkingSetMiB": 85.957,
+          "PrivateMiB": 29.711
+        },
+        {
+          "Id": 17592,
+          "ParentId": 37116,
+          "Name": "pwsh",
+          "WorkingSetMiB": 84.414,
+          "PrivateMiB": 29.367
+        },
+        {
+          "Id": 23608,
+          "ParentId": 24928,
+          "Name": "pwsh",
+          "WorkingSetMiB": 81.297,
+          "PrivateMiB": 26.66
+        },
+        {
+          "Id": 24928,
+          "ParentId": 14024,
+          "Name": "pwsh",
+          "WorkingSetMiB": 105.129,
+          "PrivateMiB": 40.75
+        },
+        {
+          "Id": 25036,
+          "ParentId": 14024,
+          "Name": "conhost",
+          "WorkingSetMiB": 8.129,
+          "PrivateMiB": 1.418
+        },
+        {
+          "Id": 25560,
+          "ParentId": 6336,
+          "Name": "pwsh",
+          "WorkingSetMiB": 84.484,
+          "PrivateMiB": 29.297
+        },
+        {
+          "Id": 26704,
+          "ParentId": 14024,
+          "Name": "pwsh",
+          "WorkingSetMiB": 103.957,
+          "PrivateMiB": 39.5
+        },
+        {
+          "Id": 34704,
+          "ParentId": 14024,
+          "Name": "conhost",
+          "WorkingSetMiB": 8.113,
+          "PrivateMiB": 1.414
+        },
+        {
+          "Id": 35952,
+          "ParentId": 42104,
+          "Name": "pwsh",
+          "WorkingSetMiB": 86.406,
+          "PrivateMiB": 30.766
+        },
+        {
+          "Id": 36224,
+          "ParentId": 14024,
+          "Name": "conhost",
+          "WorkingSetMiB": 8.113,
+          "PrivateMiB": 1.395
+        },
+        {
+          "Id": 36868,
+          "ParentId": 14024,
+          "Name": "pwsh",
+          "WorkingSetMiB": 104.996,
+          "PrivateMiB": 40.691
+        },
+        {
+          "Id": 37116,
+          "ParentId": 14024,
+          "Name": "pwsh",
+          "WorkingSetMiB": 100.469,
+          "PrivateMiB": 36.703
+        },
+        {
+          "Id": 38280,
+          "ParentId": 39348,
+          "Name": "pwsh",
+          "WorkingSetMiB": 82.891,
+          "PrivateMiB": 26.84
+        },
+        {
+          "Id": 38504,
+          "ParentId": 14024,
+          "Name": "conhost",
+          "WorkingSetMiB": 8.168,
+          "PrivateMiB": 1.438
+        },
+        {
+          "Id": 39348,
+          "ParentId": 14024,
+          "Name": "pwsh",
+          "WorkingSetMiB": 104.559,
+          "PrivateMiB": 40.004
+        },
+        {
+          "Id": 39920,
+          "ParentId": 14024,
+          "Name": "pwsh",
+          "WorkingSetMiB": 109.27,
+          "PrivateMiB": 41.5
+        },
+        {
+          "Id": 40360,
+          "ParentId": 26704,
+          "Name": "pwsh",
+          "WorkingSetMiB": 84.672,
+          "PrivateMiB": 29.441
+        },
+        {
+          "Id": 40436,
+          "ParentId": 14024,
+          "Name": "conhost",
+          "WorkingSetMiB": 8.109,
+          "PrivateMiB": 1.395
+        },
+        {
+          "Id": 41540,
+          "ParentId": 14024,
+          "Name": "conhost",
+          "WorkingSetMiB": 8.137,
+          "PrivateMiB": 1.461
+        },
+        {
+          "Id": 41544,
+          "ParentId": 14024,
+          "Name": "conhost",
+          "WorkingSetMiB": 8.141,
+          "PrivateMiB": 1.418
+        },
+        {
+          "Id": 41580,
+          "ParentId": 39920,
+          "Name": "pwsh",
+          "WorkingSetMiB": 84.93,
+          "PrivateMiB": 29.891
+        },
+        {
+          "Id": 42104,
+          "ParentId": 14024,
+          "Name": "pwsh",
+          "WorkingSetMiB": 109.883,
+          "PrivateMiB": 41.941
+        },
+        {
+          "Id": 42480,
+          "ParentId": 36868,
+          "Name": "pwsh",
+          "WorkingSetMiB": 81.406,
+          "PrivateMiB": 27.07
+        },
+        {
+          "Id": 42636,
+          "ParentId": 14024,
+          "Name": "conhost",
+          "WorkingSetMiB": 8.133,
+          "PrivateMiB": 1.434
+        }
+      ],
+      "FirstSurfaceRenderDelta": {
+        "change_batches": 173,
+        "immediate_redraw_requests": 173,
+        "hidden_suppressed_redraw_requests": 0,
+        "resume_redraw_requests": 0
+      },
+      "LastSurfaceRenderDelta": {
+        "change_batches": 172,
+        "immediate_redraw_requests": 0,
+        "hidden_suppressed_redraw_requests": 172,
+        "resume_redraw_requests": 0
+      },
+      "AllFinalMarkersObserved": true,
+      "Completion": [
+        {
+          "SurfaceId": 12884901889,
+          "Workspace": 0,
+          "OutputGeneration": 304,
+          "Completed": true
+        },
+        {
+          "SurfaceId": 4294967312,
+          "Workspace": 1,
+          "OutputGeneration": 297,
+          "Completed": true
+        },
+        {
+          "SurfaceId": 4294967315,
+          "Workspace": 2,
+          "OutputGeneration": 298,
+          "Completed": true
+        },
+        {
+          "SurfaceId": 4294967318,
+          "Workspace": 3,
+          "OutputGeneration": 296,
+          "Completed": true
+        },
+        {
+          "SurfaceId": 4294967321,
+          "Workspace": 4,
+          "OutputGeneration": 295,
+          "Completed": true
+        },
+        {
+          "SurfaceId": 4294967324,
+          "Workspace": 5,
+          "OutputGeneration": 298,
+          "Completed": true
+        },
+        {
+          "SurfaceId": 4294967327,
+          "Workspace": 6,
+          "OutputGeneration": 296,
+          "Completed": true
+        },
+        {
+          "SurfaceId": 4294967330,
+          "Workspace": 7,
+          "OutputGeneration": 298,
+          "Completed": true
+        },
+        {
+          "SurfaceId": 4294967333,
+          "Workspace": 8,
+          "OutputGeneration": 299,
+          "Completed": true
+        }
+      ],
+      "SwitchCount": 32,
+      "SwitchP95Milliseconds": 63.022,
+      "SwitchMaxMilliseconds": 63.398,
+      "SwitchProcessIdsStable": true,
+      "TrackedProcessIds": [
+        6336,
+        8568,
+        14024,
+        15056,
+        24928,
+        25036,
+        26704,
+        34704,
+        36224,
+        36868,
+        37116,
+        38504,
+        39348,
+        39920,
+        40436,
+        41540,
+        41544,
+        42104,
+        42636
+      ],
+      "RemainingProcessIds": [],
+      "OverviewScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\工作区恢复生命周期数据\\短容量门禁\\p15-capacity-09终端-20260719-150826\\矩阵总览.png",
+      "MaximizedScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\工作区恢复生命周期数据\\短容量门禁\\p15-capacity-09终端-20260719-150826\\单窗口放大.png",
+      "SamplesCsv": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\工作区恢复生命周期数据\\短容量门禁\\p15-capacity-09终端-20260719-150826\\进程采样.csv"
+    },
+    {
+      "RunId": "p15-capacity-16终端-20260719-151007",
+      "Commit": "0ae989b891199d6610d50c57ca59362ee1a3e25e",
+      "BinaryPath": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\target\\release\\paneflow.exe",
+      "BinarySha256": "A5F5AE9220224B5A2B3D3EB587D8CBCF16B3186A64BDDB870B301BE0FDD83373",
+      "TerminalCount": 16,
+      "DurationSeconds": 30,
+      "OutputIntervalMilliseconds": 250,
+      "AppCpuAveragePercent": 0.7507,
+      "AppWorkingSetPeakMiB": 216.652,
+      "AppWorkingSetFirstMiB": 212.547,
+      "AppWorkingSetLastMiB": 215.523,
+      "AppPrivatePeakMiB": 244.723,
+      "AppPrivateFirstMiB": 240.602,
+      "AppPrivateLastMiB": 243.484,
+      "TreeProcessCountPeak": 49.0,
+      "TreeWorkingSetPeakMiB": 3457.336,
+      "TreePrivatePeakMiB": 1399.098,
+      "PowerShellCountPeak": 32.0,
+      "PowerShellWorkingSetPeakMiB": 3111.055,
+      "PowerShellPrivatePeakMiB": 1131.559,
+      "ConhostCountPeak": 16.0,
+      "ConhostWorkingSetPeakMiB": 130.477,
+      "ConhostPrivatePeakMiB": 23.691,
+      "ProcessTreeStableDuringSample": true,
+      "ProcessIdsStableDuringSample": true,
+      "SampleElapsedSeconds": 30.347,
+      "SampleTimestampSpanSeconds": 28.988,
+      "ProcessTreeSnapshot": [
+        {
+          "Id": 2156,
+          "ParentId": 23036,
+          "Name": "pwsh",
+          "WorkingSetMiB": 109.414,
+          "PrivateMiB": 41.211
+        },
+        {
+          "Id": 3388,
+          "ParentId": 23036,
+          "Name": "conhost",
+          "WorkingSetMiB": 8.129,
+          "PrivateMiB": 1.453
+        },
+        {
+          "Id": 9620,
+          "ParentId": 23036,
+          "Name": "pwsh",
+          "WorkingSetMiB": 109.293,
+          "PrivateMiB": 41.055
+        },
+        {
+          "Id": 9640,
+          "ParentId": 23036,
+          "Name": "conhost",
+          "WorkingSetMiB": 8.152,
+          "PrivateMiB": 1.492
+        },
+        {
+          "Id": 12168,
+          "ParentId": 39024,
+          "Name": "pwsh",
+          "WorkingSetMiB": 86.145,
+          "PrivateMiB": 30.73
+        },
+        {
+          "Id": 12424,
+          "ParentId": 2156,
+          "Name": "pwsh",
+          "WorkingSetMiB": 84.324,
+          "PrivateMiB": 29.07
+        },
+        {
+          "Id": 15324,
+          "ParentId": 33392,
+          "Name": "pwsh",
+          "WorkingSetMiB": 86.301,
+          "PrivateMiB": 30.379
+        },
+        {
+          "Id": 17064,
+          "ParentId": 23036,
+          "Name": "conhost",
+          "WorkingSetMiB": 8.125,
+          "PrivateMiB": 1.445
+        },
+        {
+          "Id": 20812,
+          "ParentId": 23036,
+          "Name": "pwsh",
+          "WorkingSetMiB": 109.105,
+          "PrivateMiB": 41.059
+        },
+        {
+          "Id": 22268,
+          "ParentId": 41264,
+          "Name": "pwsh",
+          "WorkingSetMiB": 86.195,
+          "PrivateMiB": 29.922
+        },
+        {
+          "Id": 23036,
+          "ParentId": 38316,
+          "Name": "paneflow",
+          "WorkingSetMiB": 215.719,
+          "PrivateMiB": 243.68
+        },
+        {
+          "Id": 24080,
+          "ParentId": 23036,
+          "Name": "pwsh",
+          "WorkingSetMiB": 109.285,
+          "PrivateMiB": 41.086
+        },
+        {
+          "Id": 26128,
+          "ParentId": 23036,
+          "Name": "conhost",
+          "WorkingSetMiB": 8.137,
+          "PrivateMiB": 1.414
+        },
+        {
+          "Id": 26692,
+          "ParentId": 23036,
+          "Name": "pwsh",
+          "WorkingSetMiB": 108.246,
+          "PrivateMiB": 40.02
+        },
+        {
+          "Id": 32756,
+          "ParentId": 40028,
+          "Name": "pwsh",
+          "WorkingSetMiB": 86.223,
+          "PrivateMiB": 29.828
+        },
+        {
+          "Id": 33392,
+          "ParentId": 23036,
+          "Name": "pwsh",
+          "WorkingSetMiB": 108.699,
+          "PrivateMiB": 40.602
+        },
+        {
+          "Id": 34244,
+          "ParentId": 23036,
+          "Name": "conhost",
+          "WorkingSetMiB": 8.145,
+          "PrivateMiB": 1.457
+        },
+        {
+          "Id": 35216,
+          "ParentId": 23036,
+          "Name": "conhost",
+          "WorkingSetMiB": 8.117,
+          "PrivateMiB": 1.402
+        },
+        {
+          "Id": 35892,
+          "ParentId": 37876,
+          "Name": "pwsh",
+          "WorkingSetMiB": 85.801,
+          "PrivateMiB": 30.074
+        },
+        {
+          "Id": 36072,
+          "ParentId": 23036,
+          "Name": "conhost",
+          "WorkingSetMiB": 8.109,
+          "PrivateMiB": 1.395
+        },
+        {
+          "Id": 36320,
+          "ParentId": 23036,
+          "Name": "pwsh",
+          "WorkingSetMiB": 105.145,
+          "PrivateMiB": 40.727
+        },
+        {
+          "Id": 37592,
+          "ParentId": 23036,
+          "Name": "conhost",
+          "WorkingSetMiB": 8.137,
+          "PrivateMiB": 1.441
+        },
+        {
+          "Id": 37644,
+          "ParentId": 20812,
+          "Name": "pwsh",
+          "WorkingSetMiB": 87.73,
+          "PrivateMiB": 31.355
+        },
+        {
+          "Id": 37784,
+          "ParentId": 40228,
+          "Name": "pwsh",
+          "WorkingSetMiB": 81.562,
+          "PrivateMiB": 27.832
+        },
+        {
+          "Id": 37876,
+          "ParentId": 23036,
+          "Name": "pwsh",
+          "WorkingSetMiB": 107.484,
+          "PrivateMiB": 39.477
+        },
+        {
+          "Id": 38328,
+          "ParentId": 23036,
+          "Name": "conhost",
+          "WorkingSetMiB": 8.113,
+          "PrivateMiB": 1.406
+        },
+        {
+          "Id": 38464,
+          "ParentId": 23036,
+          "Name": "conhost",
+          "WorkingSetMiB": 8.129,
+          "PrivateMiB": 1.453
+        },
+        {
+          "Id": 38580,
+          "ParentId": 23036,
+          "Name": "conhost",
+          "WorkingSetMiB": 8.117,
+          "PrivateMiB": 1.426
+        },
+        {
+          "Id": 38992,
+          "ParentId": 42548,
+          "Name": "pwsh",
+          "WorkingSetMiB": 85.766,
+          "PrivateMiB": 29.852
+        },
+        {
+          "Id": 39024,
+          "ParentId": 23036,
+          "Name": "pwsh",
+          "WorkingSetMiB": 105.062,
+          "PrivateMiB": 38.039
+        },
+        {
+          "Id": 39148,
+          "ParentId": 23036,
+          "Name": "conhost",
+          "WorkingSetMiB": 8.176,
+          "PrivateMiB": 1.445
+        },
+        {
+          "Id": 39440,
+          "ParentId": 23036,
+          "Name": "pwsh",
+          "WorkingSetMiB": 109.352,
+          "PrivateMiB": 41.148
+        },
+        {
+          "Id": 39704,
+          "ParentId": 23036,
+          "Name": "conhost",
+          "WorkingSetMiB": 8.133,
+          "PrivateMiB": 1.449
+        },
+        {
+          "Id": 40028,
+          "ParentId": 23036,
+          "Name": "pwsh",
+          "WorkingSetMiB": 109.367,
+          "PrivateMiB": 41.367
+        },
+        {
+          "Id": 40044,
+          "ParentId": 36320,
+          "Name": "pwsh",
+          "WorkingSetMiB": 86.035,
+          "PrivateMiB": 30.145
+        },
+        {
+          "Id": 40196,
+          "ParentId": 42348,
+          "Name": "pwsh",
+          "WorkingSetMiB": 87.367,
+          "PrivateMiB": 30.984
+        },
+        {
+          "Id": 40228,
+          "ParentId": 23036,
+          "Name": "pwsh",
+          "WorkingSetMiB": 107.328,
+          "PrivateMiB": 39.121
+        },
+        {
+          "Id": 40396,
+          "ParentId": 23036,
+          "Name": "conhost",
+          "WorkingSetMiB": 8.117,
+          "PrivateMiB": 1.395
+        },
+        {
+          "Id": 40432,
+          "ParentId": 23036,
+          "Name": "conhost",
+          "WorkingSetMiB": 8.125,
+          "PrivateMiB": 1.426
+        },
+        {
+          "Id": 40556,
+          "ParentId": 23036,
+          "Name": "pwsh",
+          "WorkingSetMiB": 109.402,
+          "PrivateMiB": 41.27
+        },
+        {
+          "Id": 41152,
+          "ParentId": 9620,
+          "Name": "pwsh",
+          "WorkingSetMiB": 85.734,
+          "PrivateMiB": 29.414
+        },
+        {
+          "Id": 41264,
+          "ParentId": 23036,
+          "Name": "pwsh",
+          "WorkingSetMiB": 107.383,
+          "PrivateMiB": 39.109
+        },
+        {
+          "Id": 41520,
+          "ParentId": 39440,
+          "Name": "pwsh",
+          "WorkingSetMiB": 85.746,
+          "PrivateMiB": 29.742
+        },
+        {
+          "Id": 42080,
+          "ParentId": 26692,
+          "Name": "pwsh",
+          "WorkingSetMiB": 85.793,
+          "PrivateMiB": 29.562
+        },
+        {
+          "Id": 42328,
+          "ParentId": 23036,
+          "Name": "conhost",
+          "WorkingSetMiB": 8.121,
+          "PrivateMiB": 1.426
+        },
+        {
+          "Id": 42348,
+          "ParentId": 23036,
+          "Name": "pwsh",
+          "WorkingSetMiB": 105.137,
+          "PrivateMiB": 37.867
+        },
+        {
+          "Id": 42548,
+          "ParentId": 23036,
+          "Name": "pwsh",
+          "WorkingSetMiB": 108.867,
+          "PrivateMiB": 40.727
+        },
+        {
+          "Id": 42748,
+          "ParentId": 24080,
+          "Name": "pwsh",
+          "WorkingSetMiB": 84.305,
+          "PrivateMiB": 29.078
+        },
+        {
+          "Id": 42788,
+          "ParentId": 40556,
+          "Name": "pwsh",
+          "WorkingSetMiB": 84.516,
+          "PrivateMiB": 29.211
+        }
+      ],
+      "FirstSurfaceRenderDelta": {
+        "change_batches": 172,
+        "immediate_redraw_requests": 172,
+        "hidden_suppressed_redraw_requests": 0,
+        "resume_redraw_requests": 0
+      },
+      "LastSurfaceRenderDelta": {
+        "change_batches": 173,
+        "immediate_redraw_requests": 0,
+        "hidden_suppressed_redraw_requests": 173,
+        "resume_redraw_requests": 0
+      },
+      "AllFinalMarkersObserved": true,
+      "Completion": [
+        {
+          "SurfaceId": 12884901889,
+          "Workspace": 0,
+          "OutputGeneration": 304,
+          "Completed": true
+        },
+        {
+          "SurfaceId": 4294967312,
+          "Workspace": 1,
+          "OutputGeneration": 298,
+          "Completed": true
+        },
+        {
+          "SurfaceId": 4294967315,
+          "Workspace": 2,
+          "OutputGeneration": 297,
+          "Completed": true
+        },
+        {
+          "SurfaceId": 4294967318,
+          "Workspace": 3,
+          "OutputGeneration": 296,
+          "Completed": true
+        },
+        {
+          "SurfaceId": 4294967321,
+          "Workspace": 4,
+          "OutputGeneration": 292,
+          "Completed": true
+        },
+        {
+          "SurfaceId": 4294967324,
+          "Workspace": 5,
+          "OutputGeneration": 295,
+          "Completed": true
+        },
+        {
+          "SurfaceId": 4294967327,
+          "Workspace": 6,
+          "OutputGeneration": 298,
+          "Completed": true
+        },
+        {
+          "SurfaceId": 4294967330,
+          "Workspace": 7,
+          "OutputGeneration": 296,
+          "Completed": true
+        },
+        {
+          "SurfaceId": 4294967333,
+          "Workspace": 8,
+          "OutputGeneration": 296,
+          "Completed": true
+        },
+        {
+          "SurfaceId": 4294967336,
+          "Workspace": 9,
+          "OutputGeneration": 305,
+          "Completed": true
+        },
+        {
+          "SurfaceId": 4294967339,
+          "Workspace": 10,
+          "OutputGeneration": 298,
+          "Completed": true
+        },
+        {
+          "SurfaceId": 4294967342,
+          "Workspace": 11,
+          "OutputGeneration": 296,
+          "Completed": true
+        },
+        {
+          "SurfaceId": 4294967345,
+          "Workspace": 12,
+          "OutputGeneration": 296,
+          "Completed": true
+        },
+        {
+          "SurfaceId": 4294967348,
+          "Workspace": 13,
+          "OutputGeneration": 304,
+          "Completed": true
+        },
+        {
+          "SurfaceId": 4294967351,
+          "Workspace": 14,
+          "OutputGeneration": 296,
+          "Completed": true
+        },
+        {
+          "SurfaceId": 4294967354,
+          "Workspace": 15,
+          "OutputGeneration": 311,
+          "Completed": true
+        }
+      ],
+      "SwitchCount": 32,
+      "SwitchP95Milliseconds": 62.914,
+      "SwitchMaxMilliseconds": 63.321,
+      "SwitchProcessIdsStable": true,
+      "TrackedProcessIds": [
+        2156,
+        3388,
+        9620,
+        9640,
+        17064,
+        20812,
+        23036,
+        24080,
+        26128,
+        26692,
+        33392,
+        34244,
+        35216,
+        36072,
+        36320,
+        37592,
+        37876,
+        38328,
+        38464,
+        38580,
+        39024,
+        39148,
+        39440,
+        39704,
+        40028,
+        40228,
+        40396,
+        40432,
+        40556,
+        41264,
+        42328,
+        42348,
+        42548
+      ],
+      "RemainingProcessIds": [],
+      "OverviewScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\工作区恢复生命周期数据\\短容量门禁\\p15-capacity-16终端-20260719-151007\\矩阵总览.png",
+      "MaximizedScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\工作区恢复生命周期数据\\短容量门禁\\p15-capacity-16终端-20260719-151007\\单窗口放大.png",
+      "SamplesCsv": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\工作区恢复生命周期数据\\短容量门禁\\p15-capacity-16终端-20260719-151007\\进程采样.csv"
+    }
+  ],
+  "CapacityChecks": {
+    "OneTerminal": {
+      "CpuWithinOnePercent": true,
+      "WorkingSetWithin256MiB": true,
+      "SwitchP95Within100Ms": true,
+      "PowerShellProcessCountStable": true,
+      "ConhostBaselinePresent": true,
+      "ProcessIdsStable": true,
+      "SwitchProcessIdsStable": true,
+      "AllFinalMarkersObserved": true,
+      "FocusedRenderActive": true,
+      "HiddenRenderSuppressed": true,
+      "SampleCadenceContinuous": true,
+      "NoAgentsSpecificProcess": true,
+      "ZeroRemainingProcesses": true
+    },
+    "NineTerminals": {
+      "CpuWithinOnePercent": true,
+      "WorkingSetWithin256MiB": true,
+      "SwitchP95Within100Ms": true,
+      "PowerShellProcessCountStable": true,
+      "ConhostBaselinePresent": true,
+      "ProcessIdsStable": true,
+      "SwitchProcessIdsStable": true,
+      "AllFinalMarkersObserved": true,
+      "FocusedRenderActive": true,
+      "HiddenRenderSuppressed": true,
+      "SampleCadenceContinuous": true,
+      "NoAgentsSpecificProcess": true,
+      "ZeroRemainingProcesses": true
+    },
+    "SixteenTerminals": {
+      "CpuWithinOnePercent": true,
+      "WorkingSetWithin256MiB": true,
+      "SwitchP95Within100Ms": true,
+      "PowerShellProcessCountStable": true,
+      "ConhostBaselinePresent": true,
+      "ProcessIdsStable": true,
+      "SwitchProcessIdsStable": true,
+      "AllFinalMarkersObserved": true,
+      "FocusedRenderActive": true,
+      "HiddenRenderSuppressed": true,
+      "SampleCadenceContinuous": true,
+      "NoAgentsSpecificProcess": true,
+      "ZeroRemainingProcesses": true
+    },
+    "MarginalOneToNineMiB": 2.257,
+    "MarginalNineToSixteenMiB": 2.185,
+    "MarginalOneToNineWithin8MiB": true,
+    "MarginalNineToSixteenWithin8MiB": true,
+    "SixteenWorkingSetRegressionWithin16MiB": true,
+    "MaxSwitchRegressionWithin25Ms": true
+  },
+  "CapacityPassed": true,
+  "StabilityResult": null,
+  "StabilityChecks": null,
+  "StabilityPassed": true,
+  "OverallPassed": true
+}

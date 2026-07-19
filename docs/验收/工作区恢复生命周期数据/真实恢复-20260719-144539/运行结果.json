@@ -1,0 +1,37 @@
+{
+  "RunId": "真实恢复-20260719-144539",
+  "Commit": "0ae989b891199d6610d50c57ca59362ee1a3e25e",
+  "BinaryPath": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\target\\release\\paneflow.exe",
+  "BinarySha256": "968CF6F5C033CE43486BBED2F54B5F472A2BA908B928ECA2F94413645931C5B8",
+  "InputWorkspaceCount": 3,
+  "RestoredWorkspaceCount": 2,
+  "RestoredTitles": [
+    "已有 Git",
+    "非 Git"
+  ],
+  "ActiveTitle": "非 Git",
+  "ExistingGitRoot": "F:\\AWRestoreLifecycle-20260719-144539\\已有Git",
+  "NonGitRoot": "F:\\AWRestoreLifecycle-20260719-144539\\非Git",
+  "MissingRoot": "F:\\AWRestoreLifecycle-20260719-144539\\已失效",
+  "NonGitInitialized": true,
+  "ExistingRemotePreserved": "https://example.invalid/agent-workspace.git",
+  "LaunchRootUntouched": true,
+  "FirstTrackedProcessIds": [
+    14900,
+    36756,
+    37532,
+    38292,
+    39516
+  ],
+  "SecondTrackedProcessIds": [
+    7068,
+    27196,
+    30356,
+    37236,
+    38364,
+    39840,
+    42168
+  ],
+  "RemainingProcessIds": [],
+  "Passed": true
+}

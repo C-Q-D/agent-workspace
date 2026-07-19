@@ -408,10 +408,40 @@ try {
     Start-Sleep -Seconds 1
     Save-WindowScreenshot -Process $process -Path $overviewPath
     Enter-ApplicationMaximize -Process $process
+
+    # 左栏会为当前活动项保持滚动位置，因此固定屏幕坐标不保证命中 workspace 0。
+    # 先用真实重绘计数确认已经进入单窗口态；若前台切换瞬间吞掉首次点击，最多
+    # 重试两次。这里不接受“截图看起来像放大”的主观判断。
+    if ($TerminalCount -gt 1) {
+        $focusConfirmed = $false
+        for ($attempt = 0; $attempt -lt 3; $attempt++) {
+            $probeFirstBefore = Get-RenderMetrics -SurfaceId ([uint64]$surfaces[0].surface_id)
+            $probeLastBefore = Get-RenderMetrics -SurfaceId ([uint64]$surfaces[-1].surface_id)
+            if ($null -eq $probeFirstBefore -or $null -eq $probeLastBefore) {
+                throw '当前二进制未启用 terminal-perf-metrics，不能完成隐藏重绘门禁。'
+            }
+            Start-Sleep -Seconds 1
+            $probeFirst = Get-MetricDelta -Before $probeFirstBefore -After (Get-RenderMetrics -SurfaceId ([uint64]$surfaces[0].surface_id))
+            $probeLast = Get-MetricDelta -Before $probeLastBefore -After (Get-RenderMetrics -SurfaceId ([uint64]$surfaces[-1].surface_id))
+            $focusConfirmed = ([uint64]$probeFirst.hidden_suppressed_redraw_requests -gt 0) -or
+                ([uint64]$probeLast.hidden_suppressed_redraw_requests -gt 0)
+            if ($focusConfirmed) { break }
+            Enter-ApplicationMaximize -Process $process
+        }
+        if (-not $focusConfirmed) { throw '真实点击后三次仍未进入单窗口态。' }
+    }
     Save-WindowScreenshot -Process $process -Path $maximizedPath
 
-    $firstId = [uint64]$surfaces[0].surface_id
-    $lastId = [uint64]$surfaces[-1].surface_id
+    # 坐标点击可能命中当前滚动区域中的任意工作区；以生产 workspace.list 的活动
+    # 身份选择聚焦样本，再从其他工作区选择隐藏样本，避免把中间窗口误判为失败。
+    $workspaceState = Invoke-PaneflowRpc -Method 'workspace.list' -Params @{}
+    $activeWorkspace = @($workspaceState.workspaces | Where-Object { [bool]$_.active } | Select-Object -First 1)
+    if ($activeWorkspace.Count -ne 1) { throw '单窗口态缺少唯一活动工作区。' }
+    $focusedSurface = @($surfaces | Where-Object { [int]$_.workspace -eq [int]$activeWorkspace[0].index } | Select-Object -First 1)
+    if ($focusedSurface.Count -ne 1) { throw '无法把活动工作区映射到真实终端。' }
+    $hiddenSurface = @($surfaces | Where-Object { [int]$_.workspace -ne [int]$activeWorkspace[0].index } | Select-Object -First 1)
+    $firstId = [uint64]$focusedSurface[0].surface_id
+    $lastId = if ($hiddenSurface.Count -gt 0) { [uint64]$hiddenSurface[0].surface_id } else { $firstId }
     $firstBefore = Get-RenderMetrics -SurfaceId $firstId
     $lastBefore = Get-RenderMetrics -SurfaceId $lastId
     if ($null -eq $firstBefore -or $null -eq $lastBefore) {

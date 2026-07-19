@@ -1,0 +1,20 @@
+[
+  {
+    "index": 0,
+    "title": "已有 Git",
+    "cwd": "F:\\AWRestoreLifecycle-20260719-144539\\已有Git",
+    "panes": 1,
+    "terminal_status": "running",
+    "reference_format": "common",
+    "active": false
+  },
+  {
+    "index": 1,
+    "title": "非 Git",
+    "cwd": "F:\\AWRestoreLifecycle-20260719-144539\\非Git",
+    "panes": 1,
+    "terminal_status": "running",
+    "reference_format": "common",
+    "active": true
+  }
+]
