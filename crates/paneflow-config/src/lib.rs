@@ -8,6 +8,8 @@
     )
 )]
 
+/// AgentWorkspace 用户数据目录的统一布局契约。
+pub mod data_layout;
 pub mod loader;
 pub mod schema;
 pub mod watcher;
