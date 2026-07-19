@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "runId": "Distribution-20260719-201436",
+  "executedAt": "2026-07-19T20:14:55.9077318+08:00",
+  "baseCommit": "aa21f661a9f8c6821b80ca9f83197492f4b9639f",
+  "environment": {
+    "os": "Microsoft Windows 11 专业版",
+    "version": "10.0.26200",
+    "architecture": "64 位",
+    "powershell": "7.6.3"
+  },
+  "packages": {
+    "msi": {
+      "version": "0.7.11",
+      "productCode": "{8476123E-17EC-4B98-8EBA-7D40B515A778}",
+      "sha256": "58118384f7b68ae6fd26f05d285f0cc4abe30fc3dfa784359243ec16c8e2d4f9"
+    },
+    "portable": {
+      "version": "0.7.11",
+      "fileCount": 25,
+      "sha256": "6cca4e45b065973992c160101023a1c2e503bb5c49fe5e1779c4fb18a6af0ddc"
+    },
+    "sharedPayload": {
+      "fileCount": 24,
+      "allBytesIdentical": true,
+      "executableSha256": "db3a312e9ff96a3045670a1029f4d74136dd5e10874517e46bc4d70ad877457f"
+    }
+  },
+  "runs": [
+    {
+      "label": "installed-create-a",
+      "workspacesBefore": [],
+      "workspacesAfter": ["安装版工作区"],
+      "gracefulExit": true,
+      "processResidueCount": 0
+    },
+    {
+      "label": "portable-read-a-create-b",
+      "workspacesBefore": ["安装版工作区"],
+      "workspacesAfter": ["安装版工作区", "便携版工作区"],
+      "gracefulExit": true,
+      "processResidueCount": 0
+    },
+    {
+      "label": "installed-session-stabilize",
+      "workspacesBefore": ["安装版工作区", "便携版工作区"],
+      "workspacesAfter": ["安装版工作区", "便携版工作区"],
+      "gracefulExit": true,
+      "processResidueCount": 0
+    },
+    {
+      "label": "installed-cache-rebuild",
+      "workspacesBefore": ["安装版工作区", "便携版工作区"],
+      "workspacesAfter": ["安装版工作区", "便携版工作区"],
+      "gracefulExit": true,
+      "processResidueCount": 0
+    },
+    {
+      "label": "portable-cache-rebuild",
+      "workspacesBefore": ["安装版工作区", "便携版工作区"],
+      "workspacesAfter": ["安装版工作区", "便携版工作区"],
+      "gracefulExit": true,
+      "processResidueCount": 0
+    }
+  ],
+  "dataContract": {
+    "rootName": ".agent-workspace",
+    "sharedByInstalledAndPortable": true,
+    "durableDirectoriesPreservedDuringBothCacheRebuilds": true,
+    "logsPreservedDuringBothCacheRebuilds": true,
+    "sentinels": [
+      { "category": "config", "sha256": "cde25430df49c8675ef832370637d8e00e2f72443297c3eb897a02cefde488c8", "preserved": true },
+      { "category": "sessions", "sha256": "d0c5a93ac776162640f370bfdae770207446650c6cfb2631353fce01440d2312", "preserved": true },
+      { "category": "state", "sha256": "20df11b027b3cdbab88b04db03973ab4b9484bff2f26c85c30bd06f5ccac65b4", "preserved": true },
+      { "category": "bin", "sha256": "db14c946712422c387613ed782d466e1f67deb9a4e6787055b9642b016437dd7", "preserved": true },
+      { "category": "logs", "sha256": "6b1b740ea915d87c488bcd7b87548ad19a02278c3e35f373242bdd4b52ed1f64", "preserved": true }
+    ],
+    "workspacesSha256": "650bf318f530f0e9f5196b1c159277f2a1c143e7d25ae0af74f8a21e0667493b"
+  },
+  "cache": {
+    "installedRebuilt": true,
+    "portableRebuilt": true,
+    "manifestsIdentical": true,
+    "shellAsset": "shell/pwsh/osc7.ps1",
+    "shellAssetSha256": "6c7fd6c24f200ad1b691291b9244dba9b79cdaa53ac492e29795e353b6c53d59"
+  },
+  "portableBoundary": {
+    "packageManifestPreserved": true,
+    "hiddenUserStateCreatedInPackage": false,
+    "directoryRemoved": true,
+    "userDataPreservedAfterDirectoryRemoval": true
+  },
+  "installerBoundary": {
+    "installExitCode": 0,
+    "uninstallExitCode": 0,
+    "installDirectoryRemoved": true,
+    "registryRemoved": true,
+    "userDataPreservedAfterUninstall": true
+  },
+  "regression": {
+    "powershellSyntax": "passed",
+    "dataLayoutTests": "8 passed",
+    "sharedPayloadParity": "24 files identical",
+    "diffCheck": "passed"
+  },
+  "processResidueCount": 0,
+  "fixtureRemoved": true,
+  "result": "passed"
+}
