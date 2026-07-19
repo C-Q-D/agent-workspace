@@ -1,0 +1,10 @@
+{
+  "telemetry": {
+    "enabled": false
+  },
+  "default_reference_format": "common",
+  "git_auto_init": true,
+  "future_setting": {
+    "preserved": true
+  }
+}

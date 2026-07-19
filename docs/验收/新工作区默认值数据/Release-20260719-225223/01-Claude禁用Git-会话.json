@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "active_workspace": 3,
+  "workspace_grid_page": 0,
+  "workspaces": [
+    {
+      "title": "RPC-Claude",
+      "cwd": "F:\\AWWorkspaceDefaults-Release-20260719-225223\\01-RPC非Git",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\AWWorkspaceDefaults-Release-20260719-225223\\01-RPC非Git",
+            "env": null,
+            "focus": true,
+            "scrollback": "PS F:\\AWWorkspaceDefaults-Release-20260719-2\n25223\\01-RPC非Git>"
+          }
+        ]
+      },
+      "reference_format": "claude"
+    },
+    {
+      "title": "UP-Claude",
+      "cwd": "F:\\AWWorkspaceDefaults-Release-20260719-225223\\02-UP非Git",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\AWWorkspaceDefaults-Release-20260719-225223\\02-UP非Git",
+            "env": null,
+            "focus": true,
+            "scrollback": "\nPS F:\\AWWorkspaceDefaults-Release-20260719-2\n25223\\02-UP非Git>"
+          }
+        ]
+      },
+      "reference_format": "claude"
+    },
+    {
+      "title": "CLI-Claude",
+      "cwd": "F:\\AWWorkspaceDefaults-Release-20260719-225223\\03-CLI非Git",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\AWWorkspaceDefaults-Release-20260719-225223\\03-CLI非Git",
+            "env": null,
+            "focus": true,
+            "scrollback": "\nPS F:\\AWWorkspaceDefaults-Release-20260719-2\n25223\\03-CLI非Git>"
+          }
+        ]
+      },
+      "reference_format": "claude"
+    },
+    {
+      "title": "Existing-Claude",
+      "cwd": "F:\\AWWorkspaceDefaults-Release-20260719-225223\\04-已有Git",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\AWWorkspaceDefaults-Release-20260719-225223\\04-已有Git",
+            "env": null,
+            "focus": true,
+            "scrollback": "\nPS F:\\AWWorkspaceDefaults-Release-20260719-2\n25223\\04-已有Git>"
+          }
+        ]
+      },
+      "reference_format": "claude"
+    }
+  ],
+  "active_project": 0,
+  "mode": "cli",
+  "diff_scope": "project"
+}

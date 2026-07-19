@@ -1,0 +1,301 @@
+{
+  "schemaVersion": 1,
+  "runId": "Release-20260719-225223",
+  "executedAt": "2026-07-19T22:52:42.0491310+08:00",
+  "baseCommit": "8860bb344777a43f44f9c9ecba1c4f76bd0dba91",
+  "binary": {
+    "path": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\target\\release\\agent-workspace.exe",
+    "length": 73537024,
+    "sha256": "a0ef347d44220394846d63e96a5745716a6e3aa355125821c01a51afe6af518f",
+    "version": "agent-workspace 0.7.11"
+  },
+  "isolation": {
+    "userProfile": "F:\\AWWorkspaceDefaults-Release-20260719-225223\\隔离用户",
+    "dataRoot": "F:\\AWWorkspaceDefaults-Release-20260719-225223\\隔离用户\\.agent-workspace",
+    "pipe": "\\\\.\\pipe\\agent-workspace-defaults-20260719-225223"
+  },
+  "phase1": {
+    "defaultReferenceFormat": "claude",
+    "gitAutoInit": false,
+    "cliExitCode": 0,
+    "cliOutput": [
+      "{",
+      "  \"index\": 2,",
+      "  \"title\": \"CLI-Claude\",",
+      "  \"panes\": 1,",
+      "  \"terminal_status\": \"starting\",",
+      "  \"reference_format\": \"claude\"",
+      "}"
+    ],
+    "workspaces": [
+      {
+        "index": 0,
+        "title": "RPC-Claude",
+        "cwd": "F:\\AWWorkspaceDefaults-Release-20260719-225223\\01-RPC非Git",
+        "panes": 1,
+        "terminal_status": "running",
+        "reference_format": "claude",
+        "active": false
+      },
+      {
+        "index": 1,
+        "title": "UP-Claude",
+        "cwd": "F:\\AWWorkspaceDefaults-Release-20260719-225223\\02-UP非Git",
+        "panes": 1,
+        "terminal_status": "running",
+        "reference_format": "claude",
+        "active": false
+      },
+      {
+        "index": 2,
+        "title": "CLI-Claude",
+        "cwd": "F:\\AWWorkspaceDefaults-Release-20260719-225223\\03-CLI非Git",
+        "panes": 1,
+        "terminal_status": "running",
+        "reference_format": "claude",
+        "active": false
+      },
+      {
+        "index": 3,
+        "title": "Existing-Claude",
+        "cwd": "F:\\AWWorkspaceDefaults-Release-20260719-225223\\04-已有Git",
+        "panes": 1,
+        "terminal_status": "running",
+        "reference_format": "claude",
+        "active": true
+      }
+    ],
+    "nonGitRootsPreserved": true,
+    "existingGitPreserved": true,
+    "configTimestampUnchanged": true,
+    "performance": {
+      "cpuMillisecondsOverTwoSeconds": 109.375,
+      "workingSetMiB": 146.305,
+      "privateMemoryMiB": 128.516,
+      "threads": 34,
+      "handles": 549
+    },
+    "trackedProcesses": [
+      {
+        "id": 5644,
+        "name": "pwsh",
+        "startedUtcTicks": 639200695455764732
+      },
+      {
+        "id": 16336,
+        "name": "conhost",
+        "startedUtcTicks": 639200695454508286
+      },
+      {
+        "id": 22144,
+        "name": "conhost",
+        "startedUtcTicks": 639200695455751546
+      },
+      {
+        "id": 26500,
+        "name": "conhost",
+        "startedUtcTicks": 639200695455139607
+      },
+      {
+        "id": 35944,
+        "name": "pwsh",
+        "startedUtcTicks": 639200695453591394
+      },
+      {
+        "id": 38560,
+        "name": "agent-workspace",
+        "startedUtcTicks": 639200695439766678
+      },
+      {
+        "id": 41880,
+        "name": "conhost",
+        "startedUtcTicks": 639200695453576675
+      },
+      {
+        "id": 42976,
+        "name": "pwsh",
+        "startedUtcTicks": 639200695455163247
+      },
+      {
+        "id": 53184,
+        "name": "pwsh",
+        "startedUtcTicks": 639200695454529709
+      }
+    ]
+  },
+  "phase2": {
+    "restoredWorkspaceFormats": [
+      "claude",
+      "claude",
+      "claude",
+      "claude"
+    ],
+    "restoredValuesNotOverwritten": true,
+    "newFormats": {
+      "codex": "codex",
+      "powershell": "powershell",
+      "common": "common"
+    },
+    "autoInitializedRoots": [
+      "F:\\AWWorkspaceDefaults-Release-20260719-225223\\05-Codex自动Git",
+      "F:\\AWWorkspaceDefaults-Release-20260719-225223\\06-PowerShell自动Git",
+      "F:\\AWWorkspaceDefaults-Release-20260719-225223\\07-Common自动Git"
+    ],
+    "unknownFieldPreserved": true,
+    "configTimestampStableAfterWrite": true,
+    "workspaces": [
+      {
+        "index": 0,
+        "title": "RPC-Claude",
+        "cwd": "F:\\AWWorkspaceDefaults-Release-20260719-225223\\01-RPC非Git",
+        "panes": 1,
+        "terminal_status": "running",
+        "reference_format": "claude",
+        "active": false
+      },
+      {
+        "index": 1,
+        "title": "UP-Claude",
+        "cwd": "F:\\AWWorkspaceDefaults-Release-20260719-225223\\02-UP非Git",
+        "panes": 1,
+        "terminal_status": "running",
+        "reference_format": "claude",
+        "active": false
+      },
+      {
+        "index": 2,
+        "title": "CLI-Claude",
+        "cwd": "F:\\AWWorkspaceDefaults-Release-20260719-225223\\03-CLI非Git",
+        "panes": 1,
+        "terminal_status": "running",
+        "reference_format": "claude",
+        "active": false
+      },
+      {
+        "index": 3,
+        "title": "Existing-Claude",
+        "cwd": "F:\\AWWorkspaceDefaults-Release-20260719-225223\\04-已有Git",
+        "panes": 1,
+        "terminal_status": "running",
+        "reference_format": "claude",
+        "active": false
+      },
+      {
+        "index": 4,
+        "title": "RPC-Codex",
+        "cwd": "F:\\AWWorkspaceDefaults-Release-20260719-225223\\05-Codex自动Git",
+        "panes": 1,
+        "terminal_status": "running",
+        "reference_format": "codex",
+        "active": false
+      },
+      {
+        "index": 5,
+        "title": "RPC-PowerShell",
+        "cwd": "F:\\AWWorkspaceDefaults-Release-20260719-225223\\06-PowerShell自动Git",
+        "panes": 1,
+        "terminal_status": "running",
+        "reference_format": "powershell",
+        "active": false
+      },
+      {
+        "index": 6,
+        "title": "RPC-Common",
+        "cwd": "F:\\AWWorkspaceDefaults-Release-20260719-225223\\07-Common自动Git",
+        "panes": 1,
+        "terminal_status": "running",
+        "reference_format": "common",
+        "active": true
+      }
+    ],
+    "performance": {
+      "cpuMillisecondsOverTwoSeconds": 218.75,
+      "workingSetMiB": 155.973,
+      "privateMemoryMiB": 150.496,
+      "threads": 47,
+      "handles": 597
+    },
+    "trackedProcesses": [
+      {
+        "id": 3380,
+        "name": "conhost",
+        "startedUtcTicks": 639200695531806245
+      },
+      {
+        "id": 10780,
+        "name": "pwsh",
+        "startedUtcTicks": 639200695533909284
+      },
+      {
+        "id": 17888,
+        "name": "pwsh",
+        "startedUtcTicks": 639200695556372127
+      },
+      {
+        "id": 18080,
+        "name": "agent-workspace",
+        "startedUtcTicks": 639200695517767723
+      },
+      {
+        "id": 23136,
+        "name": "conhost",
+        "startedUtcTicks": 639200695531801775
+      },
+      {
+        "id": 24420,
+        "name": "pwsh",
+        "startedUtcTicks": 639200695532214460
+      },
+      {
+        "id": 27164,
+        "name": "pwsh",
+        "startedUtcTicks": 639200695532226402
+      },
+      {
+        "id": 33404,
+        "name": "pwsh",
+        "startedUtcTicks": 639200695532194167
+      },
+      {
+        "id": 41188,
+        "name": "conhost",
+        "startedUtcTicks": 639200695533464649
+      },
+      {
+        "id": 41328,
+        "name": "conhost",
+        "startedUtcTicks": 639200695532204516
+      },
+      {
+        "id": 46800,
+        "name": "conhost",
+        "startedUtcTicks": 639200695532188714
+      },
+      {
+        "id": 52176,
+        "name": "pwsh",
+        "startedUtcTicks": 639200695578404000
+      },
+      {
+        "id": 53312,
+        "name": "pwsh",
+        "startedUtcTicks": 639200695532199162
+      },
+      {
+        "id": 53472,
+        "name": "conhost",
+        "startedUtcTicks": 639200695578391142
+      },
+      {
+        "id": 54088,
+        "name": "conhost",
+        "startedUtcTicks": 639200695556357082
+      }
+    ]
+  },
+  "process": {
+    "gracefulExitBothRuns": true,
+    "residueCount": 0
+  },
+  "result": "passed"
+}
