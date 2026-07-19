@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "executedAt": "2026-07-19T18:44:25.1714110+08:00",
+  "executable": {
+    "path": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\target\\x86_64-pc-windows-msvc\\release\\agent-workspace.exe",
+    "length": 73432576,
+    "sha256": "de5a405801befc7a6a6d03bc12a6a262dadd5d700aa3794c7e3da3bbab36a087"
+  },
+  "msi": {
+    "path": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\target\\wix\\agent-workspace-0.7.11-x86_64.msi",
+    "length": 28028928,
+    "sha256": "9a51829f7cc22c21f4b91b77fc76c12fa2a00ccf6ddc34a3af0ad6e0b2265026",
+    "legalFiles": [
+      {
+        "fileId": "RootLicenseText",
+        "installedName": "LICENSE.txt",
+        "length": 34557,
+        "sha256": "91463c9602c23e3e95b0f52592b17047eb3c412b2ad14f4ed0ef9c6b5d357567"
+      },
+      {
+        "fileId": "UpstreamNotice",
+        "installedName": "UPSTREAM-NOTICE.md",
+        "length": 2752,
+        "sha256": "c22944d55f9c3f7460ab3c3d5d0bfee057539e704b3039ea0ee5362c512c011e"
+      },
+      {
+        "fileId": "ThirdPartyRustMarkdown",
+        "installedName": "THIRD-PARTY-RUST.md",
+        "length": 165932,
+        "sha256": "15975d3722af484b9f292428ac480fbdc85bdeafb244eee4510a7cca3a1f35ff"
+      },
+      {
+        "fileId": "ThirdPartyRustJson",
+        "installedName": "THIRD-PARTY-RUST.json",
+        "length": 300240,
+        "sha256": "61654f7b35dbfa7cbba6ab3f208422d36a31ad4d12d7c9267103b6a1b7893b19"
+      },
+      {
+        "fileId": "ThirdPartyAssets",
+        "installedName": "THIRD-PARTY-ASSETS.md",
+        "length": 1480,
+        "sha256": "8f593bbd7f7941a4468bcc263531e8a3d9328f619217e035cc1d8b11cedbc1f9"
+      }
+    ]
+  },
+  "about": {
+    "beforeScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\Windows许可证数据\\Release-20260719-184415\\真实Release主界面.png",
+    "screenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\Windows许可证数据\\Release-20260719-184415\\真实Release-About法律入口.png",
+    "sampledPixelChanges": {
+      "samples": 2204,
+      "changed": 2204
+    },
+    "processExited": true
+  },
+  "gates": {
+    "rustPackages": 1109,
+    "fontFiles": 36,
+    "unresolvedLicenses": 0,
+    "windowsLegalTests": 4
+  }
+}
