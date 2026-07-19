@@ -286,8 +286,10 @@ struct SelfUpdateState {
 
 const PRIMARY_SIDEBAR_ANIMATION_MS: u64 = 280;
 const PRIMARY_SIDEBAR_MIN_ANIMATION_DELTA: f32 = 0.5;
-const STARTUP_SPLASH_TEXT_WIDTH: f32 = 198.;
-const STARTUP_SPLASH_TEXT: [&str; 8] = ["P", "a", "n", "e", "f", "l", "o", "w"];
+const STARTUP_SPLASH_TEXT_WIDTH: f32 = 296.;
+const STARTUP_SPLASH_TEXT: [&str; 14] = [
+    "A", "g", "e", "n", "t", "W", "o", "r", "k", "s", "p", "a", "c", "e",
+];
 const STARTUP_SPLASH_LETTER_COUNT: f32 = STARTUP_SPLASH_TEXT.len() as f32;
 const STARTUP_SPLASH_TEXT_ALPHA: f32 = 0.54;
 const STARTUP_SPLASH_SHIMMER_ALPHA: f32 = 0.82;
@@ -354,7 +356,7 @@ fn should_extract_mcp_bridge_for_cli(args: &[String]) -> bool {
 #[cfg(test)]
 mod native_material_tests {
     use super::{
-        native_backdrop_material_active, should_extract_mcp_bridge_for_cli,
+        STARTUP_SPLASH_TEXT, native_backdrop_material_active, should_extract_mcp_bridge_for_cli,
         should_load_login_shell_env_for_startup,
     };
     use paneflow_config::schema::AppMode;
@@ -443,6 +445,16 @@ mod native_material_tests {
         assert!(!should_extract_mcp_bridge_for_cli(&args(&[
             "paneflow", "mcp", "install", "--help"
         ])));
+    }
+
+    #[test]
+    fn startup_splash_uses_public_product_name() {
+        // 启动动画按字母单独着色，因此不能直接渲染一个字符串；测试把数组
+        // 重新拼接后与统一产品名比较，避免公开 Splash 再次遗留上游名称。
+        assert_eq!(
+            STARTUP_SPLASH_TEXT.concat(),
+            crate::product_identity::PRODUCT_NAME
+        );
     }
 }
 

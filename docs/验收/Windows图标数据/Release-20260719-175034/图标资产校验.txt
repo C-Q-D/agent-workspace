@@ -1,0 +1,3 @@
+已生成 AgentWorkspace Windows 图标：F:\workspace\projects\AgentWorkspaceLab\agent-workspace\app\assets\AgentWorkspace.ico
+ICO 尺寸：16, 20, 24, 32, 40, 48, 64, 128, 256
+SHA-256：6b41cb0bf32decc2c4eb5cbad2059529aa25f846a3c976fe4d119832a158d433

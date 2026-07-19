@@ -1,0 +1,2 @@
+   Compiling paneflow-app v0.7.11 (F:\workspace\projects\AgentWorkspaceLab\agent-workspace\app\src-app)
+    Finished `release` profile [optimized] target(s) in 4m 59s

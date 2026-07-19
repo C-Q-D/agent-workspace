@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "executedAt": "2026-07-19T17:55:36.8305055+08:00",
+  "repository": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+  "executable": {
+    "path": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\target\\icon-atom\\release\\agent-workspace.exe",
+    "length": 73426944,
+    "sha256": "8b22f61fd6096e56162ad1d73ac8deb0885d414036e50fb28521777058d6e351"
+  },
+  "iconAssets": {
+    "masterIcoSha256": "6b41cb0bf32decc2c4eb5cbad2059529aa25f846a3c976fe4d119832a158d433",
+    "wixIcoSha256": "6b41cb0bf32decc2c4eb5cbad2059529aa25f846a3c976fe4d119832a158d433",
+    "sizes": [
+      16,
+      20,
+      24,
+      32,
+      40,
+      48,
+      64,
+      128,
+      256
+    ]
+  },
+  "peAssociatedIcon": {
+    "path": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\Windows图标数据\\Release-20260719-175034\\PE关联图标.png",
+    "expected": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\assets\\icons\\agent-workspace-32.png",
+    "size": {
+      "width": 32,
+      "height": 32
+    },
+    "comparison": {
+      "width": 32,
+      "height": 32,
+      "changedPixels": 98,
+      "meanChannelDifference": 0.0327
+    }
+  },
+  "genericControl": {
+    "executable": "C:\\Windows\\System32\\where.exe",
+    "path": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\Windows图标数据\\Release-20260719-175034\\系统通用程序图标.png",
+    "comparison": {
+      "width": 32,
+      "height": 32,
+      "changedPixels": 810,
+      "meanChannelDifference": 91.7834
+    }
+  },
+  "realWindow": {
+    "title": "",
+    "screenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\Windows图标数据\\Release-20260719-175034\\真实AgentWorkspace窗口.png",
+    "icon": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\Windows图标数据\\Release-20260719-175034\\真实窗口图标.png",
+    "expected": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\assets\\icons\\agent-workspace-16.png",
+    "iconSize": {
+      "width": 16,
+      "height": 16
+    },
+    "comparison": {
+      "width": 16,
+      "height": 16,
+      "changedPixels": 43,
+      "meanChannelDifference": 0.0576
+    }
+  },
+  "result": "passed"
+}
