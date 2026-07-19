@@ -258,6 +258,43 @@ function Invoke-InstalledVersionProbe {
     return $Output
 }
 
+function New-PreservationSentinel {
+    # 创建具有稳定 UTF-8 字节内容的边界哨兵，并返回后续阶段可复核的分类与摘要。
+    param(
+        [string]$Category,
+        [string]$Lifecycle,
+        [string]$Path,
+        [string]$Content
+    )
+    $Parent = Split-Path -Parent $Path
+    New-Item -ItemType Directory -Force -Path $Parent | Out-Null
+    [System.IO.File]::WriteAllText($Path, $Content, [System.Text.UTF8Encoding]::new($false))
+    return [ordered]@{
+        category = $Category
+        lifecycle = $Lifecycle
+        path = $Path
+        sha256 = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+        preserved = $true
+    }
+}
+
+function Assert-PreservationSentinels {
+    # 每个生命周期阶段都逐项验证存在性和摘要，避免聚合判断掩盖具体受损的数据类别。
+    param(
+        [object[]]$Sentinels,
+        [string]$Stage
+    )
+    foreach ($Sentinel in $Sentinels) {
+        if (-not (Test-Path -LiteralPath $Sentinel.path -PathType Leaf)) {
+            throw "$Stage 哨兵缺失 [$($Sentinel.category)]：$($Sentinel.path)"
+        }
+        $ActualHash = (Get-FileHash -LiteralPath $Sentinel.path -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($ActualHash -ne $Sentinel.sha256) {
+            throw "$Stage 哨兵已变化 [$($Sentinel.category)]：$($Sentinel.path)"
+        }
+    }
+}
+
 $SelectedModeCount = [int][bool]$PrepareOnly + [int][bool]$InstallAndUpgrade + [int][bool]$Uninstall
 if ($SelectedModeCount -ne 1) {
     throw "必须且只能选择 -PrepareOnly、-InstallAndUpgrade 或 -Uninstall 之一"
@@ -369,15 +406,8 @@ if ($Uninstall) {
         throw "卸载前仍有 AgentWorkspace 进程，拒绝强行终止用户进程"
     }
 
-    foreach ($Sentinel in @($InstallResult.sentinels.project, $InstallResult.sentinels.userData)) {
-        if (-not (Test-Path -LiteralPath $Sentinel.path -PathType Leaf)) {
-            throw "卸载前哨兵缺失：$($Sentinel.path)"
-        }
-        $ActualHash = (Get-FileHash -LiteralPath $Sentinel.path -Algorithm SHA256).Hash.ToLowerInvariant()
-        if ($ActualHash -ne $Sentinel.sha256) {
-            throw "卸载前哨兵已变化：$($Sentinel.path)"
-        }
-    }
+    $InstallSentinels = @($InstallResult.sentinels)
+    Assert-PreservationSentinels -Sentinels $InstallSentinels -Stage "卸载前"
 
     $RunRoot = [string]$InstallResult.runRoot
     if (-not (Test-Path -LiteralPath $RunRoot -PathType Container)) {
@@ -404,15 +434,17 @@ if ($Uninstall) {
     }
 
     $PreservedSentinels = @()
-    foreach ($Sentinel in @($InstallResult.sentinels.project, $InstallResult.sentinels.userData)) {
+    foreach ($Sentinel in $InstallSentinels) {
         if (-not (Test-Path -LiteralPath $Sentinel.path -PathType Leaf)) {
-            throw "卸载误删哨兵：$($Sentinel.path)"
+            throw "卸载误删哨兵 [$($Sentinel.category)]：$($Sentinel.path)"
         }
         $ActualHash = (Get-FileHash -LiteralPath $Sentinel.path -Algorithm SHA256).Hash.ToLowerInvariant()
         if ($ActualHash -ne $Sentinel.sha256) {
-            throw "卸载修改了哨兵：$($Sentinel.path)"
+            throw "卸载修改了哨兵 [$($Sentinel.category)]：$($Sentinel.path)"
         }
         $PreservedSentinels += [ordered]@{
+            category = [string]$Sentinel.category
+            lifecycle = [string]$Sentinel.lifecycle
             path = [string]$Sentinel.path
             sha256 = $ActualHash
             preserved = $true
@@ -420,7 +452,7 @@ if ($Uninstall) {
     }
 
     $UninstallResult = [ordered]@{
-        schemaVersion = 1
+        schemaVersion = 2
         executedAt = (Get-Date).ToString("o")
         productCode = [string]$Installed[0].PSChildName
         productVersion = [string]$Installed[0].DisplayVersion
@@ -437,7 +469,7 @@ if ($Uninstall) {
     $UninstallResult | ConvertTo-Json -Depth 7 | Set-Content -LiteralPath $UninstallResultPath -Encoding utf8
     Write-Output "MSI 卸载边界验收通过"
     Write-Output "已卸载 ProductCode：$($Installed[0].PSChildName)"
-    Write-Output "用户项目与用户数据哨兵均保留"
+    Write-Output "$($PreservedSentinels.Count) 个分类数据哨兵均保留"
     exit 0
 }
 
@@ -464,13 +496,30 @@ $RunRoot = Join-Path $OutputDirectory ("run-{0}" -f (Get-Date -Format "yyyyMMdd-
 $ProjectRoot = Join-Path $RunRoot "project-sentinel"
 $UserRoot = Join-Path $RunRoot "user"
 $UserDataRoot = Join-Path $UserRoot ".agent-workspace"
-New-Item -ItemType Directory -Force -Path $ProjectRoot, $UserDataRoot | Out-Null
-$ProjectSentinel = Join-Path $ProjectRoot "用户项目不得删除.txt"
-$UserSentinel = Join-Path $UserDataRoot "用户数据不得删除.txt"
-Set-Content -LiteralPath $ProjectSentinel -Encoding utf8 -Value "agent-workspace-project-sentinel"
-Set-Content -LiteralPath $UserSentinel -Encoding utf8 -Value "agent-workspace-user-data-sentinel"
-$ProjectHash = (Get-FileHash $ProjectSentinel -Algorithm SHA256).Hash
-$UserHash = (Get-FileHash $UserSentinel -Algorithm SHA256).Hash
+$LegacyDataRoot = Join-Path $UserRoot "AppData\Local\paneflow"
+$UnrelatedUserRoot = Join-Path $UserRoot "Documents"
+# durable 是卸载后必须保留的不可重建数据；其余类别虽可重建或属于外部，但安装器同样无权修改。
+$SentinelSpecs = @(
+    [ordered]@{ category = "external-project"; lifecycle = "external"; path = (Join-Path $ProjectRoot "用户项目不得删除.txt"); content = "agent-workspace-project-sentinel" },
+    [ordered]@{ category = "data-root"; lifecycle = "durable"; path = (Join-Path $UserDataRoot "用户数据不得删除.txt"); content = "agent-workspace-user-data-sentinel" },
+    [ordered]@{ category = "config"; lifecycle = "durable"; path = (Join-Path $UserDataRoot "config\settings.json"); content = '{"telemetry":{"enabled":false},"sentinel":"msi-config"}' },
+    [ordered]@{ category = "sessions"; lifecycle = "durable"; path = (Join-Path $UserDataRoot "sessions\workspaces.json"); content = '{"schemaVersion":1,"workspaces":[],"sentinel":"msi-sessions"}' },
+    [ordered]@{ category = "state"; lifecycle = "durable"; path = (Join-Path $UserDataRoot "state\window-layout.json"); content = '{"schemaVersion":1,"sentinel":"msi-state"}' },
+    [ordered]@{ category = "bin"; lifecycle = "durable"; path = (Join-Path $UserDataRoot "bin\stable-helper.txt"); content = "agent-workspace-stable-bin-sentinel" },
+    [ordered]@{ category = "cache"; lifecycle = "rebuildable"; path = (Join-Path $UserDataRoot "cache\cache-sentinel.txt"); content = "agent-workspace-cache-sentinel" },
+    [ordered]@{ category = "logs"; lifecycle = "diagnostic"; path = (Join-Path $UserDataRoot "logs\diagnostic-sentinel.txt"); content = "agent-workspace-log-sentinel" },
+    [ordered]@{ category = "legacy-paneflow"; lifecycle = "legacy"; path = (Join-Path $LegacyDataRoot "legacy-sentinel.txt"); content = "legacy-paneflow-data-sentinel" },
+    [ordered]@{ category = "unrelated-user-file"; lifecycle = "external"; path = (Join-Path $UnrelatedUserRoot "unrelated-sentinel.txt"); content = "unrelated-user-file-sentinel" }
+)
+$Sentinels = @(
+    foreach ($Spec in $SentinelSpecs) {
+        New-PreservationSentinel `
+            -Category $Spec.category `
+            -Lifecycle $Spec.lifecycle `
+            -Path $Spec.path `
+            -Content $Spec.content
+    }
+)
 $InstallDirectory = Join-Path $env:ProgramFiles "AgentWorkspace"
 $InstalledExecutable = Join-Path $InstallDirectory "agent-workspace.exe"
 
@@ -506,12 +555,7 @@ $ActualCurrentCode = ([string]$InstalledAfterUpgrade[0].PSChildName).Trim("{}").
 if ($ActualCurrentCode -ne $ExpectedCurrentCode) {
     throw "覆盖升级后 ProductCode 不是当前版本：$($InstalledAfterUpgrade[0].PSChildName)"
 }
-if ((Get-FileHash $ProjectSentinel -Algorithm SHA256).Hash -ne $ProjectHash) {
-    throw "覆盖升级修改了用户项目哨兵"
-}
-if ((Get-FileHash $UserSentinel -Algorithm SHA256).Hash -ne $UserHash) {
-    throw "覆盖升级修改了用户数据哨兵"
-}
+Assert-PreservationSentinels -Sentinels $Sentinels -Stage "覆盖升级后"
 $UpgradeProbe = Invoke-InstalledVersionProbe `
     -Executable $InstalledExecutable `
     -UserRoot $UserRoot `
@@ -519,7 +563,7 @@ $UpgradeProbe = Invoke-InstalledVersionProbe `
     -Label "升级"
 
 $Result = [ordered]@{
-    schemaVersion = 1
+    schemaVersion = 2
     executedAt = (Get-Date).ToString("o")
     runRoot = $RunRoot
     installDirectory = $InstallDirectory
@@ -539,10 +583,7 @@ $Result = [ordered]@{
         versionProbe = $UpgradeProbe
         log = $UpgradeLog
     }
-    sentinels = [ordered]@{
-        project = [ordered]@{ path = $ProjectSentinel; sha256 = $ProjectHash.ToLowerInvariant(); preserved = $true }
-        userData = [ordered]@{ path = $UserSentinel; sha256 = $UserHash.ToLowerInvariant(); preserved = $true }
-    }
+    sentinels = $Sentinels
 }
 $ResultPath = Join-Path $OutputDirectory "安装升级结果.json"
 $Result | ConvertTo-Json -Depth 7 | Set-Content -LiteralPath $ResultPath -Encoding utf8
@@ -550,3 +591,4 @@ Write-Output "MSI 初装与覆盖升级验收通过"
 Write-Output "0.7.10 ProductCode：$($InstalledAfterPrevious[0].PSChildName)"
 Write-Output "0.7.11 ProductCode：$($InstalledAfterUpgrade[0].PSChildName)"
 Write-Output "安装目录：$InstallDirectory"
+Write-Output "升级后保留数据分类：$($Sentinels.Count)"

@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 2,
+  "executedAt": "2026-07-19T20:04:54.7499519+08:00",
+  "environment": {
+    "os": "Microsoft Windows 11 专业版",
+    "version": "10.0.26200",
+    "architecture": "64 位",
+    "powershell": "7.6.3",
+    "wix": "3.14.1.8722",
+    "cargoWix": "0.3.9"
+  },
+  "packages": {
+    "previous": {
+      "productVersion": "0.7.10",
+      "productCode": "{7E7D5EED-6B32-43D1-94DA-57A65B5E981D}",
+      "upgradeCode": "{7D0C2220-1B4E-4E86-9D5E-AC3479C95B23}",
+      "length": 28033024,
+      "sha256": "0f1b3e97470adc05914b9f7055ec8358120b893407777d3e5194ccb15fa1b2f9"
+    },
+    "current": {
+      "productVersion": "0.7.11",
+      "productCode": "{8476123E-17EC-4B98-8EBA-7D40B515A778}",
+      "upgradeCode": "{7D0C2220-1B4E-4E86-9D5E-AC3479C95B23}",
+      "length": 28033024,
+      "sha256": "58118384f7b68ae6fd26f05d285f0cc4abe30fc3dfa784359243ec16c8e2d4f9"
+    }
+  },
+  "lifecycle": {
+    "initialInstall": {
+      "exitCode": 0,
+      "registeredVersion": "0.7.10",
+      "registeredProductCode": "{7E7D5EED-6B32-43D1-94DA-57A65B5E981D}",
+      "installedExecutableVersion": "agent-workspace 0.7.11"
+    },
+    "majorUpgrade": {
+      "exitCode": 0,
+      "registeredProductCount": 1,
+      "registeredVersion": "0.7.11",
+      "registeredProductCode": "{8476123E-17EC-4B98-8EBA-7D40B515A778}",
+      "oldProductRemoved": true,
+      "installedExecutableVersion": "agent-workspace 0.7.11"
+    },
+    "uninstall": {
+      "exitCode": 0,
+      "uninstallRegistryRemoved": true,
+      "installDirectoryRemoved": true,
+      "startMenuRemoved": true,
+      "machinePathRemoved": true,
+      "processResidueCount": 0
+    }
+  },
+  "sentinels": [
+    { "category": "external-project", "lifecycle": "external", "sha256": "2b1ce6778c7edf4e4ee7e4b15d23c16d597e8eeb9fd010bcab0195582201c7e5", "preservedAfterUpgrade": true, "preservedAfterUninstall": true },
+    { "category": "data-root", "lifecycle": "durable", "sha256": "3a974a5908dcb7c6f822a98e925313d1cd31499497fed222c64a9061b965775e", "preservedAfterUpgrade": true, "preservedAfterUninstall": true },
+    { "category": "config", "lifecycle": "durable", "sha256": "6f3822fdc06a8db3be603e5f07de97a3740d5e0d79eb744e60e4c34c7d597885", "preservedAfterUpgrade": true, "preservedAfterUninstall": true },
+    { "category": "sessions", "lifecycle": "durable", "sha256": "8ec7255d95542f60a1479d3b64feb196709727f61543ce15b7d35f0ac4a2705d", "preservedAfterUpgrade": true, "preservedAfterUninstall": true },
+    { "category": "state", "lifecycle": "durable", "sha256": "64e061e9a46b0fa3261a1b41cd2439935174a3b2a80202afdbc2efb45b200175", "preservedAfterUpgrade": true, "preservedAfterUninstall": true },
+    { "category": "bin", "lifecycle": "durable", "sha256": "2eaface8adc50e78816821a294b2ca4b00e9de677b7b1f4a0f8827dca0293918", "preservedAfterUpgrade": true, "preservedAfterUninstall": true },
+    { "category": "cache", "lifecycle": "rebuildable", "sha256": "1fae9c045609ee2b2af0e9212aaade73844f8713e14389d0c6e205caadb0af2f", "preservedAfterUpgrade": true, "preservedAfterUninstall": true },
+    { "category": "logs", "lifecycle": "diagnostic", "sha256": "df20a3ea06894fb076fea8821d052080f3670b7c77f7665e7df1a8ca3b5732ea", "preservedAfterUpgrade": true, "preservedAfterUninstall": true },
+    { "category": "legacy-paneflow", "lifecycle": "legacy", "sha256": "627955f61e2c680a4ffa6521493f9d35f66394e8573d82b423c759e809caeebc", "preservedAfterUpgrade": true, "preservedAfterUninstall": true },
+    { "category": "unrelated-user-file", "lifecycle": "external", "sha256": "307d37048c7a37d61e478744cbe45a99a827cef1772e150b9037ab8ce2e803fb", "preservedAfterUpgrade": true, "preservedAfterUninstall": true }
+  ],
+  "windowsInstallerEvidence": {
+    "initialInstall": "Installation completed successfully; MainEngineThread=0",
+    "majorUpgrade": "FindRelatedProducts and RemoveExistingProducts completed; Installation completed successfully; MainEngineThread=0",
+    "uninstall": "Removal completed successfully; MainEngineThread=0"
+  },
+  "regression": {
+    "powershellSyntax": "passed",
+    "diffCheck": "passed",
+    "windowsMsiTests": "15 passed"
+  }
+}
