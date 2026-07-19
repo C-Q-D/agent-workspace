@@ -141,7 +141,12 @@ pub fn save_offset_for(path: &Path, offset_y: f32) -> std::io::Result<()> {
 /// 调试/发布隔离由用户数据根目录完成，因此文件名无需再携带 `-dev`。无法
 /// 解析用户主目录时返回 `None`，调用方使用空状态继续渲染。
 pub fn state_file_path() -> Option<PathBuf> {
-    paneflow_config::loader::cache_file_path("markdown_state.json")
+    crate::runtime_paths::user_data_layout().map(|layout| state_file_path_for_layout(&layout))
+}
+
+/// 仅根据统一布局计算 Markdown 状态缓存路径，便于隔离测试且避免重复文件名。
+fn state_file_path_for_layout(layout: &paneflow_config::data_layout::UserDataLayout) -> PathBuf {
+    layout.markdown_state_path()
 }
 
 /// Load the state file from disk. A missing or corrupt file returns the
@@ -233,6 +238,20 @@ mod tests {
     fn empty_state_returns_none_for_lookup() {
         let s = MarkdownState::default();
         assert!(s.lookup_offset(Path::new("/x.md")).is_none());
+    }
+
+    #[test]
+    fn markdown_state_path_belongs_to_rebuildable_cache() {
+        let home = tempfile::tempdir().expect("temp home");
+        let layout = paneflow_config::data_layout::UserDataLayout::from_home_with_root_name(
+            home.path(),
+            ".agent-workspace-test",
+        );
+        let path = state_file_path_for_layout(&layout);
+
+        assert_eq!(path, layout.markdown_state_path());
+        assert!(path.starts_with(layout.cache_dir()));
+        assert!(!path.starts_with(layout.state_dir()));
     }
 
     #[test]

@@ -8,8 +8,9 @@
 //!
 //! Submodules:
 //! - `client` (US-012) - re-exported from `paneflow-telemetry::client`.
-//! - `id` (US-010) - desktop shim that resolves `runtime_paths::data_dir()`
-//!   then delegates to `paneflow_telemetry::id::telemetry_id_at`.
+//! - `id` (US-010) - desktop shim that resolves `runtime_paths::user_data_layout()`
+//!   then delegates to `paneflow_telemetry::id::telemetry_id_at_path` with the
+//!   durable `state/telemetry_id` path.
 //! - `tags` (US-013) - domain mapping for `InstallMethod` and `UpdateError`
 //!   (kept here because those types live in `crate::update::*`); the
 //!   canonical-tag format invariant moved to `paneflow_telemetry::tags`.

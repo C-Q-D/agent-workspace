@@ -1,0 +1,66 @@
+{
+  "验收单元": "UNIT-35 现有持久化写入归位",
+  "验收时间": "2026-07-19T19:42:20+08:00",
+  "平台": "Windows",
+  "分支": "experiment/e01-pty-decoupling",
+  "远端": "git@github.com:C-Q-D/agent-workspace.git",
+  "验收前提交": "779bd95",
+  "结论": "通过",
+  "测试": {
+    "paneflow-config": {
+      "单元测试": 105,
+      "失败": 0
+    },
+    "paneflow-telemetry": {
+      "单元测试": 34,
+      "文档测试": 1,
+      "失败": 0
+    },
+    "paneflow-mcp-install": {
+      "单元测试": 97,
+      "失败": 0
+    },
+    "paneflow-app": {
+      "主程序测试": 1435,
+      "布局集成测试": 5,
+      "失败": 0
+    }
+  },
+  "写入归属": {
+    "durable": [
+      "config/settings.json",
+      "sessions/workspaces.json",
+      "state/telemetry_id",
+      "bin/paneflow-mcp.exe",
+      "bin/paneflow-ai-hook.exe"
+    ],
+    "rebuildable": [
+      "cache/markdown_state.json",
+      "cache/icons/agent-workspace-notification.png",
+      "cache/shell/",
+      "cache/bin/<version>/",
+      "cache/update/"
+    ],
+    "diagnostic": [
+      "logs/update/"
+    ]
+  },
+  "真实文件系统验收": {
+    "完整缓存删除": "通过",
+    "durable内容逐字节保持": "通过",
+    "诊断日志逐字节保持": "通过",
+    "旧Paneflow数据哨兵保持": "通过",
+    "缓存按需重建": "通过"
+  },
+  "生产源码门禁": {
+    "统一布局方法": "通过",
+    "Windows更新禁止系统临时目录": "通过",
+    "稳定helper禁止进入cache": "通过"
+  },
+  "性能变化": {
+    "新增轮询": 0,
+    "新增常驻线程": 0,
+    "新增自动高频日志": 0
+  },
+  "测试后残留进程": 0
+}

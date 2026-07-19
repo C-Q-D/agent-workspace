@@ -3109,10 +3109,10 @@ mod tests {
 
     #[test]
     fn pty_spawn_injects_paneflow_bin_dir_and_prepends_path() {
-        // Skip where the cache dir is unresolvable - the helper silent-fails
-        // (correct behavior), but then there's nothing to assert on.
-        if dirs::cache_dir().is_none() {
-            eprintln!("skip: dirs::cache_dir() unresolvable in this environment");
+        // 无法解析 AgentWorkspace 用户数据布局时 helper 会按设计静默降级，
+        // 此时没有可验证的注入路径，因此跳过该环境相关断言。
+        if crate::runtime_paths::user_data_layout().is_none() {
+            eprintln!("skip: AgentWorkspace user data layout unresolvable in this environment");
             return;
         }
 

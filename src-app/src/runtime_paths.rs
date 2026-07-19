@@ -277,22 +277,20 @@ pub fn user_data_layout() -> Option<paneflow_config::data_layout::UserDataLayout
     dirs::home_dir().map(|home| paneflow_config::data_layout::UserDataLayout::from_home(&home))
 }
 
-/// 返回并按需创建 AgentWorkspace 当前用户数据根目录。
+/// 返回已经确认根目录可写的用户数据布局。
 ///
-/// 发布版为 `~/.agent-workspace`，调试版为 `~/.agent-workspace-dev`。无法
-/// 解析主目录或创建失败时返回 `None`；调用方必须使用内存降级，禁止回退到
-/// `%LOCALAPPDATA%\paneflow` 等上游旧路径。
-pub fn data_dir() -> Option<PathBuf> {
+/// 只有真正需要写入持久文件的入口才调用此函数；单纯计算路径的读取方仍使用
+/// [`user_data_layout`]，避免应用启动时无条件创建目录。
+fn writable_user_data_layout() -> Option<paneflow_config::data_layout::UserDataLayout> {
     let layout = user_data_layout()?;
-    let dir = layout.root().to_path_buf();
-    if let Err(e) = std::fs::create_dir_all(&dir) {
+    if let Err(e) = std::fs::create_dir_all(layout.root()) {
         log::debug!(
-            "agent-workspace: data_dir {} is unwritable ({e}); callers will use ephemeral state",
-            dir.display()
+            "agent-workspace: data root {} is unwritable ({e}); callers will use ephemeral state",
+            layout.root().display()
         );
         return None;
     }
-    Some(dir)
+    Some(layout)
 }
 
 #[cfg(test)]
@@ -318,6 +316,72 @@ mod data_path_tests {
                 .contains("paneflow")
         );
     }
+
+    #[test]
+    fn stable_helpers_are_derived_from_layout_bin_directory() {
+        let layout = paneflow_config::data_layout::UserDataLayout::from_home_with_root_name(
+            Path::new("C:/Users/TestUser"),
+            ".agent-workspace-test",
+        );
+
+        assert_eq!(
+            bridge_binary_path_from_layout(&layout),
+            layout
+                .bin_dir()
+                .join(format!("paneflow-mcp{}", executable_suffix()))
+        );
+        assert_eq!(
+            ai_hook_binary_path_from_layout(&layout),
+            layout
+                .bin_dir()
+                .join(format!("paneflow-ai-hook{}", executable_suffix()))
+        );
+        assert!(!bridge_binary_path_from_layout(&layout).starts_with(layout.cache_dir()));
+    }
+
+    #[test]
+    fn persistent_write_modules_keep_using_the_layout_contract() {
+        // 这是一道低成本源码门禁：若未来有人重新手拼目录，测试会在全量验收中
+        // 立即失败，避免写入点悄悄漂回系统缓存或临时目录。
+        let telemetry = include_str!("telemetry/id.rs");
+        let notifications = include_str!("agents/notifications.rs");
+        let shell = include_str!("terminal/shell.rs");
+        let update = include_str!("update/windows/msi.rs");
+        let markdown = include_str!("markdown/state.rs");
+        let helpers = include_str!("ai_hooks/extract.rs");
+
+        assert!(telemetry.contains(".telemetry_id_path()"));
+        assert!(notifications.contains(".notification_icon_path()"));
+        assert!(shell.contains(".shell_integration_dir()"));
+        assert!(update.contains(".update_cache_dir()"));
+        assert!(update.contains(".update_logs_dir()"));
+        assert!(!update.contains("std::env::temp_dir"));
+        assert!(markdown.contains(".markdown_state_path()"));
+        assert!(helpers.contains(".helper_cache_dir()"));
+    }
+}
+
+/// 返回当前平台可执行文件后缀，供两个稳定 helper 路径共用。
+fn executable_suffix() -> &'static str {
+    if cfg!(windows) { ".exe" } else { "" }
+}
+
+/// 仅根据布局计算 MCP bridge 路径，不触碰文件系统。
+fn bridge_binary_path_from_layout(
+    layout: &paneflow_config::data_layout::UserDataLayout,
+) -> PathBuf {
+    layout
+        .bin_dir()
+        .join(format!("paneflow-mcp{}", executable_suffix()))
+}
+
+/// 仅根据布局计算 AI Hook 路径，不触碰文件系统。
+fn ai_hook_binary_path_from_layout(
+    layout: &paneflow_config::data_layout::UserDataLayout,
+) -> PathBuf {
+    layout
+        .bin_dir()
+        .join(format!("paneflow-ai-hook{}", executable_suffix()))
 }
 
 /// 返回内嵌 MCP bridge 的稳定、无版本绝对路径。
@@ -327,12 +391,7 @@ mod data_path_tests {
 /// 本函数只计算路径；无法准备用户数据根时返回 `None`，实际原子释放由
 /// `ai_hooks::extract::ensure_bridge_extracted` 负责。
 pub fn bridge_binary_path() -> Option<PathBuf> {
-    let suffix = if cfg!(windows) { ".exe" } else { "" };
-    Some(
-        data_dir()?
-            .join("bin")
-            .join(format!("paneflow-mcp{suffix}")),
-    )
+    Some(bridge_binary_path_from_layout(&writable_user_data_layout()?))
 }
 
 /// 返回 AI Hook callback 的稳定、无版本绝对路径。
@@ -341,12 +400,9 @@ pub fn bridge_binary_path() -> Option<PathBuf> {
 /// durable `bin/`，不会随 `cache/` 清理。函数只计算路径，实际释放由
 /// `ai_hooks::extract::ensure_ai_hook_extracted` 负责。
 pub fn ai_hook_binary_path() -> Option<PathBuf> {
-    let suffix = if cfg!(windows) { ".exe" } else { "" };
-    Some(
-        data_dir()?
-            .join("bin")
-            .join(format!("paneflow-ai-hook{suffix}")),
-    )
+    Some(ai_hook_binary_path_from_layout(
+        &writable_user_data_layout()?
+    ))
 }
 
 #[cfg(unix)]

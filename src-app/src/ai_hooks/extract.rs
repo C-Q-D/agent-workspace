@@ -24,12 +24,12 @@
 //!
 //! EP-001 US-003 - the `paneflow-mcp` bridge takes a **different** path.
 //! The shim/ai-hook helpers live in the version-pinned cache above because
-//! Paneflow re-resolves them on every launch. The bridge path, by contrast,
+//! AgentWorkspace re-resolves them on every launch. The bridge path, by contrast,
 //! is written into external, persistent agent configs by `paneflow mcp
-//! install`, so it must NOT change across Paneflow updates. It is extracted
+//! install`, so it must NOT change across AgentWorkspace updates. It is extracted
 //! by `ensure_bridge_extracted` to the stable, non-versioned location
-//! `runtime_paths::bridge_binary_path()` (under `data_dir()`, not
-//! `cache_dir()`), with the same atomic-write + SHA-compared idempotency
+//! `runtime_paths::bridge_binary_path()`（位于 durable `bin/`，不属于
+//! `cache/`），并复用相同的原子写入和 SHA 比较幂等策略
 //! used here.
 //!
 //! Unhappy path: every IO error surfaces as `anyhow::Err` so the caller
@@ -133,10 +133,9 @@ pub fn ensure_binaries_extracted() -> Result<PathBuf> {
 
     #[cfg(any(not(windows), debug_assertions))]
     {
-        let cache_root = paneflow_config::loader::user_data_root()
-            .ok_or_else(|| anyhow!("US-008: AgentWorkspace user data root is unavailable"))?
-            .join(paneflow_config::loader::CACHE_DIRNAME);
-        let target_dir = cache_root.join("bin").join(VERSION);
+        let layout = crate::runtime_paths::user_data_layout()
+            .ok_or_else(|| anyhow!("US-008: AgentWorkspace user data layout is unavailable"))?;
+        let target_dir = versioned_helper_cache_dir(&layout);
 
         let suffix = exe_suffix();
         let plan = extract_plan();
@@ -160,10 +159,16 @@ pub fn ensure_binaries_extracted() -> Result<PathBuf> {
     }
 }
 
+/// 根据统一布局计算当前版本的可重建 helper 缓存目录。
+#[cfg(any(not(windows), debug_assertions))]
+fn versioned_helper_cache_dir(layout: &paneflow_config::data_layout::UserDataLayout) -> PathBuf {
+    layout.helper_cache_dir().join(VERSION)
+}
+
 /// On Windows, enterprise App Control / AppLocker deployments commonly block
 /// executables from `%LocalAppData%` regardless of whether the parent
 /// application is trusted. MSI releases therefore install the helper shims
-/// under the application directory (`Program Files\PaneFlow\bin`) and the
+/// under the application directory (`Program Files\AgentWorkspace\bin`) and the
 /// terminal PATH should prefer that managed location.
 #[cfg(windows)]
 fn packaged_bin_dir_if_complete() -> Option<PathBuf> {
@@ -182,20 +187,20 @@ fn packaged_bin_dir_if_complete() -> Option<PathBuf> {
 /// `runtime_paths::bridge_binary_path()` and return that absolute path.
 ///
 /// Reuses the same atomic-write + SHA256-compared idempotency as
-/// `ensure_binaries_extracted`, but targets `data_dir()/paneflow/bin/`
+/// `ensure_binaries_extracted`, but targets the durable layout `bin/`
 /// instead of the version-pinned cache so the path written into external
-/// agent configs survives Paneflow updates. When the embedded bytes differ
-/// from what is on disk (a new Paneflow version shipped a newer bridge), the
+/// agent configs survives AgentWorkspace updates. When the embedded bytes differ
+/// from what is on disk (a new AgentWorkspace version shipped a newer bridge), the
 /// file is rewritten atomically; when they match, this is a no-op (no churn).
 ///
-/// Unhappy path: if `data_dir()` is unresolvable / unwritable,
+/// Unhappy path: if the user data layout is unresolvable / unwritable,
 /// `bridge_binary_path()` returns `None` and this returns `Err` - the caller
 /// at launch logs a warn and continues (the GUI still opens; `paneflow mcp
 /// install` will later refuse cleanly rather than write a config pointing at
 /// a non-existent path).
 pub fn ensure_bridge_extracted() -> Result<PathBuf> {
     let bridge_path = crate::runtime_paths::bridge_binary_path().ok_or_else(|| {
-        anyhow!("EP-001 US-003: data_dir() unresolvable/unwritable; cannot extract paneflow-mcp")
+        anyhow!("EP-001 US-003: AgentWorkspace data layout unresolvable/unwritable; cannot extract paneflow-mcp")
     })?;
     let target_dir = bridge_path
         .parent()
@@ -235,16 +240,16 @@ pub fn ensure_bridge_extracted() -> Result<PathBuf> {
 /// Exactly mirrors [`ensure_bridge_extracted`] (same atomic-write +
 /// SHA256-compared idempotency), but targets the ai-hook binary so
 /// `paneflow hooks setup` can write a durable path into external agent configs
-/// that survives Paneflow updates - unlike the version-pinned cache copy the
+/// that survives AgentWorkspace updates - unlike the version-pinned cache copy the
 /// shim resolves at launch.
 ///
-/// Unhappy path: `data_dir()` unresolvable -> `ai_hook_binary_path()` is `None`
+/// Unhappy path: user data layout unresolvable -> `ai_hook_binary_path()` is `None`
 /// -> `Err`; `paneflow hooks setup` then refuses cleanly rather than writing a
 /// config pointing at a non-existent path.
 pub fn ensure_ai_hook_extracted() -> Result<PathBuf> {
     let hook_path = crate::runtime_paths::ai_hook_binary_path().ok_or_else(|| {
         anyhow!(
-            "EP-004 US-016: data_dir() unresolvable/unwritable; cannot extract paneflow-ai-hook"
+            "EP-004 US-016: AgentWorkspace data layout unresolvable/unwritable; cannot extract paneflow-ai-hook"
         )
     })?;
     let target_dir = hook_path
@@ -281,7 +286,7 @@ pub fn ensure_ai_hook_extracted() -> Result<PathBuf> {
 /// Core extraction loop. Factored out of `ensure_binaries_extracted` so
 /// unit tests can drive it with synthetic `Entry` slices and a
 /// `TempDir`-backed output path without depending on `Bins` or
-/// `dirs::cache_dir()`.
+/// 当前用户真实缓存目录。
 pub(crate) fn extract_into(entries: &[Entry<'_>], target_dir: &Path) -> Result<()> {
     std::fs::create_dir_all(target_dir)
         .with_context(|| format!("US-008: create cache dir {} failed", target_dir.display()))?;
@@ -659,12 +664,12 @@ mod tests {
         // real cache dir and asserts every TerminalAgent wrapper plus the
         // ai-hook callback lands. The cache dir is per-user and
         // persistent, so this test is deliberately idempotent - safe to
-        // run repeatedly. Skip when `dirs::cache_dir()` is unresolvable
+        // run repeatedly. Skip when the AgentWorkspace layout is unresolvable
         // (ephemeral CI containers with no `$HOME` set) so the test
         // becomes a no-op rather than a false failure in those
         // environments.
-        if dirs::cache_dir().is_none() {
-            eprintln!("skip: dirs::cache_dir() unresolvable in this environment");
+        if crate::runtime_paths::user_data_layout().is_none() {
+            eprintln!("skip: AgentWorkspace user data layout unresolvable in this environment");
             return;
         }
         let dir = ensure_binaries_extracted().unwrap();
@@ -682,6 +687,21 @@ mod tests {
                 p.display()
             );
         }
+    }
+
+    #[cfg(any(not(windows), debug_assertions))]
+    #[test]
+    fn versioned_helpers_live_only_in_rebuildable_cache() {
+        let home = tempfile::TempDir::new().expect("temp home");
+        let layout = paneflow_config::data_layout::UserDataLayout::from_home_with_root_name(
+            home.path(),
+            ".agent-workspace-test",
+        );
+        let target = versioned_helper_cache_dir(&layout);
+
+        assert_eq!(target, layout.helper_cache_dir().join(VERSION));
+        assert!(target.starts_with(layout.cache_dir()));
+        assert!(!target.starts_with(layout.bin_dir()));
     }
 
     #[test]
@@ -722,7 +742,7 @@ mod tests {
     fn ensure_bridge_extracted_produces_stable_path() {
         // EP-001 US-003 end-to-end smoke: extract the bridge to the real
         // data_dir-backed stable path and assert the binary lands. Skip
-        // when data_dir() is unresolvable (ephemeral CI containers with no
+        // when the AgentWorkspace data layout is unresolvable (ephemeral CI containers with no
         // writable $HOME) so the test no-ops rather than false-fails.
         if crate::runtime_paths::bridge_binary_path().is_none() {
             eprintln!("skip: bridge_binary_path() unresolvable in this environment");
