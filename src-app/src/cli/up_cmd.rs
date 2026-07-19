@@ -155,7 +155,7 @@ fn ensure_orchestration_gate(client: &impl IpcTransport) -> Result<(), CliError>
     match (orchestration, scripting) {
         (Some(true), _) | (_, Some(true)) | (None, _) => Ok(()),
         (Some(false), _) => Err(CliError::runtime(
-            "workspace up requires pane orchestration: relaunch Paneflow with \
+            "workspace up requires pane orchestration: relaunch AgentWorkspace with \
              PANEFLOW_IPC_ORCHESTRATION=1",
         )),
     }
@@ -300,7 +300,7 @@ fn validate_worktree_target(
     }
     if !worktree::is_paneflow_worktree_dir(repo_root, branch, path) {
         return Err(CliError::runtime(format!(
-            "pane {idx}: planned worktree path {} is outside Paneflow's worktree dirs",
+            "pane {idx}: planned worktree path {} is outside AgentWorkspace's worktree dirs",
             path.display()
         )));
     }

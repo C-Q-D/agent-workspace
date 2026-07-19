@@ -111,14 +111,14 @@ fn check_orchestration_gate(client: &impl IpcTransport, dry_run: bool) -> Result
             match (orchestration, scripting) {
                 (Some(true), _) | (_, Some(true)) | (None, _) => Ok(()),
                 (Some(false), _) => Err(CliError::runtime(
-                    "this flow creates panes with commands/prompts: relaunch Paneflow with \
+                    "this flow creates panes with commands/prompts: relaunch AgentWorkspace with \
                      PANEFLOW_IPC_ORCHESTRATION=1",
                 )),
             }
         }
         Err(e) if dry_run => {
             eprintln!(
-                "paneflow: instance unreachable ({e}); cannot verify the orchestration gate \
+                "agent-workspace: instance unreachable ({e}); cannot verify the orchestration gate \
                  this flow requires"
             );
             Ok(())
@@ -136,13 +136,13 @@ fn check_scripting_gate(client: &impl IpcTransport, dry_run: bool) -> Result<(),
         Ok(caps) => match caps.get("scripting").and_then(Value::as_bool) {
             Some(true) | None => Ok(()),
             Some(false) => Err(CliError::runtime(
-                "this flow submits prompts: relaunch Paneflow with PANEFLOW_IPC_SCRIPTING=1 \
+                "this flow submits prompts: relaunch AgentWorkspace with PANEFLOW_IPC_SCRIPTING=1 \
                  (or drop the `submit = true` flags)",
             )),
         },
         Err(e) if dry_run => {
             eprintln!(
-                "paneflow: instance unreachable ({e}); cannot verify the scripting gate \
+                "agent-workspace: instance unreachable ({e}); cannot verify the scripting gate \
                  this flow requires"
             );
             Ok(())
@@ -963,7 +963,7 @@ impl<T: IpcTransport> Engine<'_, T> {
             }
         }
         if let Some(reason) = &aborted {
-            eprintln!("paneflow: flow aborted: {reason} (partial report above)");
+            eprintln!("agent-workspace: flow aborted: {reason} (partial report above)");
             return Ok(EXIT_RUNTIME);
         }
         Ok(if all_ready {

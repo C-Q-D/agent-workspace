@@ -249,7 +249,7 @@ pub fn augment_path_for_gui_launch() {
     match std::env::join_paths(&merged) {
         Ok(joined) => {
             log::info!(
-                "paneflow: augmented PATH with user bin dirs: {}",
+                "agent-workspace: augmented PATH with user bin dirs: {}",
                 to_prepend
                     .iter()
                     .map(|p| p.display().to_string())
@@ -261,7 +261,9 @@ pub fn augment_path_for_gui_launch() {
             unsafe { std::env::set_var("PATH", joined) };
         }
         Err(e) => {
-            log::warn!("paneflow: failed to join augmented PATH ({e}); leaving PATH unchanged");
+            log::warn!(
+                "agent-workspace: failed to join augmented PATH ({e}); leaving PATH unchanged"
+            );
         }
     }
 }
@@ -370,7 +372,7 @@ fn check_sun_path_fits(path: &std::path::Path) -> bool {
     // minus one).
     if bytes >= MAX_SOCKET_PATH_BYTES {
         log::warn!(
-            "paneflow: computed IPC socket path does not fit sun_path ({} >= {} bytes, no room for the NUL terminator): {} - IPC will be disabled. Set $XDG_RUNTIME_DIR (Linux) or shorten $TMPDIR (macOS) to enable it.",
+            "agent-workspace: computed IPC socket path does not fit sun_path ({} >= {} bytes, no room for the NUL terminator): {} - IPC will be disabled. Set $XDG_RUNTIME_DIR (Linux) or shorten $TMPDIR (macOS) to enable it.",
             bytes,
             MAX_SOCKET_PATH_BYTES,
             path.display()

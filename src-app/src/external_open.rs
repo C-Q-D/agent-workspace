@@ -47,14 +47,14 @@ pub(crate) fn is_open_url_helper_invocation(args: &[String]) -> bool {
 #[cfg(target_os = "windows")]
 pub(crate) fn run_open_url_helper_from_args(args: &[String]) -> i32 {
     let Some(url) = args.get(2) else {
-        eprintln!("paneflow: missing URL for {OPEN_URL_SUBCOMMAND}");
+        eprintln!("agent-workspace: missing URL for {OPEN_URL_SUBCOMMAND}");
         return 2;
     };
 
     match open::that(url) {
         Ok(()) => 0,
         Err(err) => {
-            eprintln!("paneflow: failed to open URL {url:?}: {err}");
+            eprintln!("agent-workspace: failed to open URL {url:?}: {err}");
             1
         }
     }

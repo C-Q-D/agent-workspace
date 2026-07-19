@@ -23,7 +23,7 @@ pub fn watch(
     let mut params = serde_json::Map::new();
     if let Some(sel) = surface {
         // Force EXIT_TARGET for any resolution failure (no instance OR no match)
-        // so "is Paneflow running?" surfaces as a target error per US-007 AC3.
+        // 让“AgentWorkspace 是否正在运行”按 US-007 AC3 作为目标错误返回。
         let id = resolve_target(client, sel).map_err(|e| CliError::target(e.message))?;
         params.insert("surfaces".into(), json!([id]));
     }
@@ -33,8 +33,8 @@ pub fn watch(
 
     let socket = paneflow_ipc_client::resolve_socket_path().ok_or_else(|| {
         CliError::target(
-            "cannot locate the IPC socket; is Paneflow running? \
-             (set PANEFLOW_SOCKET_PATH if you launched the CLI outside a Paneflow pane)",
+            "cannot locate the IPC endpoint; is AgentWorkspace running? \
+             (set PANEFLOW_SOCKET_PATH if you launched the CLI outside an AgentWorkspace pane)",
         )
     })?;
 
@@ -62,7 +62,7 @@ pub fn watch(
             }
         }
         Err(e) => Err(CliError::target(format!(
-            "watch failed: {e}; is Paneflow running?"
+            "watch failed: {e}; is AgentWorkspace running?"
         ))),
     }
 }

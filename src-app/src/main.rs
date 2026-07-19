@@ -2583,10 +2583,10 @@ fn main() {
 
     if is_global_help {
         println!(
-            "PaneFlow {version} - native terminal workspace for coding agents\n\
+            "{product_name} {version} - native terminal workspace for coding agents\n\
              \n\
-             Usage: paneflow [OPTIONS]\n\
-             \x20      paneflow mcp <install|status|uninstall>\n\
+             Usage: {cli_name} [OPTIONS]\n\
+             \x20      {cli_name} mcp <install|status|uninstall>\n\
              \n\
              Options:\n\
              \x20 -h, --help       Print this help message\n\
@@ -2595,7 +2595,7 @@ fn main() {
              \n\
              Agent workflow:\n\
              \x20 Launch Claude Code, Codex, opencode, Pi, or any CLI agent in panes\n\
-             \x20 Use `paneflow mcp install` so capable agents can read pane output\n\
+             \x20 Use `{cli_name} mcp install` so capable agents can read pane output\n\
              \n\
              Keybindings:\n\
              \x20 Ctrl+Shift+D/E   Split horizontal/vertical\n\
@@ -2607,12 +2607,18 @@ fn main() {
              \n\
              Config paths and IPC endpoints are documented in the README.\n\
              https://github.com/ArthurDEV44/paneflow",
-            version = env!("CARGO_PKG_VERSION")
+            product_name = product_identity::PRODUCT_NAME,
+            cli_name = product_identity::CLI_NAME,
+            version = env!("CARGO_PKG_VERSION"),
         );
         return;
     }
     if is_global_version {
-        println!("paneflow {}", env!("CARGO_PKG_VERSION"));
+        println!(
+            "{} {}",
+            product_identity::CLI_NAME,
+            env!("CARGO_PKG_VERSION")
+        );
         return;
     }
 
@@ -2751,17 +2757,16 @@ fn main() {
         std::process::exit(cli::run());
     }
 
-    // EP-005 US-011: an argv[1] shaped like a verb but not one we own
-    // (`paneflow blah`, a mistyped `paneflow searh`, or the MCP tool name had
-    // an alias not been wired) is a typo, not a GUI launch. The `mcp`/`hooks`/
-    // known-verb intercepts above have all exited by now, so anything still
-    // here is genuinely unknown: print an actionable error and exit non-zero
-    // (clap's usage-error code 2) instead of falling through to the bootstrap,
-    // which would silently trip the single-instance guard. A bare `paneflow`
-    // (no argv[1]) and any `-`/`--` flag are NOT flagged, so the GUI and the
-    // global-flag scans keep their existing behaviour.
+    // EP-005 US-011：argv[1] 看起来像命令但不属于已知 verb 时，应视为输入错误，
+    // 例如 `agent-workspace blah` 或拼错的 `agent-workspace searh`。此时 MCP、
+    // Hook 和本地控制命令都已经完成拦截，因此应返回 clap 惯用的退出码 2，不能
+    // 继续启动 GUI 并误触单实例保护。空参数和以 `-` 开头的全局参数不进入此分支。
     if is_unknown_verb && let Some(verb) = args.get(1) {
-        eprintln!("paneflow: unknown verb '{verb}'; see `paneflow --help` for the verb list");
+        eprintln!(
+            "{}: unknown verb '{verb}'; see `{} --help` for the verb list",
+            product_identity::CLI_NAME,
+            product_identity::CLI_NAME
+        );
         std::process::exit(2);
     }
 
@@ -2784,7 +2789,7 @@ fn main() {
 
     #[cfg(target_os = "windows")]
     if let Err(err) = windows_app_identity::ensure_process_app_user_model_id() {
-        log::warn!("paneflow: Windows app identity setup failed: {err}");
+        log::warn!("agent-workspace: Windows app identity setup failed: {err}");
     }
 
     application()

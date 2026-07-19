@@ -994,7 +994,7 @@ fn truncate_ipc_text(text: String) -> (String, bool) {
         return (text, false);
     }
 
-    const MARKER: &str = "\n[paneflow: output truncated to fit IPC frame]\n";
+    const MARKER: &str = "\n[agent-workspace: output truncated to fit IPC frame]\n";
     let keep = crate::limits::MAX_IPC_TEXT_BYTES.saturating_sub(MARKER.len());
     let mut boundary = keep.min(text.len());
     while boundary > 0 && !text.is_char_boundary(boundary) {
@@ -2846,7 +2846,7 @@ impl PaneFlowApp {
                 // call, so flipping the mode off leaves no residual capability.
                 if unrestricted {
                     tracing::info!(
-                        target: "paneflow::ipc::unrestricted",
+                        target: "agent_workspace::ipc::unrestricted",
                         method = "surface.send_text",
                         surface_id = wrote_sid,
                         caller_pid = ?caller_pid,

@@ -290,7 +290,7 @@ pub fn start_server() -> (
         && let Some(info) = detect_existing_instance(socket_spec.path())
     {
         eprintln!(
-            "paneflow: another Paneflow instance is already running on {}.\n\
+            "agent-workspace: another AgentWorkspace instance is already running on {}.\n\
              Existing instance: {}\n\
              Close the open window first, or set PANEFLOW_ALLOW_MULTIPLE=1 to override.",
             socket_spec.path().display(),
@@ -318,7 +318,7 @@ pub fn start_server() -> (
             let Some(socket_spec) = socket_path_spec() else {
                 thread_status.disable();
                 log::warn!(
-                    "paneflow: could not resolve a usable IPC socket path - IPC server disabled. \
+                    "agent-workspace: could not resolve a usable IPC endpoint - IPC server disabled. \
                      See earlier runtime_paths warnings for the specific cause."
                 );
                 return;
@@ -752,7 +752,7 @@ fn detect_existing_instance(socket_path: &std::path::Path) -> Option<String> {
         // `handle_connection`). Match on the literal so a non-Paneflow
         // listener squatting on the same path doesn't pin us to exit -
         // we'd rather clobber an unknown squatter than refuse to start.
-        if line.contains("\"PaneFlow\"") {
+        if line.contains("\"AgentWorkspace\"") {
             return Some(line.trim().to_string());
         }
     }
@@ -1088,7 +1088,7 @@ fn handle_connection(
                             }
                             "system.identify" => {
                                 json!({"jsonrpc": "2.0", "result": {
-                                    "name": "PaneFlow",
+                                    "name": "AgentWorkspace",
                                     "version": env!("CARGO_PKG_VERSION"),
                                     "protocol": "jsonrpc-2.0"
                                 }, "id": response_id})
@@ -1550,7 +1550,7 @@ fn dispatch_to_gpui(
     match request_tx.try_send(ipc_req) {
         Ok(()) => {}
         Err(mpsc::TrySendError::Full(_)) => {
-            return json!({"jsonrpc": "2.0", "error": {"code": -32000, "message": "Paneflow is busy; retry shortly"}, "id": id});
+            return json!({"jsonrpc": "2.0", "error": {"code": -32000, "message": "AgentWorkspace is busy; retry shortly"}, "id": id});
         }
         Err(mpsc::TrySendError::Disconnected(_)) => {
             return json!({"jsonrpc": "2.0", "error": {"code": -32000, "message": "App shutting down"}, "id": id});
@@ -1915,7 +1915,10 @@ mod dispatch_tests {
         );
 
         assert_eq!(resp["error"]["code"], -32000);
-        assert_eq!(resp["error"]["message"], "Paneflow is busy; retry shortly");
+        assert_eq!(
+            resp["error"]["message"],
+            "AgentWorkspace is busy; retry shortly"
+        );
         assert_eq!(resp["id"], "req-overload");
     }
 

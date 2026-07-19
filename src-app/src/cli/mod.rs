@@ -1,13 +1,8 @@
-//! `paneflow <verb>` scriptable CLI (EP-001, prd-cli-agent-orchestration).
+//! `agent-workspace <verb>` 本地可脚本化控制 CLI。
 //!
-//! Talks to a RUNNING Paneflow instance over the existing IPC JSON-RPC socket
-//! (`paneflow-ipc-client`) and exits before any GPUI init. `main.rs` dispatches
-//! here only when `argv[1]` names a known verb ([`is_cli_verb`]) - mirroring the
-//! `paneflow mcp …` intercept - so every other invocation (no args, unknown
-//! args, `--help`/`--version`/`--update-and-exit`) is left untouched and the GUI
-//! launch path is preserved. clap therefore never has to own the "no subcommand
-//! => launch the GUI" default, and never eats the manually-parsed top-level
-//! flags handled above it.
+//! 该入口通过现有 JSON-RPC IPC 驱动正在运行的 AgentWorkspace，并在 GPUI
+//! 初始化前退出。`main.rs` 只把已知 verb 分发到这里，空参数仍启动 GUI，
+//! 顶层帮助、版本和更新参数继续由主入口处理。
 
 use clap::{Parser, Subcommand, ValueEnum};
 use paneflow_ipc_client::IpcClient;
@@ -87,12 +82,11 @@ pub fn looks_like_unknown_verb(arg: Option<&str>) -> bool {
 
 #[derive(Parser, Debug)]
 #[command(
-    name = "paneflow",
+    name = "agent-workspace",
     version,
-    about = "Drive a running Paneflow instance from the shell",
-    // The GUI launch (no subcommand) is handled in main.rs, never here, so a
-    // bare `paneflow` never reaches clap. `Option<Commands>` keeps clap from
-    // forcing `subcommand_required` / `arg_required_else_help` regardless.
+    about = "Drive a running AgentWorkspace instance from the shell",
+    // 无子命令时由 main.rs 启动 GUI，不会进入 clap；保留 `Option<Commands>`
+    // 可避免 clap 强制要求子命令，同时维持桌面应用的默认启动行为。
     subcommand_required = false,
     arg_required_else_help = false
 )]
@@ -382,20 +376,20 @@ pub fn run() -> i32 {
     match dispatch(command, &client) {
         Ok(code) => code,
         Err(e) => {
-            eprintln!("paneflow: {}", e.message);
+            eprintln!("agent-workspace: {}", e.message);
             e.code
         }
     }
 }
 
-/// Resolve the socket path and build a client. The path is resolved eagerly
-/// (honoring `PANEFLOW_SOCKET_PATH`), but a missing instance only surfaces as
-/// an "unreachable … is Paneflow running?" error on the first `call`, so a
-/// resolvable-but-dead socket is not a `connect` failure.
+/// 解析 IPC 端点并创建客户端。
+///
+/// 解析时继续兼容 `PANEFLOW_SOCKET_PATH`；实例不存在的问题只会在首次调用时
+/// 报告，因此成功解析端点不代表目标进程仍然存活。
 fn connect() -> Result<IpcClient, String> {
     let socket = paneflow_ipc_client::resolve_socket_path().ok_or_else(|| {
-        "paneflow: cannot locate the IPC socket; is Paneflow running? \
-         (set PANEFLOW_SOCKET_PATH if you launched the CLI outside a Paneflow pane)"
+        "agent-workspace: cannot locate the IPC endpoint; is AgentWorkspace running? \
+         (set PANEFLOW_SOCKET_PATH if you launched the CLI outside an AgentWorkspace pane)"
             .to_string()
     })?;
     Ok(IpcClient::new(socket))
@@ -527,6 +521,16 @@ pub(super) fn reject_legacy_error(result: Value) -> Result<Value, CliError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use clap::CommandFactory;
+
+    #[test]
+    fn clap_public_identity_is_agent_workspace() {
+        let mut command = Cli::command();
+        assert_eq!(command.get_name(), "agent-workspace");
+        let help = command.render_long_help().to_string();
+        assert!(help.contains("running AgentWorkspace instance"));
+        assert!(!help.contains("running Paneflow instance"));
+    }
 
     #[test]
     fn is_cli_verb_matches_known_verbs() {

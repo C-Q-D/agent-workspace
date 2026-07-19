@@ -6,6 +6,9 @@
 /// Windows 应用、About 与系统通知共同显示的产品名。
 pub(crate) const PRODUCT_NAME: &str = "AgentWorkspace";
 
+/// Windows 主程序和本地控制命令共用的 CLI 名称。
+pub(crate) const CLI_NAME: &str = "agent-workspace";
+
 /// 内置浅色主题的公开名称。
 pub(crate) const LIGHT_THEME_NAME: &str = "AgentWorkspace Light";
 
@@ -16,6 +19,7 @@ mod tests {
     #[test]
     fn public_product_constants_are_stable() {
         assert_eq!(PRODUCT_NAME, "AgentWorkspace");
+        assert_eq!(CLI_NAME, "agent-workspace");
         assert_eq!(LIGHT_THEME_NAME, "AgentWorkspace Light");
     }
 

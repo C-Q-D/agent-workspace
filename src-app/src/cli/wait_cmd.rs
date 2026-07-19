@@ -163,7 +163,7 @@ pub fn wait(
 
         if Instant::now() >= deadline {
             eprintln!(
-                "paneflow: timeout after {}s waiting for /{}/",
+                "agent-workspace: timeout after {}s waiting for /{}/",
                 timeout.as_secs(),
                 pattern
             );
@@ -411,8 +411,8 @@ pub fn wait_idle(
 
     let socket = paneflow_ipc_client::resolve_socket_path().ok_or_else(|| {
         CliError::target(
-            "cannot locate the IPC socket; is Paneflow running? \
-             (set PANEFLOW_SOCKET_PATH if you launched the CLI outside a Paneflow pane)",
+            "cannot locate the IPC endpoint; is AgentWorkspace running? \
+             (set PANEFLOW_SOCKET_PATH if you launched the CLI outside an AgentWorkspace pane)",
         )
     })?;
 
@@ -465,14 +465,14 @@ pub fn wait_idle(
             }
             IdleOutcome::TimedOut => {
                 eprintln!(
-                    "paneflow: timeout after {}s waiting for surface {id} to go idle",
+                    "agent-workspace: timeout after {}s waiting for surface {id} to go idle",
                     timeout.as_secs()
                 );
                 Ok(EXIT_TIMEOUT)
             }
             // The stream died before idle: exit 1 (runtime), not a silent hang.
             IdleOutcome::Dead => Err(CliError::runtime(
-                "the Paneflow event stream closed before the pane went idle (did Paneflow exit?)",
+                "the AgentWorkspace event stream closed before the pane went idle (did AgentWorkspace exit?)",
             )),
             IdleOutcome::Continue => Err(CliError::runtime(
                 "idle wait ended without a verdict (internal)",
@@ -537,7 +537,7 @@ fn wait_idle_poll(
         }
         if past_deadline {
             eprintln!(
-                "paneflow: timeout after {}s waiting for surface {id} to go idle",
+                "agent-workspace: timeout after {}s waiting for surface {id} to go idle",
                 timeout.as_secs()
             );
             return Ok(EXIT_TIMEOUT);
