@@ -6,7 +6,41 @@ use gpui::{
 };
 
 use crate::PaneFlowApp;
-use crate::product_identity::PRODUCT_NAME;
+use crate::product_identity::{
+    LICENSE_URL, PRODUCT_NAME, REPOSITORY_URL, THIRD_PARTY_LICENSES_URL, UPSTREAM_REPOSITORY_URL,
+};
+
+/// 构造静态法律材料入口；点击只交给 Windows 默认浏览器，不启动后台任务或轮询。
+fn legal_link_button(
+    id: &'static str,
+    label: &'static str,
+    url: &'static str,
+    cx: &mut Context<PaneFlowApp>,
+) -> AnyElement {
+    let ui = crate::theme::ui_colors();
+    div()
+        .id(id)
+        .h(px(27.))
+        .px(px(10.))
+        .flex()
+        .items_center()
+        .justify_center()
+        .rounded(px(4.))
+        .border_1()
+        .border_color(rgb(0x4a4a50))
+        .cursor_pointer()
+        .text_size(px(11.))
+        .text_color(ui.text)
+        .hover(|style| style.bg(rgb(0x343438)))
+        .on_click(cx.listener(move |_this, _: &ClickEvent, _, cx| {
+            if let Err(error) = crate::external_open::open_url(url) {
+                log::warn!("打开 About 法律材料失败：{url}: {error}");
+            }
+            cx.stop_propagation();
+        }))
+        .child(label)
+        .into_any_element()
+}
 
 impl PaneFlowApp {
     pub(crate) fn render_about_dialog(&self, cx: &mut Context<Self>) -> AnyElement {
@@ -74,7 +108,7 @@ impl PaneFlowApp {
 
         let body = div()
             .w_full()
-            .h(px(225.))
+            .h(px(310.))
             .flex()
             .flex_col()
             .items_center()
@@ -103,10 +137,55 @@ impl PaneFlowApp {
             )
             .child(
                 div()
-                    .mt(px(14.))
+                    .mt(px(11.))
                     .text_color(ui.muted)
                     .text_size(px(12.))
-                    .child("Open-source contributors"),
+                    .child("Copyright 2025 Arthur Jean · 2026 C-Q-D"),
+            )
+            .child(
+                div()
+                    .mt(px(7.))
+                    .text_color(ui.muted)
+                    .text_size(px(11.))
+                    .child("Modified from Paneflow; not an official Paneflow release."),
+            )
+            .child(
+                div()
+                    .mt(px(5.))
+                    .text_color(ui.muted)
+                    .text_size(px(11.))
+                    .child("GPL-3.0-or-later · No warranty"),
+            )
+            .child(
+                div()
+                    .mt(px(15.))
+                    .flex()
+                    .flex_row()
+                    .gap(px(8.))
+                    .child(legal_link_button(
+                        "about-source-code",
+                        "Source code",
+                        REPOSITORY_URL,
+                        cx,
+                    ))
+                    .child(legal_link_button(
+                        "about-upstream",
+                        "Paneflow upstream",
+                        UPSTREAM_REPOSITORY_URL,
+                        cx,
+                    ))
+                    .child(legal_link_button(
+                        "about-license",
+                        "GPL license",
+                        LICENSE_URL,
+                        cx,
+                    ))
+                    .child(legal_link_button(
+                        "about-third-party-licenses",
+                        "Third-party licenses",
+                        THIRD_PARTY_LICENSES_URL,
+                        cx,
+                    )),
             );
 
         let ok_button = div()
@@ -147,7 +226,7 @@ impl PaneFlowApp {
         let dialog = div()
             .id("about-dialog")
             .occlude()
-            .w(px(382.))
+            .w(px(492.))
             .flex()
             .flex_col()
             .overflow_hidden()

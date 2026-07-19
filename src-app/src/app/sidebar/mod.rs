@@ -969,7 +969,7 @@ impl PaneFlowApp {
         items.push(SidebarMenuItem {
             id: "cli-menu-about".into(),
             icon: "icons/info-circle.svg",
-            label: "About Paneflow".into(),
+            label: "About AgentWorkspace".into(),
             on_click: Box::new(|app, _w, cx| {
                 app.show_about_dialog = true;
                 cx.notify();
