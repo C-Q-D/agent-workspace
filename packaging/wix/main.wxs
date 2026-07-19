@@ -57,13 +57,26 @@
             <Directory Id='$(var.PlatformProgramFilesFolder)' Name='PFiles'>
                 <Directory Id='APPLICATIONFOLDER' Name='AgentWorkspace'>
 
-                    <!-- License sidecar. -->
+                    <!-- 安装向导使用的 GPL RTF 也随程序保留，便于离线复核。 -->
                     <Component Id='License' Guid='*'>
                         <File Id='LicenseFile'
                             DiskId='1'
                             Source='packaging/wix/License.rtf'
                             KeyPath='yes'/>
                     </Component>
+
+                    <!-- 完整法律材料独立放入 licenses，缺失任一 Source 时 WiX 编译失败。 -->
+                    <Directory Id='LegalMaterialsFolder' Name='licenses'>
+                        <Component Id='LegalMaterials' Guid='8D6554E4-47B5-4C48-9C78-87156EF2F232'>
+                            <File Id='RootLicenseText' Name='LICENSE.txt' DiskId='1' Source='packaging/windows/legal/LICENSE.txt' KeyPath='yes'/>
+                            <!-- MSI 数据库沿用 1252 code page；安装别名使用 ASCII，
+                                 仓库中的中文源文件名与正文保持不变。 -->
+                            <File Id='UpstreamNotice' Name='UPSTREAM-NOTICE.md' DiskId='1' Source='packaging/windows/legal/上游归属与修改说明.md'/>
+                            <File Id='ThirdPartyRustMarkdown' Name='THIRD-PARTY-RUST.md' DiskId='1' Source='packaging/windows/legal/第三方Rust依赖清单.md'/>
+                            <File Id='ThirdPartyRustJson' Name='THIRD-PARTY-RUST.json' DiskId='1' Source='packaging/windows/legal/第三方Rust依赖.json'/>
+                            <File Id='ThirdPartyAssets' Name='THIRD-PARTY-ASSETS.md' DiskId='1' Source='packaging/windows/legal/第三方资产清单.md'/>
+                        </Component>
+                    </Directory>
 
                     <!-- 主程序直接位于安装根目录，确保 PATH 与快捷方式目标一致。 -->
                     <Component Id='binary0' Guid='*'>
@@ -157,13 +170,14 @@
         <Feature
             Id='Binaries'
             Title='AgentWorkspace'
-            Description='Installs AgentWorkspace, its license, Start Menu shortcut, and an entry on PATH.'
+            Description='Installs AgentWorkspace, GPL and third-party notices, Start Menu shortcut, and an entry on PATH.'
             Level='1'
             ConfigurableDirectory='APPLICATIONFOLDER'
             AllowAdvertise='no'
             Display='expand'
             Absent='disallow'>
             <ComponentRef Id='License'/>
+            <ComponentRef Id='LegalMaterials'/>
             <ComponentRef Id='binary0'/>
             <ComponentRef Id='HelperBinaries'/>
             <ComponentRef Id='ApplicationShortcut'/>

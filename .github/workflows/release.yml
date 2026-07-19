@@ -353,6 +353,14 @@ jobs:
         shell: bash
         run: bash scripts/build-icons.sh
 
+      # Windows 安装包必须使用仓库内已经验收的 GPL、上游归属和第三方清单。
+      # 这里只读检查版本化发布材料；发生漂移时先审查并在本地重新生成，
+      # 禁止 CI 静默改写后继续打包。
+      - name: Validate Windows legal materials
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: python scripts/生成Windows法律材料.py --check
+
       # Windows Application Control / Smart App Control evaluates the helper
       # executable that actually runs from the PaneFlow terminal PATH. The
       # outer `paneflow.exe` signature does not cover helper bytes after
