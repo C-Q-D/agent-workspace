@@ -503,6 +503,18 @@ pub(super) fn setup_shell_integration(
     setup_shell_integration_at(&base, shell, env, profile)
 }
 
+/// 确保缓存脚本内容正确；内容未变化时不触碰现有文件。
+///
+/// 多个 PowerShell 终端会依次读取同一个 `osc7.ps1`。Windows 正在读取脚本时，
+/// 再次截断写入可能触发共享冲突并污染后续终端启动，因此命中相同内容必须直接复用。
+/// 缓存内容过期或不可读时仍会重写，使应用升级后的集成脚本可以正常刷新。
+fn ensure_cached_script(path: &std::path::Path, content: &str) -> bool {
+    if std::fs::read(path).is_ok_and(|existing| existing == content.as_bytes()) {
+        return true;
+    }
+    std::fs::write(path, content).is_ok()
+}
+
 /// 使用明确缓存目录生成脚本，供生产入口和真实文件系统测试共享。
 fn setup_shell_integration_at(
     base: &std::path::Path,
@@ -533,7 +545,7 @@ fn setup_shell_integration_at(
             // hijacking ZDOTDIR to point at a dir with no `.zshenv` - that
             // would suppress the user's real zsh startup AND give no
             // integration. Bail before touching `env`.
-            if std::fs::write(dir.join(".zshenv"), ZSH_OSC7).is_err() {
+            if !ensure_cached_script(&dir.join(".zshenv"), ZSH_OSC7) {
                 return vec![];
             }
             if let Ok(orig) = std::env::var("ZDOTDIR") {
@@ -551,7 +563,7 @@ fn setup_shell_integration_at(
             // U-022: abort if the write fails - handing bash `--rcfile <path>`
             // for a file that doesn't exist breaks startup instead of
             // gracefully falling back to the user's normal `.bashrc`.
-            if std::fs::write(&rcfile, BASH_OSC7).is_err() {
+            if !ensure_cached_script(&rcfile, BASH_OSC7) {
                 return vec![];
             }
             vec!["--rcfile".into(), to_shell_path(&rcfile)]
@@ -564,7 +576,7 @@ fn setup_shell_integration_at(
             let initfile = dir.join("osc7.fish");
             // U-022: abort if the write fails - sourcing a missing init file
             // errors fish startup rather than degrading cleanly.
-            if std::fs::write(&initfile, FISH_OSC7).is_err() {
+            if !ensure_cached_script(&initfile, FISH_OSC7) {
                 return vec![];
             }
             vec![
@@ -586,7 +598,7 @@ fn setup_shell_integration_at(
             let initfile = dir.join("osc7.ps1");
             // U-022: abort if the write fails - dot-sourcing a missing script
             // breaks the pwsh session rather than degrading cleanly.
-            if std::fs::write(&initfile, PWSH_OSC7).is_err() {
+            if !ensure_cached_script(&initfile, PWSH_OSC7) {
                 return vec![];
             }
             // Single-quote the path and escape any embedded single
@@ -682,6 +694,57 @@ mod tests {
         for path in durable_files {
             assert_eq!(std::fs::read(path).unwrap(), b"durable-bytes");
         }
+    }
+
+    #[test]
+    fn matching_shell_integration_script_is_reused_without_rewrite() {
+        let sandbox = tempfile::TempDir::new().expect("应能创建真实临时目录");
+        let layout = paneflow_config::data_layout::UserDataLayout::from_home(sandbox.path());
+        let mut env = std::collections::HashMap::new();
+        let first = super::setup_shell_integration_at(
+            &layout.shell_integration_dir(),
+            "pwsh.exe",
+            &mut env,
+            TerminalSurfaceProfile::Normal,
+        );
+        let script = layout.shell_integration_dir().join("pwsh/osc7.ps1");
+        let mut permissions = std::fs::metadata(&script).unwrap().permissions();
+        permissions.set_readonly(true);
+        std::fs::set_permissions(&script, permissions.clone()).unwrap();
+
+        // 只读文件模拟 Windows 下脚本正由 PowerShell 占用：相同内容应直接复用，
+        // 不能因为无意义的重写失败而丢弃 Shell 集成启动参数。
+        let second = super::setup_shell_integration_at(
+            &layout.shell_integration_dir(),
+            "pwsh.exe",
+            &mut env,
+            TerminalSurfaceProfile::Normal,
+        );
+        permissions.set_readonly(false);
+        std::fs::set_permissions(&script, permissions).unwrap();
+
+        assert_eq!(first, second);
+        assert_eq!(std::fs::read_to_string(script).unwrap(), super::PWSH_OSC7);
+    }
+
+    #[test]
+    fn stale_shell_integration_script_is_refreshed() {
+        let sandbox = tempfile::TempDir::new().expect("应能创建真实临时目录");
+        let layout = paneflow_config::data_layout::UserDataLayout::from_home(sandbox.path());
+        let script = layout.shell_integration_dir().join("pwsh/osc7.ps1");
+        std::fs::create_dir_all(script.parent().unwrap()).unwrap();
+        std::fs::write(&script, "过期脚本").unwrap();
+        let mut env = std::collections::HashMap::new();
+
+        let args = super::setup_shell_integration_at(
+            &layout.shell_integration_dir(),
+            "pwsh.exe",
+            &mut env,
+            TerminalSurfaceProfile::Normal,
+        );
+
+        assert!(!args.is_empty());
+        assert_eq!(std::fs::read_to_string(script).unwrap(), super::PWSH_OSC7);
     }
 
     // (B) Unix well-known-dir shell lookup: a bare name not on PATH still
