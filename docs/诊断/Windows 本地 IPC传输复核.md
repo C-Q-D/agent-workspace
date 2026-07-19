@@ -42,3 +42,7 @@ UNIT-22 只关闭了 CLI 请求响应路径的 `0xC0000409`，同一个 Windows 
 - 管道繁忙时，连接等待受同一 deadline 约束。
 - 连续超时后仍能成功完成下一次传输，且句柄数量不持续增长。
 - 真实 hook 子进程仍保持失败静默、事件可达和退出码 0。
+
+## 完成结果
+
+UNIT-23 已按上述 seam 完成：生产代码中不再存在 `nonblocking_stream(true)` 或第二份 Windows deadline loop；CLI/MCP 与 hook 共同使用 `paneflow-ipc-client`。真实 Windows 命名管道成功、读写超时、总 deadline、连续取消句柄稳定、恢复发送与 Release hook 事件到达均通过。验收详情见《Windows 本地 IPC 传输验收报告》。

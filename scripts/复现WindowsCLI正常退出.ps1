@@ -125,6 +125,14 @@ try {
     $exitHex = '0x{0:X8}' -f $unsignedExit
     $stdout = if (Test-Path -LiteralPath $stdoutPath) { Get-Content -LiteralPath $stdoutPath -Raw } else { '' }
     $stderr = if (Test-Path -LiteralPath $stderrPath) { Get-Content -LiteralPath $stderrPath -Raw } else { '' }
+    # 工作区创建先返回 starting，Git 准备随后在后台完成；验收应有界等待真实仓库，
+    # 不能把“响应返回的同一瞬间尚未落盘”误判为初始化失败。
+    if ($ClientScenario -eq 'new') {
+        for ($attempt = 0; $attempt -lt 50; $attempt++) {
+            if (Test-Path -LiteralPath (Join-Path $fixtureRoot '.git') -PathType Container) { break }
+            Start-Sleep -Milliseconds 100
+        }
+    }
     $gitRepository = Test-Path -LiteralPath (Join-Path $fixtureRoot '.git') -PathType Container
 
     $result = [pscustomobject]@{

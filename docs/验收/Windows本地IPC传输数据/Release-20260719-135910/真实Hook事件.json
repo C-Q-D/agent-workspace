@@ -1,0 +1,15 @@
+{
+  "BuildProfile": "Release",
+  "ServerProcessId": 42328,
+  "WorkspaceIndex": 0,
+  "WorkspaceId": 1,
+  "AgentPid": 27768,
+  "PromptHookExitCode": 0,
+  "PromptHookMilliseconds": 33.475,
+  "StopHookExitCode": 0,
+  "StopHookMilliseconds": 16.79,
+  "ObservedTool": "codex",
+  "ObservedState": "thinking",
+  "ObservedHooked": true,
+  "GitRepository": true
+}

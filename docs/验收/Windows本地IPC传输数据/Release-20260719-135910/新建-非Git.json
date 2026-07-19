@@ -1,0 +1,10 @@
+{
+  "WorkspaceKind": "NonGit",
+  "ClientExitCode": 0,
+  "ClientExitHex": "0x00000000",
+  "ServerWorkspaceCount": 1,
+  "GitRepository": true,
+  "ElapsedMilliseconds": 411.937,
+  "Stdout": "{\n  \"index\": 0,\n  \"title\": \"CLI退出复现\",\n  \"panes\": 1,\n  \"terminal_status\": \"starting\",\n  \"reference_format\": \"common\"\n}\n",
+  "Stderr": null
+}

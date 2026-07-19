@@ -1,0 +1,10 @@
+{
+  "WorkspaceKind": "NonGit",
+  "ClientExitCode": 3,
+  "ClientExitHex": "0x00000003",
+  "ServerWorkspaceCount": 0,
+  "GitRepository": false,
+  "ElapsedMilliseconds": 441.492,
+  "Stdout": null,
+  "Stderr": "paneflow: no pane matches target '不存在的终端'\n"
+}
