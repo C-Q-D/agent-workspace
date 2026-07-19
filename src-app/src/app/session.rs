@@ -14,7 +14,7 @@ use gpui::{App, AppContext, Context, Entity};
 use paneflow_config::schema::LayoutNode;
 
 use crate::PaneFlowApp;
-use crate::launch_cwd;
+use crate::app::workspace_lifecycle::WorkspaceLifecycle;
 use crate::layout::{LayoutTree, MAX_PANES};
 use crate::limits::MAX_SESSION_SIZE_BYTES;
 use crate::pane::Pane;
@@ -401,16 +401,13 @@ impl PaneFlowApp {
             );
         }
         for ws_session in session.workspaces.iter().take(MAX_WORKSPACES) {
-            let mut cwd = restored_workspace_cwd(&ws_session.cwd);
-            let mut title = ws_session.title.clone();
-            if should_repair_restored_root_terminal(&title, &cwd) {
-                let repaired_cwd = launch_cwd::implicit_launch_cwd();
-                log::info!(
-                    "session restore: repairing legacy default workspace at filesystem root"
-                );
-                title = launch_cwd::title_for_cwd_or(&repaired_cwd, title);
-                cwd = repaired_cwd;
-            }
+            let Some(restored_root) =
+                WorkspaceLifecycle::plan_restored_root(&ws_session.title, &ws_session.cwd)
+            else {
+                continue;
+            };
+            let cwd = restored_root.workspace_root;
+            let title = restored_root.title;
             let ws_id = next_workspace_id();
 
             // US-009 AC2 / US-011: `validate_layout` best-effort-caps the leaf
@@ -693,20 +690,6 @@ fn session_corruption_info(
     }
 }
 
-fn restored_workspace_cwd(raw: &str) -> PathBuf {
-    let path = PathBuf::from(raw);
-    if path.is_dir() {
-        return path;
-    }
-    let fallback = launch_cwd::implicit_launch_cwd();
-    log::warn!(
-        "session restore: workspace cwd {} is not a directory; falling back to {}",
-        path.display(),
-        fallback.display()
-    );
-    fallback
-}
-
 fn resolved_surface_cwd(raw: Option<&str>, fallback_cwd: &Path) -> PathBuf {
     let Some(raw) = raw else {
         return fallback_cwd.to_path_buf();
@@ -742,17 +725,6 @@ fn validated_layout_within_cap(mut layout: LayoutNode) -> Option<LayoutNode> {
         return None;
     }
     Some(layout)
-}
-
-fn should_repair_restored_root_terminal(title: &str, cwd: &Path) -> bool {
-    is_numbered_terminal_title(title) && launch_cwd::is_filesystem_root(cwd)
-}
-
-fn is_numbered_terminal_title(title: &str) -> bool {
-    let Some(number) = title.strip_prefix("Terminal ") else {
-        return false;
-    };
-    !number.is_empty() && number.chars().all(|ch| ch.is_ascii_digit())
 }
 
 /// Rehydrate one persisted `expanded_paths` entry into an absolute path under
@@ -976,30 +948,6 @@ fn corruption_backup_timestamp(suffix: &str) -> Option<u128> {
 mod tests {
     use super::*;
 
-    fn platform_root() -> PathBuf {
-        std::env::current_dir()
-            .ok()
-            .and_then(|path| path.ancestors().last().map(Path::to_path_buf))
-            .unwrap_or_else(|| PathBuf::from(std::path::MAIN_SEPARATOR.to_string()))
-    }
-
-    #[test]
-    fn restored_root_terminal_repair_only_targets_numbered_default_titles() {
-        let root = platform_root();
-        assert!(should_repair_restored_root_terminal("Terminal 1", &root));
-        assert!(should_repair_restored_root_terminal("Terminal 12", &root));
-        assert!(!should_repair_restored_root_terminal("Terminal", &root));
-        assert!(!should_repair_restored_root_terminal("Root shell", &root));
-    }
-
-    #[test]
-    fn restored_root_terminal_repair_ignores_non_root_cwd() {
-        let mut cwd = platform_root();
-        cwd.push("project");
-
-        assert!(!should_repair_restored_root_terminal("Terminal 1", &cwd));
-    }
-
     #[test]
     fn rehydrate_expanded_path_keeps_inside_root_and_drops_escapes() {
         // U-030: a legitimate relative path joins under the cwd…
@@ -1167,25 +1115,10 @@ mod tests {
     }
 
     #[test]
-    fn restored_cwd_helpers_fall_back_for_missing_directories() {
+    fn restored_surface_cwd_falls_back_to_stable_workspace_root() {
         let tmp = tempfile::tempdir().expect("tempdir");
-        let valid = tmp.path().to_path_buf();
         let missing = tmp.path().join("missing");
-        let valid_str = valid.to_string_lossy().into_owned();
         let missing_str = missing.to_string_lossy().into_owned();
-
-        assert_eq!(
-            restored_workspace_cwd(&valid_str),
-            valid,
-            "existing workspace cwd is preserved"
-        );
-
-        let workspace_fallback = restored_workspace_cwd(&missing_str);
-        assert!(
-            workspace_fallback.is_dir(),
-            "missing workspace cwd falls back to a live directory"
-        );
-        assert_ne!(workspace_fallback, missing);
 
         let surface_fallback = tmp.path().join("fallback");
         std::fs::create_dir_all(&surface_fallback).expect("fallback dir");

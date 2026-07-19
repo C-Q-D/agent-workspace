@@ -39,4 +39,5 @@ pub mod theme_picker;
 pub mod workspace_close_dialog;
 pub mod workspace_focus;
 pub mod workspace_grid;
+pub mod workspace_lifecycle;
 pub mod workspace_ops;
