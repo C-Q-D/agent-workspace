@@ -3,6 +3,10 @@
 **/target/
 **/*.rs.bk
 
+# 图标与验收辅助脚本使用 Python；缓存只属于本地运行产物。
+**/__pycache__/
+**/*.pyc
+
 # Packaging output: scripts/bundle-{macos,tarball,appimage}.sh write here.
 # Generated artifacts, not source.
 /dist/
