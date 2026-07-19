@@ -275,7 +275,7 @@ impl PaneFlowApp {
         }
 
         // System-package installs (.deb/.rpm). Fedora / RHEL / Rocky and
-        // Ubuntu / Debian users on the signed pkg.paneflow.dev repo get an
+        // Ubuntu / Debian users on the signed upstream package repository get an
         // in-app pkexec-elevated `dnf|apt-get|zypper install` (US-002).
         // Solus, Void, NixOS et al. fall back to the clipboard-copy flow so
         // they at least see a package-manager hint. `return`s
@@ -500,7 +500,7 @@ impl PaneFlowApp {
         if self.self_update.update_attempt_count >= 3 {
             let releases_url = match &self.self_update.update_status {
                 Some(update::checker::UpdateStatus::Available { url, .. }) => url.clone(),
-                _ => "https://github.com/ArthurDEV44/paneflow/releases".to_string(),
+                _ => crate::product_identity::RELEASES_URL.to_string(),
             };
             self.push_toast(
                 "Update keeps failing. Download manually from the releases page.".to_string(),
@@ -539,7 +539,7 @@ impl PaneFlowApp {
             self.push_toast(
                 "This build can't self-update (unsigned). Download the latest version from the releases page.".to_string(),
                 vec![ToastAction::OpenReleasesPage(
-                    "https://github.com/ArthurDEV44/paneflow/releases".to_string(),
+                    crate::product_identity::RELEASES_URL.to_string(),
                 )],
                 TOAST_HOLD_MS * 4,
                 cx,

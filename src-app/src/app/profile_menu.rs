@@ -19,11 +19,6 @@ const PROFILE_MENU_WIDTH: Pixels = px(220.);
 // equals the value used to clamp the menu's left edge (no silent overflow).
 const TITLE_BAR_FILES_MENU_WIDTH: Pixels = px(200.);
 const TITLE_BAR_HELP_MENU_WIDTH: Pixels = px(220.);
-const DOCUMENTATION_URL: &str = "https://paneflow.dev/docs";
-const RELEASES_URL: &str = "https://paneflow.dev/releases";
-const AUTOMATIONS_URL: &str = "https://paneflow.dev/docs/scripting";
-const REVIEW_URL: &str = "https://paneflow.dev/docs/review";
-const TROUBLESHOOTING_URL: &str = "https://paneflow.dev/docs/troubleshooting";
 type TitleBarMenuClick = Box<dyn Fn(&ClickEvent, &mut Window, &mut gpui::App) + 'static>;
 
 impl PaneFlowApp {
@@ -125,7 +120,7 @@ impl PaneFlowApp {
             "AgentWorkspace Documentation",
             Box::new(cx.listener(|this, _: &ClickEvent, _, cx| {
                 this.title_bar_help_menu_open = None;
-                this.open_help_url(DOCUMENTATION_URL, cx);
+                this.open_help_url(crate::product_identity::README_URL, cx);
                 cx.stop_propagation();
             })),
         );
@@ -134,7 +129,7 @@ impl PaneFlowApp {
             "What's New",
             Box::new(cx.listener(|this, _: &ClickEvent, _, cx| {
                 this.title_bar_help_menu_open = None;
-                this.open_help_url(RELEASES_URL, cx);
+                this.open_help_url(crate::product_identity::RELEASES_URL, cx);
                 cx.stop_propagation();
             })),
         );
@@ -143,7 +138,7 @@ impl PaneFlowApp {
             "Automations",
             Box::new(cx.listener(|this, _: &ClickEvent, _, cx| {
                 this.title_bar_help_menu_open = None;
-                this.open_help_url(AUTOMATIONS_URL, cx);
+                this.open_help_url(crate::product_identity::README_URL, cx);
                 cx.stop_propagation();
             })),
         );
@@ -152,7 +147,7 @@ impl PaneFlowApp {
             "Review",
             Box::new(cx.listener(|this, _: &ClickEvent, _, cx| {
                 this.title_bar_help_menu_open = None;
-                this.open_help_url(REVIEW_URL, cx);
+                this.open_help_url(crate::product_identity::README_URL, cx);
                 cx.stop_propagation();
             })),
         );
@@ -161,7 +156,7 @@ impl PaneFlowApp {
             "Troubleshooting",
             Box::new(cx.listener(|this, _: &ClickEvent, _, cx| {
                 this.title_bar_help_menu_open = None;
-                this.open_help_url(TROUBLESHOOTING_URL, cx);
+                this.open_help_url(crate::product_identity::ISSUES_URL, cx);
                 cx.stop_propagation();
             })),
         );

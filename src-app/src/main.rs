@@ -1819,10 +1819,8 @@ impl Render for PaneFlowApp {
                 }),
             )
             .on_action(cx.listener(|_this: &mut Self, _: &OpenHelp, _window, _cx| {
-                if let Err(e) =
-                    crate::external_open::open_url("https://github.com/ArthurDEV44/paneflow#readme")
-                {
-                    log::warn!("Help > PaneFlow Help: could not open browser: {e}");
+                if let Err(e) = crate::external_open::open_url(product_identity::README_URL) {
+                    log::warn!("Help > AgentWorkspace Help: could not open browser: {e}");
                 }
             }))
             .on_action(cx.listener(Self::handle_start_self_update))
@@ -2314,11 +2312,13 @@ fn run_update_and_exit() -> i32 {
         UpdateStatus::Available {
             asset_url: None, ..
         } => {
-            eprintln!("paneflow-update: no asset matched the install method - nothing to install");
+            eprintln!(
+                "agent-workspace-update: no asset matched the install method - nothing to install"
+            );
             return 5;
         }
         UpdateStatus::UpToDate => {
-            eprintln!("paneflow-update: already up to date");
+            eprintln!("agent-workspace-update: already up to date");
             return 2;
         }
         UpdateStatus::Failed => {
@@ -2328,13 +2328,13 @@ fn run_update_and_exit() -> i32 {
             // hint per AC6 - the dominant failure mode the harness
             // exercises (kill miniserve before invocation).
             eprintln!(
-                "paneflow-update: feed unreachable at {} - check PANEFLOW_UPDATE_FEED_URL",
+                "agent-workspace-update: feed unreachable at {} - check PANEFLOW_UPDATE_FEED_URL",
                 crate::update::checker::update_feed_url()
             );
             return 3;
         }
         UpdateStatus::Checking => {
-            eprintln!("paneflow-update: checker returned Checking - should never happen");
+            eprintln!("agent-workspace-update: checker returned Checking - should never happen");
             return 1;
         }
     };
@@ -2344,7 +2344,7 @@ fn run_update_and_exit() -> i32 {
     match method {
         InstallMethod::TarGz { .. } => match crate::update::linux::targz::run_update(&asset_url) {
             Ok(new_bin) => {
-                println!("paneflow-update: ok new={}", new_bin.display());
+                println!("agent-workspace-update: ok new={}", new_bin.display());
                 0
             }
             Err(err) => {
@@ -2353,10 +2353,10 @@ fn run_update_and_exit() -> i32 {
                     classified,
                     crate::update::error::UpdateError::IntegrityMismatch { .. }
                 ) {
-                    eprintln!("paneflow-update: hash mismatch - {err}");
+                    eprintln!("agent-workspace-update: hash mismatch - {err}");
                     return 4;
                 }
-                eprintln!("paneflow-update: install failed - {err}");
+                eprintln!("agent-workspace-update: install failed - {err}");
                 1
             }
         },
@@ -2369,11 +2369,11 @@ fn run_update_and_exit() -> i32 {
             // follow-up can opt in by installing the tool.
             match crate::update::linux::appimage::run_update(&source_path, &asset_url) {
                 Ok(new_bin) => {
-                    println!("paneflow-update: ok new={}", new_bin.display());
+                    println!("agent-workspace-update: ok new={}", new_bin.display());
                     0
                 }
                 Err(err) => {
-                    eprintln!("paneflow-update: AppImage install failed - {err}");
+                    eprintln!("agent-workspace-update: AppImage install failed - {err}");
                     1
                 }
             }
@@ -2385,7 +2385,7 @@ fn run_update_and_exit() -> i32 {
         // covers Windows e2e separately).
         other => {
             eprintln!(
-                "paneflow-update: --update-and-exit does not support install method {other:?}"
+                "agent-workspace-update: --update-and-exit does not support install method {other:?}"
             );
             5
         }
@@ -2606,9 +2606,10 @@ fn main() {
              \x20 Ctrl+1-9         Switch to workspace N\n\
              \n\
              Config paths and IPC endpoints are documented in the README.\n\
-             https://github.com/ArthurDEV44/paneflow",
+             {repository_url}",
             product_name = product_identity::PRODUCT_NAME,
             cli_name = product_identity::CLI_NAME,
+            repository_url = product_identity::REPOSITORY_URL,
             version = env!("CARGO_PKG_VERSION"),
         );
         return;
