@@ -30,6 +30,12 @@
       "description": "Whether AgentWorkspace may initialize a local Git repository when a workspace root is not already inside one. Existing repositories remain available when disabled.",
       "default": true
     },
+    "workspace_grid_density": {
+      "type": ["string", "null"],
+      "description": "Minimum readable cell density for the dynamic workspace grid. Auto preserves the historical layout, comfortable uses larger cells and earlier pagination, and compact increases small-viewport capacity without removing the readability floor.",
+      "enum": ["auto", "comfortable", "compact", null],
+      "default": "auto"
+    },
     "theme": {
       "type": ["string", "null"],
       "description": "Bundled theme name.",

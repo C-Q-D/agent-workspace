@@ -31,6 +31,7 @@ Unknown top-level keys are ignored by the runtime. The schema uses
 | `default_shell` | string or null | platform default | Unix: configured -> `$SHELL` -> `/bin/sh`. Windows: configured -> `pwsh.exe` -> `powershell.exe` -> `%ComSpec%` -> `C:\Windows\System32\cmd.exe` -> `cmd.exe`. |
 | `default_reference_format` | string or null | `common` | 新建工作区的文件引用格式：`common`、`codex`、`claude` 或 `powershell`。恢复的工作区继续使用自己的会话值。 |
 | `git_auto_init` | boolean or null | `true` | 新建或恢复到非 Git 目录时是否允许初始化本地仓库；关闭后已有仓库仍可审查。 |
+| `workspace_grid_density` | string or null | `auto` | 动态终端矩阵密度：`auto` 保持历史尺寸，`comfortable` 使用更大卡片，`compact` 在可读下限内提高小视口容量。 |
 | `theme` | string or null | `One Dark` | Bundled theme name. Current values: `One Dark`, `PaneFlow Light`, `Vercel`, `Claude`, `Cursor`. |
 | `theme_mode` | string or null | `dark` | `light`, `dark`, or `system`. |
 | `font_family` | string or null | bundled JetBrainsMono NFM | Accepts `.PaneflowMono`, `JetBrainsMono NFM`, `.PaneflowSans`, embedded family names, or installed monospace families. |
@@ -254,6 +255,7 @@ unconditionally.
   "default_shell": null,
   "default_reference_format": "common",
   "git_auto_init": true,
+  "workspace_grid_density": "auto",
   "theme": "One Dark",
   "theme_mode": "dark",
   "font_family": null,

@@ -9,6 +9,34 @@ pub const SESSION_SCHEMA_VERSION: u32 = 1;
 /// Apple system blue, used by built-in themes as the default terminal cursor.
 pub const APPLE_SYSTEM_BLUE_HEX: &str = "#007AFF";
 
+/// 动态终端矩阵的用户可选密度。
+///
+/// 该枚举只表达稳定产品语义；具体像素阈值由桌面应用布局层维护，配置 crate
+/// 不依赖 GPUI。未知磁盘值通过 [`PaneFlowConfig::resolved_workspace_grid_density`]
+/// 回退 [`WorkspaceGridDensity::Auto`]。
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WorkspaceGridDensity {
+    /// 保持历史 320×190 最小卡片尺寸。
+    #[default]
+    Auto,
+    /// 使用更大的卡片并更早分页。
+    Comfortable,
+    /// 在可读性下限内提高小视口的单页容量。
+    Compact,
+}
+
+impl WorkspaceGridDensity {
+    /// 返回公开配置和设置控件使用的稳定小写名称。
+    pub const fn as_config_str(self) -> &'static str {
+        match self {
+            Self::Auto => "auto",
+            Self::Comfortable => "comfortable",
+            Self::Compact => "compact",
+        }
+    }
+}
+
 /// Normalize a user-provided RGB hex color to `#RRGGBB`.
 pub fn normalize_hex_color(raw: &str) -> Option<String> {
     let hex = raw.trim().strip_prefix('#').unwrap_or(raw.trim());
@@ -46,6 +74,9 @@ pub struct PaneFlowConfig {
     /// 非 Git 工作区是否自动执行本地 `git init`。缺失或错误类型保持历史默认开启。
     #[serde(default, deserialize_with = "lenient_opt_bool")]
     pub git_auto_init: Option<bool>,
+    /// 动态终端矩阵密度。字段缺失、错误类型或未知字符串保持历史 Auto 布局。
+    #[serde(default, deserialize_with = "lenient_opt_string")]
+    pub workspace_grid_density: Option<String>,
     /// Terminal color theme name (e.g. "One Dark", "PaneFlow Light", "Vercel", "Claude", "Cursor").
     pub theme: Option<String>,
     /// Theme selection mode: `"light"`, `"dark"`, or `"system"`. `theme`
@@ -309,6 +340,17 @@ impl PaneFlowConfig {
     /// 返回非 Git 目录自动初始化开关；缺失或无效值保持历史行为开启。
     pub fn git_auto_init_enabled(&self) -> bool {
         self.git_auto_init.unwrap_or(true)
+    }
+
+    /// 解析动态终端矩阵密度；未知值只在内存中回退，不改写用户磁盘配置。
+    pub fn resolved_workspace_grid_density(&self) -> WorkspaceGridDensity {
+        match self.workspace_grid_density.as_deref().map(str::trim) {
+            Some(value) if value.eq_ignore_ascii_case("comfortable") => {
+                WorkspaceGridDensity::Comfortable
+            }
+            Some(value) if value.eq_ignore_ascii_case("compact") => WorkspaceGridDensity::Compact,
+            _ => WorkspaceGridDensity::Auto,
+        }
     }
 
     /// EP-004 US-011 (cli-cockpit) + US-013 (agent-control-plane): default
@@ -1653,6 +1695,7 @@ mod tests {
             default_shell: Some("sh".to_string()),
             default_reference_format: Some("claude".to_string()),
             git_auto_init: Some(false),
+            workspace_grid_density: Some("compact".to_string()),
             theme: Some("One Dark".to_string()),
             theme_mode: Some("dark".to_string()),
             commands: Vec::new(),
@@ -2021,6 +2064,35 @@ mod tests {
             ..Default::default()
         }
         .git_auto_init_enabled());
+    }
+
+    /// 矩阵密度必须兼容旧配置，并对用户手写值执行宽松、稳定的只读解析。
+    #[test]
+    fn workspace_grid_density_resolves_all_values_and_unknown_to_auto() {
+        assert_eq!(
+            PaneFlowConfig::default().resolved_workspace_grid_density(),
+            WorkspaceGridDensity::Auto
+        );
+        for (raw, expected) in [
+            (" auto ", WorkspaceGridDensity::Auto),
+            ("COMFORTABLE", WorkspaceGridDensity::Comfortable),
+            (" Compact ", WorkspaceGridDensity::Compact),
+            ("future-density", WorkspaceGridDensity::Auto),
+        ] {
+            let config = PaneFlowConfig {
+                workspace_grid_density: Some(raw.to_string()),
+                ..Default::default()
+            };
+            assert_eq!(config.resolved_workspace_grid_density(), expected);
+            assert_eq!(
+                expected.as_config_str(),
+                match expected {
+                    WorkspaceGridDensity::Auto => "auto",
+                    WorkspaceGridDensity::Comfortable => "comfortable",
+                    WorkspaceGridDensity::Compact => "compact",
+                }
+            );
+        }
     }
 
     #[test]

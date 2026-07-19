@@ -281,6 +281,7 @@ pub fn try_parse_and_validate(json: &str) -> Result<PaneFlowConfig, serde_json::
     set_field!(default_shell);
     set_field!(default_reference_format);
     set_field!(git_auto_init);
+    set_field!(workspace_grid_density);
     set_field!(theme);
     set_field!(theme_mode);
     set_field!(window_decorations);
@@ -1154,6 +1155,7 @@ mod tests {
             default_shell: Some("/bin/fish".to_string()),
             default_reference_format: Some("claude".to_string()),
             git_auto_init: Some(false),
+            workspace_grid_density: Some("compact".to_string()),
             theme: Some("One Dark".to_string()),
             theme_mode: Some("dark".to_string()),
             commands: vec![CommandDefinition {
@@ -1244,12 +1246,17 @@ mod tests {
             r#"{
                 "default_reference_format": " Claude ",
                 "git_auto_init": false,
+                "workspace_grid_density": " Compact ",
                 "theme": "One Dark",
                 "future_setting": {"preserved": true}
             }"#,
         );
         assert_eq!(config.resolved_default_reference_format(), "claude");
         assert!(!config.git_auto_init_enabled());
+        assert_eq!(
+            config.resolved_workspace_grid_density(),
+            crate::schema::WorkspaceGridDensity::Compact
+        );
         assert_eq!(config.theme.as_deref(), Some("One Dark"));
 
         // 单个字段类型错误只回退该字段，其他合法兄弟设置继续加载。
@@ -1257,11 +1264,16 @@ mod tests {
             r#"{
                 "default_reference_format": 42,
                 "git_auto_init": "false",
+                "workspace_grid_density": 42,
                 "theme": "Claude"
             }"#,
         );
         assert_eq!(invalid.resolved_default_reference_format(), "common");
         assert!(invalid.git_auto_init_enabled());
+        assert_eq!(
+            invalid.resolved_workspace_grid_density(),
+            crate::schema::WorkspaceGridDensity::Auto
+        );
         assert_eq!(invalid.theme.as_deref(), Some("Claude"));
     }
 
