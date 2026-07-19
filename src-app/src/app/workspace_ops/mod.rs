@@ -475,7 +475,11 @@ impl PaneFlowApp {
         let terminal =
             cx.new(|cx| TerminalView::with_cwd(ws_id, Some(workspace_root.clone()), None, cx));
         let pane = self.create_pane(terminal, ws_id, cx);
-        let ws = Workspace::with_cwd_and_id(ws_id, title, workspace_root, pane);
+        let reference_format =
+            crate::reference_formatter::ReferenceFormat::from_new_workspace_config(
+                &self.cached_config,
+            );
+        let ws = Workspace::with_cwd_and_id(ws_id, title, workspace_root, pane, reference_format);
         let workspace_root = ws.cwd.clone();
         self.workspaces.push(ws);
         self.active_idx = self.workspaces.len() - 1;

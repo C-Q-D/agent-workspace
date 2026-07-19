@@ -186,7 +186,13 @@ impl Workspace {
     /// its `default()` (0/0): the `git diff --shortstat` subprocess is the
     /// blocking call, deferred off the render thread by
     /// [`crate::PaneFlowApp::spawn_initial_git_stats`] right after creation.
-    fn build(id: u64, title: String, cwd: String, root: LayoutTree) -> Self {
+    fn build(
+        id: u64,
+        title: String,
+        cwd: String,
+        root: LayoutTree,
+        reference_format: crate::reference_formatter::ReferenceFormat,
+    ) -> Self {
         let git_dir = find_git_dir(&cwd);
         let (git_branch, is_git_repo) = match &git_dir {
             Some(dir) => parse_head(dir),
@@ -226,7 +232,7 @@ impl Workspace {
             detected_agents: std::collections::HashSet::new(),
             custom_buttons: Vec::new(),
             files_expanded: Vec::new(),
-            reference_format: crate::reference_formatter::ReferenceFormat::default(),
+            reference_format,
             managed_worktrees: Vec::new(),
         }
     }
@@ -237,12 +243,14 @@ impl Workspace {
         title: impl Into<String>,
         cwd: std::path::PathBuf,
         pane: Entity<Pane>,
+        reference_format: crate::reference_formatter::ReferenceFormat,
     ) -> Self {
         Self::build(
             id,
             title.into(),
             cwd.display().to_string(),
             LayoutTree::Leaf(pane),
+            reference_format,
         )
     }
 
@@ -252,8 +260,15 @@ impl Workspace {
         title: impl Into<String>,
         cwd: std::path::PathBuf,
         root: LayoutTree,
+        reference_format: crate::reference_formatter::ReferenceFormat,
     ) -> Self {
-        Self::build(id, title.into(), cwd.display().to_string(), root)
+        Self::build(
+            id,
+            title.into(),
+            cwd.display().to_string(),
+            root,
+            reference_format,
+        )
     }
 
     pub fn is_zoomed(&self) -> bool {

@@ -20,6 +20,13 @@ pub(crate) enum ReferenceFormat {
 }
 
 impl ReferenceFormat {
+    /// 从全局配置解析“新建工作区”默认值；会话恢复不得调用该入口。
+    pub(crate) fn from_new_workspace_config(
+        config: &paneflow_config::schema::PaneFlowConfig,
+    ) -> Self {
+        Self::from_persisted(config.resolved_default_reference_format())
+    }
+
     /// 返回会话文件使用的稳定小写名称。
     pub(crate) const fn as_persisted(self) -> &'static str {
         match self {
@@ -224,5 +231,25 @@ mod tests {
             ReferenceFormat::ALL.map(ReferenceFormat::label),
             ["Common", "Codex", "Claude", "Shell"]
         );
+    }
+
+    #[test]
+    fn new_workspace_config_maps_every_supported_format_and_unknown_to_common() {
+        for (raw, expected) in [
+            ("common", ReferenceFormat::Common),
+            ("codex", ReferenceFormat::Codex),
+            ("claude", ReferenceFormat::Claude),
+            ("powershell", ReferenceFormat::PowerShell),
+            ("future-cli", ReferenceFormat::Common),
+        ] {
+            let config = paneflow_config::schema::PaneFlowConfig {
+                default_reference_format: Some(raw.to_string()),
+                ..Default::default()
+            };
+            assert_eq!(
+                ReferenceFormat::from_new_workspace_config(&config),
+                expected
+            );
+        }
     }
 }

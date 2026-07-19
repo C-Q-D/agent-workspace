@@ -427,6 +427,10 @@ impl PaneFlowApp {
                 .layout
                 .clone()
                 .and_then(validated_layout_within_cap);
+            // 恢复入口只消费该工作区自己的会话值，禁止当前全局默认覆盖历史选择。
+            let reference_format = crate::reference_formatter::ReferenceFormat::from_persisted(
+                &ws_session.reference_format,
+            );
 
             let mut workspace = if let Some(layout) = restored_layout {
                 let mut pane_deque: VecDeque<Entity<Pane>> = VecDeque::new();
@@ -438,12 +442,12 @@ impl PaneFlowApp {
                     };
                     Self::spawn_pane_from_surfaces(ws_id, surfaces, &ws_cwd, cx)
                 });
-                Workspace::with_layout_and_id(ws_id, title.clone(), cwd, tree)
+                Workspace::with_layout_and_id(ws_id, title.clone(), cwd, tree, reference_format)
             } else {
                 let terminal =
                     cx.new(|cx| TerminalView::with_cwd(ws_id, Some(cwd.clone()), None, cx));
                 let pane = WorkspaceLifecycle::create_terminal_pane(terminal, ws_id, cx);
-                Workspace::with_cwd_and_id(ws_id, title.clone(), cwd, pane)
+                Workspace::with_cwd_and_id(ws_id, title.clone(), cwd, pane, reference_format)
             };
 
             workspace.custom_buttons = ws_session.custom_buttons.clone();
@@ -463,11 +467,6 @@ impl PaneFlowApp {
                 .iter()
                 .filter_map(|rel| rehydrate_expanded_path(&workspace.cwd, rel))
                 .collect();
-            // 旧会话缺字段或未来未知值时安全回退公共格式，不影响其他窗口恢复。
-            workspace.reference_format =
-                crate::reference_formatter::ReferenceFormat::from_persisted(
-                    &ws_session.reference_format,
-                );
             workspace.propagate_custom_buttons(cx);
             let workspace_index = workspaces.len();
             registrations.push(WorkspaceLifecycle::registration(

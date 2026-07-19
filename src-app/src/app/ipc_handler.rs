@@ -1870,7 +1870,11 @@ impl PaneFlowApp {
             .iter()
             .find_map(|p| p.cwd.clone())
             .unwrap_or_else(crate::launch_cwd::implicit_launch_cwd);
-        let mut ws = Workspace::with_layout_and_id(ws_id, &name, ws_cwd, tree);
+        let reference_format =
+            crate::reference_formatter::ReferenceFormat::from_new_workspace_config(
+                &self.cached_config,
+            );
+        let mut ws = Workspace::with_layout_and_id(ws_id, &name, ws_cwd, tree, reference_format);
         ws.managed_worktrees = managed_worktrees;
         self.watch_git_dir(&ws);
         Self::spawn_initial_git_stats(ws_id, ws.cwd.clone(), cx);
