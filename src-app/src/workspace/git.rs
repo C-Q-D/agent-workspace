@@ -237,19 +237,21 @@ pub fn find_git_dir(cwd: &str) -> Option<std::path::PathBuf> {
     }
 }
 
-/// 确保指定工作区根目录属于一个可识别的本地 Git 仓库。
+/// 按策略准备指定工作区根目录的本地 Git 仓库。
 ///
 /// 已位于普通仓库或 linked worktree 中时直接返回现有元数据；向上找不到
-/// `.git` 时，以参数数组执行一次 `git -C <root> init --quiet`。本函数是阻塞
-/// 原语，调用方必须把它放到后台线程，不能直接运行在 GPUI 主线程。
+/// `.git` 且 `allow_init` 为 `false` 时返回 `Ok(None)`，不产生文件系统副作用；
+/// 允许初始化时，以参数数组执行一次 `git -C <root> init --quiet`。本函数是
+/// 阻塞原语，调用方必须把它放到后台线程，不能直接运行在 GPUI 主线程。
 ///
 /// # 错误
 ///
 /// 根目录不存在、不是目录、Git 无法启动、执行超时、返回非零状态，或初始化后
 /// 仍无法解析 `.git` 时返回包含根目录的可展示错误。失败不会删除或改写工作区文件。
-pub fn ensure_local_repository(
+pub fn prepare_local_repository(
     workspace_root: &std::path::Path,
-) -> Result<PreparedGitRepository, String> {
+    allow_init: bool,
+) -> Result<Option<PreparedGitRepository>, String> {
     let metadata = std::fs::metadata(workspace_root)
         .map_err(|error| format!("无法读取工作区根目录 {}：{error}", workspace_root.display()))?;
     if !metadata.is_dir() {
@@ -261,7 +263,10 @@ pub fn ensure_local_repository(
 
     let cwd = workspace_root.to_string_lossy();
     if let Some(git_dir) = find_git_dir(&cwd) {
-        return Ok(prepared_repository(&cwd, git_dir, false));
+        return Ok(Some(prepared_repository(&cwd, git_dir, false)));
+    }
+    if !allow_init {
+        return Ok(None);
     }
 
     let mut command = std::process::Command::new("git");
@@ -299,7 +304,19 @@ pub fn ensure_local_repository(
             workspace_root.display()
         )
     })?;
-    Ok(prepared_repository(&cwd, git_dir, true))
+    Ok(Some(prepared_repository(&cwd, git_dir, true)))
+}
+
+/// 确保工作区拥有本地仓库，保留原有“必须得到仓库”的调用契约。
+///
+/// 新的可选自动初始化流程应调用 [`prepare_local_repository`]；此兼容入口用于
+/// 用户已经明确要求初始化的内部路径与既有测试。
+#[cfg(test)]
+pub fn ensure_local_repository(
+    workspace_root: &std::path::Path,
+) -> Result<PreparedGitRepository, String> {
+    prepare_local_repository(workspace_root, true)?
+        .ok_or_else(|| format!("允许初始化时未得到 Git 仓库：{}", workspace_root.display()))
 }
 
 /// 根据已解析的 Git 元数据目录构造无句柄快照。
@@ -940,6 +957,34 @@ mod tests {
             test_git_stdout(root, &["remote", "get-url", "origin"]),
             "https://example.invalid/repo.git"
         );
+    }
+
+    #[test]
+    fn prepare_local_repository_disabled_leaves_real_directory_untouched() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let content = b"keep this non-git workspace\n";
+        std::fs::write(root.join("keep.txt"), content).unwrap();
+
+        let prepared = prepare_local_repository(root, false).expect("禁用初始化应正常跳过");
+
+        assert!(prepared.is_none());
+        assert!(!root.join(".git").exists());
+        assert_eq!(std::fs::read(root.join("keep.txt")).unwrap(), content);
+    }
+
+    #[test]
+    fn prepare_local_repository_disabled_still_reuses_existing_repo() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        assert!(test_git(root, &["init", "--quiet"]));
+
+        let prepared = prepare_local_repository(root, false)
+            .expect("禁用初始化仍应发现已有仓库")
+            .expect("已有仓库应返回元数据");
+
+        assert!(!prepared.initialized);
+        assert_eq!(prepared.git_dir, root.join(".git"));
     }
 
     fn test_git(cwd: &std::path::Path, args: &[&str]) -> bool {

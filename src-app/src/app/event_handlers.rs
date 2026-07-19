@@ -32,8 +32,8 @@ const GIT_PREPARATION_ERROR_CHAR_CAP: usize = 512;
 
 impl GitPreparationRegistry {
     /// 登记一个等待者并返回批次 key 与“是否应启动后台任务”。
-    fn join(&mut self, cwd: &str, ws_id: u64) -> (String, bool) {
-        let key = git_preparation_key(cwd);
+    fn join(&mut self, cwd: &str, allow_init: bool, ws_id: u64) -> (String, bool) {
+        let key = git_preparation_key(cwd, allow_init);
         match self.batches.entry(key.clone()) {
             std::collections::hash_map::Entry::Occupied(mut entry) => {
                 entry.get_mut().push(ws_id);
@@ -53,15 +53,16 @@ impl GitPreparationRegistry {
 }
 
 /// 生成不访问磁盘的工作区路径合并 key。
-fn git_preparation_key(cwd: &str) -> String {
+fn git_preparation_key(cwd: &str, allow_init: bool) -> String {
     let trimmed = cwd.trim_end_matches(['/', '\\']);
+    let policy = if allow_init { "init" } else { "inspect" };
     #[cfg(windows)]
     {
-        trimmed.replace('/', "\\").to_lowercase()
+        format!("{}|{policy}", trimmed.replace('/', "\\").to_lowercase())
     }
     #[cfg(not(windows))]
     {
-        trimmed.to_string()
+        format!("{trimmed}|{policy}")
     }
 }
 
@@ -1661,8 +1662,8 @@ impl PaneFlowApp {
         // that await the main loop can run close/reorder/IPC-close and compact
         // the `Vec`, so a reused `ws_idx` would point at a *different*
         // workspace (silent git-state corruption + watch refcount desync).
-        // Re-resolve the index by identity after the await - model:
-        // `run_port_scan` / `spawn_initial_git_stats`.
+        // await 之后按稳定 ID 重新解析索引；实现方式与 `run_port_scan`、
+        // `spawn_workspace_git_preparation` 相同，避免使用可能已失效的下标。
         let ws_id = self.workspaces[ws_idx].id;
 
         let new_cwd_owned = new_cwd.to_string();
@@ -1741,21 +1742,40 @@ impl PaneFlowApp {
         cwd: String,
         cx: &mut Context<Self>,
     ) {
+        let allow_init = self.cached_config.git_auto_init_enabled();
         if let Some(workspace) = self.workspaces.iter_mut().find(|ws| ws.id == ws_id) {
             workspace.git_preparation_status = crate::workspace::GitPreparationStatus::Preparing;
         }
-        let (batch_key, should_spawn) = self.git_preparations.join(&cwd, ws_id);
+        let (batch_key, should_spawn) = self.git_preparations.join(&cwd, allow_init, ws_id);
         if !should_spawn {
             return;
         }
         cx.spawn(
             async move |this: gpui::WeakEntity<Self>, cx: &mut gpui::AsyncApp| {
-                let result = smol::unblock(move || prepare_workspace_git(&cwd)).await;
+                let result =
+                    smol::unblock(move || prepare_workspace_git(&cwd, allow_init)).await;
                 let _ = cx.update(|cx| {
                     this.update(cx, |app: &mut Self, cx: &mut Context<Self>| {
                         let workspace_ids = app.git_preparations.complete(&batch_key);
                         let (prepared, branch, is_repo, stats) = match result {
-                            Ok(result) => result,
+                            Ok(Some(result)) => result,
+                            Ok(None) => {
+                                // 关闭自动初始化时，非 Git 目录保持普通终端工作区；
+                                // 不显示失败或重试入口，也不建立无效 watcher。
+                                for workspace_id in workspace_ids {
+                                    if let Some(workspace) = app
+                                        .workspaces
+                                        .iter_mut()
+                                        .find(|workspace| workspace.id == workspace_id)
+                                    {
+                                        workspace.git_preparation_status =
+                                            crate::workspace::GitPreparationStatus::NotStarted;
+                                    }
+                                }
+                                app.save_session(cx);
+                                cx.notify();
+                                return;
+                            }
                             Err(error) => {
                                 let visible_error = bounded_git_preparation_error(&error);
                                 log::warn!(
@@ -1856,41 +1876,6 @@ impl PaneFlowApp {
         cx.notify();
         true
     }
-
-    /// US-013: populate a freshly-created workspace's `git diff --shortstat`
-    /// stats off the GPUI main thread. The constructors build with
-    /// `git_stats: default()` (0/0) so the blocking `git` subprocess never runs
-    /// on the render thread; this spawns it via `smol::unblock` and re-injects
-    /// the result, keyed by the stable `ws_id` (another workspace may be
-    /// created/closed during the await - EP-003 identity model). Mirrors
-    /// [`handle_cwd_change`].
-    pub(crate) fn spawn_initial_git_stats(ws_id: u64, cwd: String, cx: &mut Context<Self>) {
-        cx.spawn(
-            async move |this: gpui::WeakEntity<Self>, cx: &mut gpui::AsyncApp| {
-                let cwd_for_apply = cwd.clone();
-                let (branch, is_repo, stats) = smol::unblock(move || {
-                    let (branch, is_repo) = crate::workspace::detect_branch(&cwd);
-                    let stats = crate::workspace::GitDiffStats::from_cwd(&cwd);
-                    (branch, is_repo, stats)
-                })
-                .await;
-                let _ = cx.update(|cx| {
-                    this.update(cx, |app: &mut Self, cx: &mut Context<Self>| {
-                        if app.workspaces.iter().any(|ws| ws.id == ws_id) {
-                            let changed =
-                                app.apply_git_state_for_cwd(&cwd_for_apply, branch, is_repo, stats);
-                            let refreshed_diff = changed
-                                && app.refresh_agents_diff_if_open_for_cwd(&cwd_for_apply, cx);
-                            if changed && !refreshed_diff {
-                                cx.notify();
-                            }
-                        }
-                    })
-                });
-            },
-        )
-        .detach();
-    }
 }
 
 /// 阻塞式准备一个工作区的完整 Git 首帧状态。
@@ -1899,19 +1884,24 @@ impl PaneFlowApp {
 /// 统计，调用方不会观察到“仓库已存在但状态仍按非仓库计算”的中间结果。
 fn prepare_workspace_git(
     cwd: &str,
+    allow_init: bool,
 ) -> Result<
-    (
+    Option<(
         crate::workspace::PreparedGitRepository,
         String,
         bool,
         crate::workspace::GitDiffStats,
-    ),
+    )>,
     String,
 > {
-    let prepared = crate::workspace::ensure_local_repository(std::path::Path::new(cwd))?;
+    let Some(prepared) =
+        crate::workspace::prepare_local_repository(std::path::Path::new(cwd), allow_init)?
+    else {
+        return Ok(None);
+    };
     let (branch, is_repo) = crate::workspace::detect_branch(cwd);
     let stats = crate::workspace::GitDiffStats::from_cwd(cwd);
-    Ok((prepared, branch, is_repo, stats))
+    Ok(Some((prepared, branch, is_repo, stats)))
 }
 
 #[cfg(test)]
@@ -1935,7 +1925,9 @@ mod tests {
             .expect("应能写入真实工作区文件");
 
         let (prepared, branch, is_repo, stats) =
-            prepare_workspace_git(&dir.path().to_string_lossy()).expect("后台 Git 准备应成功");
+            prepare_workspace_git(&dir.path().to_string_lossy(), true)
+                .expect("后台 Git 准备应成功")
+                .expect("默认策略应初始化仓库");
 
         assert!(prepared.initialized);
         assert!(is_repo);
@@ -1945,27 +1937,50 @@ mod tests {
     }
 
     #[test]
+    fn prepare_workspace_git_disabled_skips_real_non_git_directory() {
+        let dir = tempfile::tempdir().expect("应能创建真实临时工作区");
+        let content = "关闭自动初始化时必须保留的文件\n";
+        std::fs::write(dir.path().join("任务.txt"), content).unwrap();
+
+        let prepared = prepare_workspace_git(&dir.path().to_string_lossy(), false)
+            .expect("关闭策略应正常完成");
+
+        assert!(prepared.is_none());
+        assert!(!dir.path().join(".git").exists());
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join("任务.txt")).unwrap(),
+            content
+        );
+    }
+
+    #[test]
     fn git_preparation_registry_coalesces_real_workspace_root() {
         let dir = tempfile::tempdir().expect("应能创建真实临时工作区");
         let root = dir.path().to_string_lossy().into_owned();
         let same_root_with_separator = format!("{root}{}", std::path::MAIN_SEPARATOR);
         let mut registry = GitPreparationRegistry::default();
 
-        let (batch_key, first_should_spawn) = registry.join(&root, 41);
-        let (joined_key, second_should_spawn) = registry.join(&same_root_with_separator, 42);
+        let (batch_key, first_should_spawn) = registry.join(&root, true, 41);
+        let (joined_key, second_should_spawn) = registry.join(&same_root_with_separator, true, 42);
         assert!(first_should_spawn);
         assert!(!second_should_spawn);
         assert_eq!(batch_key, joined_key);
 
         // 只有批次拥有者执行真实 Git 准备；第二个工作区直接等待同一结果。
-        let prepared = prepare_workspace_git(&root).expect("共享的真实 Git 准备应成功");
+        let prepared = prepare_workspace_git(&root, true)
+            .expect("共享的真实 Git 准备应成功")
+            .expect("默认策略应初始化仓库");
         assert!(prepared.0.initialized);
         assert_eq!(registry.complete(&batch_key), vec![41, 42]);
         assert!(dir.path().join(".git").is_dir());
 
         // 批次完成后再次创建工作区会启动新一轮检查，不会被旧状态永久吞掉。
-        let (_, next_should_spawn) = registry.join(&root, 43);
+        let (_, next_should_spawn) = registry.join(&root, true, 43);
         assert!(next_should_spawn);
+
+        // 检查模式与允许初始化模式不能错误合并为同一批次。
+        let (_, inspect_should_spawn) = registry.join(&root, false, 44);
+        assert!(inspect_should_spawn);
     }
 
     #[test]
@@ -1974,7 +1989,7 @@ mod tests {
         std::fs::write(dir.path().join(".git"), "这不是合法的 gitdir 指针\n")
             .expect("应能制造真实损坏 Git 元数据");
 
-        let error = prepare_workspace_git(&dir.path().to_string_lossy())
+        let error = prepare_workspace_git(&dir.path().to_string_lossy(), true)
             .expect_err("损坏的真实 .git 文件必须使准备失败");
         let visible = bounded_git_preparation_error(&format!("{error}{}", "x".repeat(700)));
 
@@ -1993,10 +2008,11 @@ mod tests {
             .expect("应能制造真实 Git 故障");
         let root = dir.path().to_string_lossy();
 
-        prepare_workspace_git(&root).expect_err("首次真实准备必须失败");
+        prepare_workspace_git(&root, true).expect_err("首次真实准备必须失败");
         std::fs::remove_file(dir.path().join(".git")).expect("应能修复损坏元数据");
-        let (prepared, _branch, is_repo, _stats) =
-            prepare_workspace_git(&root).expect("修复后真实重试必须成功");
+        let (prepared, _branch, is_repo, _stats) = prepare_workspace_git(&root, true)
+            .expect("修复后真实重试必须成功")
+            .expect("修复后默认策略应初始化仓库");
         let remotes = std::process::Command::new("git")
             .args(["-C"])
             .arg(dir.path())

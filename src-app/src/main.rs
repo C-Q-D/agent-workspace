@@ -1347,16 +1347,6 @@ impl PaneFlowApp {
         cx.notify();
     }
 
-    /// 将工作区的 `.git` 目录加入文件监听器。
-    ///
-    /// 工作区尚未完成后台 Git 准备时没有可用路径，因此保留该包装方法供同步构造
-    /// 路径使用；后台完成路径直接调用 [`Self::watch_git_path`]。
-    fn watch_git_dir(&mut self, ws: &Workspace) {
-        if let Some(ref git_dir) = ws.git_dir {
-            self.watch_git_path(git_dir);
-        }
-    }
-
     /// 按已解析的 Git 元数据路径注册一次文件监听，并维护共享仓库引用计数。
     ///
     /// 只有操作系统 watcher 注册成功后才记录第一次引用；这样临时失败不会留下

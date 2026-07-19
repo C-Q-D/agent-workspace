@@ -9,8 +9,10 @@ mod ports;
 pub mod surface_naming;
 pub mod worktree;
 
+#[cfg(test)]
+pub use git::ensure_local_repository;
 pub use git::{
-    GitDiffStats, PreparedGitRepository, detect_branch, ensure_local_repository, find_git_dir,
+    GitDiffStats, PreparedGitRepository, detect_branch, find_git_dir, prepare_local_repository,
     resolve_repo_root,
 };
 #[cfg(test)]
@@ -183,9 +185,8 @@ impl Workspace {
     /// the verbatim triplication). Resolves the *cheap* git metadata - `.git`
     /// dir, branch (`parse_head`), repo root - synchronously, since those are
     /// direct `.git/HEAD` file reads, not subprocesses. `git_stats` is left at
-    /// its `default()` (0/0): the `git diff --shortstat` subprocess is the
-    /// blocking call, deferred off the render thread by
-    /// [`crate::PaneFlowApp::spawn_initial_git_stats`] right after creation.
+    /// `git_stats` 初始保持 `default()`（0/0）；`git diff --shortstat` 会启动
+    /// 阻塞子进程，因此由共享的工作区 Git 准备生命周期在创建后移出渲染线程执行。
     fn build(
         id: u64,
         title: String,

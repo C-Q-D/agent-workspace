@@ -1876,11 +1876,18 @@ impl PaneFlowApp {
             );
         let mut ws = Workspace::with_layout_and_id(ws_id, &name, ws_cwd, tree, reference_format);
         ws.managed_worktrees = managed_worktrees;
-        self.watch_git_dir(&ws);
-        Self::spawn_initial_git_stats(ws_id, ws.cwd.clone(), cx);
+        let workspace_root = ws.cwd.clone();
         self.workspaces.push(ws);
         let idx = self.workspaces.len() - 1;
         self.activate_workspace_without_window(idx, cx);
+        // 声明式创建与目录选择器、workspace.create 共享 Git 策略：允许时初始化，
+        // 关闭时只发现已有仓库；稳定 ID 回填和 watcher 引用也由同一入口处理。
+        let registration = crate::app::workspace_lifecycle::WorkspaceLifecycle::registration(
+            ws_id,
+            idx,
+            workspace_root,
+        );
+        self.register_workspace_lifecycles(std::slice::from_ref(&registration), cx);
 
         // Phase 3: launch each agent (typed-ahead into the shell is fine) and
         // schedule the prompt prefill after a bounded readiness wait. The
