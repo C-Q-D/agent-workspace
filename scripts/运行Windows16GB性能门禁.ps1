@@ -24,6 +24,9 @@ param(
     [ValidateScript({ [string]::IsNullOrWhiteSpace($_) -or (Test-Path -LiteralPath $_ -PathType Leaf) })]
     [string]$CapacitySummaryPath = '',
 
+    [ValidateScript({ [string]::IsNullOrWhiteSpace($_) -or (Test-Path -LiteralPath $_ -PathType Leaf) })]
+    [string]$StabilityResultPath = '',
+
     [string]$OutputDirectory = (Join-Path $PSScriptRoot '..\docs\验收\P1.5性能数据')
 )
 
@@ -93,12 +96,19 @@ function Test-CommonRunGate {
     $expectedSpan = [Math]::Max(0.0, [double]$Result.DurationSeconds - 1.0)
     $sampleCadencePassed = ([Math]::Abs([double]$Result.SampleElapsedSeconds - [double]$Result.DurationSeconds) -le 10.0) -and
         ([Math]::Abs([double]$Result.SampleTimestampSpanSeconds - $expectedSpan) -le 10.0)
+    $sampleRows = @(Import-Csv -LiteralPath ([string]$Result.SamplesCsv))
+    $powerShellCounts = @($sampleRows | Select-Object -ExpandProperty PowerShellCount -Unique | ForEach-Object { [int]$_ })
+    $expectedPowerShellCount = [int]$Result.TerminalCount * 2
+    $minimumConhostCount = [int](($sampleRows | ForEach-Object { [int]$_.ConhostCount } | Measure-Object -Minimum).Minimum)
 
     return [ordered]@{
         CpuWithinOnePercent = ([double]$Result.AppCpuAveragePercent -le 1.0)
         WorkingSetWithin256MiB = ([double]$Result.AppWorkingSetPeakMiB -le 256.0)
         SwitchP95Within100Ms = ([double]$Result.SwitchP95Milliseconds -le 100.0)
-        ProcessTreeStable = [bool]$Result.ProcessTreeStableDuringSample
+        # 整棵子进程树可能包含只存活一秒的 Windows 辅助进程。PTY 稳定性应由
+        # 每个真实终端的 shell 数量、端点 PID、切换 PID 与最终输出共同证明。
+        PowerShellProcessCountStable = ($powerShellCounts.Count -eq 1) -and ($powerShellCounts[0] -eq $expectedPowerShellCount)
+        ConhostBaselinePresent = ($minimumConhostCount -ge [int]$Result.TerminalCount)
         ProcessIdsStable = [bool]$Result.ProcessIdsStableDuringSample
         SwitchProcessIdsStable = [bool]$Result.SwitchProcessIdsStable
         AllFinalMarkersObserved = [bool]$Result.AllFinalMarkersObserved
@@ -172,12 +182,23 @@ $stabilityResult = $null
 $stabilityChecks = $null
 $stabilityPassed = $true
 if ($IncludeLongStability) {
-    $stabilityResult = Invoke-MatrixRun `
-        -TerminalCount 9 `
-        -DurationSeconds $StabilityDurationSeconds `
-        -OutputIntervalMilliseconds 250 `
-        -SwitchCount 64 `
-        -Variant 'p15-stability'
+    if (-not [string]::IsNullOrWhiteSpace($StabilityResultPath)) {
+        # 门禁规则修正时复用不可变的真实长稳证据，避免无意义地重复运行 30 分钟。
+        $stabilityResult = Get-Content -LiteralPath (Resolve-Path -LiteralPath $StabilityResultPath) -Raw | ConvertFrom-Json
+        $currentBinaryHash = (Get-FileHash -LiteralPath $binary -Algorithm SHA256).Hash
+        if ([string]$stabilityResult.BinarySha256 -ne $currentBinaryHash) { throw '长稳结果与当前二进制的 SHA-256 不一致。' }
+        if ([int]$stabilityResult.TerminalCount -ne 9) { throw '长稳结果不是 9 终端场景。' }
+        if ([int]$stabilityResult.DurationSeconds -lt $StabilityDurationSeconds) { throw '长稳结果的持续时间不足。' }
+        if ([int]$stabilityResult.OutputIntervalMilliseconds -ne 250) { throw '长稳结果不是 250 ms 持续输出场景。' }
+    }
+    else {
+        $stabilityResult = Invoke-MatrixRun `
+            -TerminalCount 9 `
+            -DurationSeconds $StabilityDurationSeconds `
+            -OutputIntervalMilliseconds 250 `
+            -SwitchCount 64 `
+            -Variant 'p15-stability'
+    }
     $rows = @(Import-Csv -LiteralPath ([string]$stabilityResult.SamplesCsv))
     if ($rows.Count -lt 600) { throw "长稳采样不足 600 条，实际为 $($rows.Count)。" }
     $tail = @($rows | Select-Object -Last 600)
@@ -187,9 +208,15 @@ if ($IncludeLongStability) {
     $finalPrivate = [double](($finalWindow | ForEach-Object { [double]$_.AppPrivateMiB } | Measure-Object -Average).Average)
     $privateTailGrowth = $finalPrivate - $previousPrivate
     $commonStability = Test-CommonRunGate -Result $stabilityResult
+    $treeProcessGroups = @($rows | Group-Object TreeProcessCount | Sort-Object Count -Descending)
+    $baselineTreeProcessCount = [int]$treeProcessGroups[0].Name
+    $transientTreeSamples = @($rows | Where-Object { [int]$_.TreeProcessCount -ne $baselineTreeProcessCount }).Count
     $stabilityChecks = [ordered]@{
         Common = $commonStability
         SampleCount = $rows.Count
+        ProcessTreeExactSignatureStable = [bool]$stabilityResult.ProcessTreeStableDuringSample
+        BaselineTreeProcessCount = $baselineTreeProcessCount
+        TransientTreeSampleCount = $transientTreeSamples
         PreviousFiveMinutePrivateAverageMiB = [Math]::Round($previousPrivate, 3)
         FinalFiveMinutePrivateAverageMiB = [Math]::Round($finalPrivate, 3)
         PrivateTailGrowthMiB = [Math]::Round($privateTailGrowth, 3)
@@ -205,6 +232,7 @@ $summary = [ordered]@{
     BinarySha256 = (Get-FileHash -LiteralPath $binary -Algorithm SHA256).Hash
     CapacityDurationSeconds = $effectiveCapacityDuration
     ReusedCapacitySummary = -not [string]::IsNullOrWhiteSpace($CapacitySummaryPath)
+    ReusedStabilityResult = -not [string]::IsNullOrWhiteSpace($StabilityResultPath)
     StabilityIncluded = [bool]$IncludeLongStability
     StabilityDurationSeconds = if ($IncludeLongStability) { $StabilityDurationSeconds } else { 0 }
     CapacityResults = $capacityResults

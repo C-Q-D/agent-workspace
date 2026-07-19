@@ -82,3 +82,6 @@ LOG_*.text
 # Local-only diff/render audit reports (same class as /ULTRON/ above): generated
 # tool output with finding-level detail, kept out of the public repo.
 /.paneflow-audit/
+
+# Windows 实机验收会暂存实验会话；报告只提交指标、截图和采样，不提交会话快照。
+docs/验收/**/状态备份/
