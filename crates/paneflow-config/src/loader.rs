@@ -1,4 +1,8 @@
-// US-017: JSON config loader with validation
+//! AgentWorkspace 配置、会话与缓存路径解析及 JSON 配置加载。
+//!
+//! 对外持久化统一以用户主目录下的 `.agent-workspace` 为根；调试构建使用
+//! `.agent-workspace-dev`，避免源码运行覆盖已安装版本。这里不会探测或迁移
+//! Paneflow 的旧目录，旧数据导入必须由后续显式用户操作完成。
 
 use crate::schema::{CommandDefinition, LayoutNode, PaneFlowConfig};
 use serde::de::DeserializeOwned;
@@ -8,17 +12,26 @@ use std::path::{Path, PathBuf};
 use thiserror::Error;
 use tracing::warn;
 
-/// Application directory namespace. Switches to `paneflow-dev` in debug
-/// builds so a `cargo run` instance (typical dev workflow) never reads
-/// or writes the same config / session file as the user's installed
-/// `/usr/bin/paneflow`. Mirrors `paneflow_app::runtime_paths::APP_SUBDIR`
-/// so per-build isolation is consistent across every persistence
-/// surface (config, session, threads, sockets, caches).
-pub const APP_SUBDIR: &str = if cfg!(debug_assertions) {
-    "paneflow-dev"
+/// 用户主目录下的 AgentWorkspace 数据目录名。
+///
+/// 调试版使用独立目录，使 `cargo run` 与已安装发布版可以并行运行；发布版
+/// 始终使用用户确认的 `.agent-workspace`，不依赖 Windows AppData。
+pub const USER_DATA_DIRNAME: &str = if cfg!(debug_assertions) {
+    ".agent-workspace-dev"
 } else {
-    "paneflow"
+    ".agent-workspace"
 };
+
+/// 配置文件相对路径中的目录名。
+pub const CONFIG_DIRNAME: &str = "config";
+/// 会话文件相对路径中的目录名。
+pub const SESSIONS_DIRNAME: &str = "sessions";
+/// 可安全重建缓存的相对目录名。
+pub const CACHE_DIRNAME: &str = "cache";
+/// AgentWorkspace 主设置文件名。
+pub const SETTINGS_FILENAME: &str = "settings.json";
+/// AgentWorkspace 工作区会话文件名。
+pub const WORKSPACES_FILENAME: &str = "workspaces.json";
 
 /// Hard cap on the size of any config file we will read into memory.
 /// Real configs are kilobytes; this guards against a runaway or hostile
@@ -36,30 +49,60 @@ pub enum ConfigError {
     ParseError(#[from] serde_json::Error),
 }
 
-/// Returns the platform-appropriate config file path.
+/// 根据用户主目录生成 AgentWorkspace 数据根目录。
 ///
-/// - Linux: `$XDG_CONFIG_HOME/paneflow/paneflow.json`
-/// - macOS: `~/Library/Application Support/paneflow/paneflow.json`
-/// - Windows: `%APPDATA%\paneflow\paneflow.json`
-pub fn config_path() -> Option<PathBuf> {
-    dirs::config_dir().map(|dir| dir.join(APP_SUBDIR).join("paneflow.json"))
+/// 该纯函数不访问文件系统，供配置、会话和运行时路径共享，也便于在真实
+/// 临时目录中验证路径边界。
+pub fn user_data_root_from(home: &Path) -> PathBuf {
+    home.join(USER_DATA_DIRNAME)
 }
 
-/// Returns the platform-appropriate session file path.
+/// 返回当前用户的 AgentWorkspace 数据根目录。
 ///
-/// - Linux: `$XDG_CACHE_HOME/paneflow/session.json`
-/// - macOS: `~/Library/Caches/paneflow/session.json`
+/// 当操作系统无法解析用户主目录时返回 `None`；调用方应降级为默认配置或
+/// 内存状态，禁止回退到 Paneflow 的旧数据目录。
+pub fn user_data_root() -> Option<PathBuf> {
+    dirs::home_dir().map(|home| user_data_root_from(&home))
+}
+
+/// 根据指定主目录生成设置文件路径。
+pub fn config_path_from(home: &Path) -> PathBuf {
+    user_data_root_from(home)
+        .join(CONFIG_DIRNAME)
+        .join(SETTINGS_FILENAME)
+}
+
+/// 返回当前用户的 AgentWorkspace 设置文件路径。
+pub fn config_path() -> Option<PathBuf> {
+    dirs::home_dir().map(|home| config_path_from(&home))
+}
+
+/// 根据指定主目录生成工作区会话文件路径。
+pub fn session_path_from(home: &Path) -> PathBuf {
+    user_data_root_from(home)
+        .join(SESSIONS_DIRNAME)
+        .join(WORKSPACES_FILENAME)
+}
+
+/// 返回当前用户的 AgentWorkspace 工作区会话文件路径。
 ///
-/// The filename is namespaced per build profile (`session-dev.json` in
-/// debug builds) so a `cargo run` instance and an installed release
-/// instance never overwrite each other's persisted layout on quit.
+/// 调试版与发布版已经由根目录隔离，因此文件名保持一致，减少备份、诊断和
+/// 后续模式迁移时的分支数量。
 pub fn session_path() -> Option<PathBuf> {
-    let filename = if cfg!(debug_assertions) {
-        "session-dev.json"
-    } else {
-        "session.json"
-    };
-    dirs::cache_dir().map(|dir| dir.join(APP_SUBDIR).join(filename))
+    dirs::home_dir().map(|home| session_path_from(&home))
+}
+
+/// 根据指定主目录生成一个缓存文件路径。
+///
+/// `filename` 由内部调用方提供；该函数只负责根目录归属，不创建目录或写入
+/// 文件。缓存清理不会影响配置与会话文件。
+pub fn cache_file_path_from(home: &Path, filename: &str) -> PathBuf {
+    user_data_root_from(home).join(CACHE_DIRNAME).join(filename)
+}
+
+/// 返回当前用户数据根目录下的缓存文件路径。
+pub fn cache_file_path(filename: &str) -> Option<PathBuf> {
+    dirs::home_dir().map(|home| cache_file_path_from(&home, filename))
 }
 
 /// Load the PaneFlow configuration from the default platform path.
@@ -567,19 +610,47 @@ mod tests {
 
     #[test]
     fn test_config_path_is_some() {
-        // On most systems dirs::config_dir() succeeds. The subdir varies
-        // by build profile (`paneflow` in release, `paneflow-dev` in
-        // debug -- see `APP_SUBDIR`) so tests assert against the const,
-        // not a hardcoded `paneflow` literal.
+        // 大多数桌面环境都能解析用户主目录；这里只验证默认入口与纯函数使用
+        // 同一根目录契约，不对真实目录执行写入。
         let path = config_path();
         assert!(path.is_some());
         let p = path.unwrap();
-        let suffix_unix = format!("{APP_SUBDIR}/paneflow.json");
-        let suffix_win = format!("{APP_SUBDIR}\\paneflow.json");
-        assert!(
-            p.ends_with(&suffix_unix) || p.ends_with(&suffix_win),
-            "config path {p:?} does not end with {suffix_unix}"
+        assert!(p.ends_with(Path::new(CONFIG_DIRNAME).join(SETTINGS_FILENAME)));
+        assert!(p.starts_with(user_data_root().expect("用户数据根目录应可解析")));
+    }
+
+    #[test]
+    fn agent_workspace_paths_share_one_home_root() {
+        let home = Path::new("C:/Users/TestUser");
+        let root = user_data_root_from(home);
+
+        assert_eq!(root, home.join(USER_DATA_DIRNAME));
+        assert_eq!(
+            config_path_from(home),
+            root.join(CONFIG_DIRNAME).join(SETTINGS_FILENAME)
         );
+        assert_eq!(
+            session_path_from(home),
+            root.join(SESSIONS_DIRNAME).join(WORKSPACES_FILENAME)
+        );
+        assert_eq!(
+            cache_file_path_from(home, "theme.json"),
+            root.join(CACHE_DIRNAME).join("theme.json")
+        );
+    }
+
+    #[test]
+    fn agent_workspace_paths_never_fall_back_to_paneflow_namespace() {
+        let home = Path::new("C:/Users/TestUser");
+        for path in [
+            config_path_from(home),
+            session_path_from(home),
+            cache_file_path_from(home, "state.json"),
+        ] {
+            let rendered = path.to_string_lossy().to_ascii_lowercase();
+            assert!(rendered.contains("agent-workspace"));
+            assert!(!rendered.contains("paneflow"));
+        }
     }
 
     #[test]
