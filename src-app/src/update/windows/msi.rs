@@ -1,49 +1,14 @@
-//! Windows MSI self-update pipeline (US-010).
+//! AgentWorkspace 的 Windows MSI 自更新流程。
 //!
-//! Flow:
-//!   1. Download the `.msi` to `%TEMP%\paneflow-update-<pid>.msi` via
-//!      ureq with the 30-second per-call timeout (US-001).
-//!   2. Verify the asset's detached **minisign** signature (`.minisig`
-//!      sibling) against a key baked into this binary (US-001), then
-//!      `WinVerifyTrust` on the Authenticode chain (US-005) - both
-//!      **before** msiexec runs. A missing/invalid signature deletes the
-//!      partial and bails; replaces the old same-host `.sha256`.
-//!   3. Copy the current `paneflow.exe` to `%TEMP%` as a tiny native relay.
-//!   4. The GUI saves state, spawns that copied relay with
-//!      `CREATE_BREAKAWAY_FROM_JOB`, and exits before the MSI runs.
-//!   5. The relay waits for the current PID to disappear, runs
-//!      `msiexec.exe /i <msi> /qb /norestart /l*v <log>` (via `runas`
-//!      when the install lives under Program Files), deletes the scratch
-//!      MSI, and relaunches the installed `paneflow.exe` on success.
+//! MSI 下载和 relay 副本只写入 `cache/update/`，MSI 与 relay 诊断只写入
+//! `logs/update/`。下载完成后先验证 minisign 与 Authenticode，再复制当前
+//! 主程序作为脱离 Job Object 的 relay；GUI 保存状态并退出，relay 等待父进程
+//! 结束后运行 `msiexec`、删除 MSI 暂存并重新启动已安装程序。Windows 不允许
+//! 覆盖运行中的 EXE，因此 relay 路径必须跨越 GUI 退出继续有效。
 //!
-//! The older synchronous path is still kept for testability and CLI-style
-//! callers: resolve `%SystemRoot%\System32\msiexec.exe` first, fall back to
-//! PATH (PATHEXT-aware - the `which` crate already handles this), run it,
-//! and map exit codes:
-//!      - `0` → success, return the canonical installed binary path.
-//!      - `1602` → `InstallDeclined` ("Update cancelled - administrator
-//!        permission required") - the well-known "user declined UAC"
-//!        code.
-//!      - `1603` → `InstallFailed { log_path }` - fatal Windows Installer
-//!        error; log captures the cause.
-//!      - other → `Other` with exit code + log-path hint for triage.
-//!   6. Delete the MSI scratch file; keep the log on failure so bug
-//!      reports can attach it.
-//!
-//! **Cross-platform compile.** The module is built on every target so
-//! the enclosing crate is a single compile-closure. `msiexec.exe` only
-//! exists on Windows; the dispatcher only routes `InstallMethod::WindowsMsi`
-//! here, and that variant is produced solely by Windows path detection
-//! (`%ProgramFiles%\PaneFlow\`),
-//! so on Linux/macOS the function compiles but is runtime-unreachable.
-//!
-//! **The running-.exe-lock caveat.** Windows refuses to overwrite a
-//! running `paneflow.exe`. The GUI flow therefore never runs `msiexec`
-//! while the app is alive: it stages the verified MSI, starts a relay
-//! outside Paneflow's kill-on-close Job Object, exits, then lets the
-//! relay install and relaunch. That avoids the native Restart Manager
-//! "applications should be closed" dialog and ensures restart ownership
-//! is outside the process being replaced.
+//! 同步安装入口仍保留退出码映射：0 成功、1602 表示用户取消、1603 携带
+//! 详细日志，其余错误包含日志提示。模块为保持工作区编译闭包而跨平台编译，
+//! 但 MSI dispatcher 只会在 Windows 安装方式下调用它。
 
 #[cfg(target_os = "windows")]
 use std::io::Write;
@@ -54,6 +19,7 @@ use std::process::Stdio;
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
+use paneflow_config::data_layout::UserDataLayout;
 
 use super::super::error::UpdateError;
 
@@ -112,6 +78,8 @@ pub struct StagedMsiUpdate {
     msi_path: PathBuf,
     log_path: PathBuf,
     restart_path: PathBuf,
+    relay_exe_path: PathBuf,
+    relay_log_path: PathBuf,
 }
 
 /// Run the MSI self-update end-to-end. Returns the canonical installed
@@ -136,18 +104,28 @@ pub fn stage(asset_url: &str, install_path: &Path) -> Result<StagedMsiUpdate> {
 }
 
 fn stage_with_restart_path(asset_url: &str, restart_path: PathBuf) -> Result<StagedMsiUpdate> {
-    let temp = std::env::temp_dir();
-    let pid = std::process::id();
-    let msi_path = temp.join(format!("paneflow-update-{pid}.msi"));
-    let log_path = temp.join(format!("paneflow-msi-{pid}.log"));
+    let layout = crate::runtime_paths::user_data_layout()
+        .context("resolve AgentWorkspace user data layout for Windows update")?;
+    stage_with_restart_path_in_layout(asset_url, restart_path, &layout)
+}
 
-    let download_result = download_with_verification(asset_url, &msi_path);
+/// 使用明确用户数据布局准备更新，供生产入口和真实目录测试共享路径规则。
+fn stage_with_restart_path_in_layout(
+    asset_url: &str,
+    restart_path: PathBuf,
+    layout: &UserDataLayout,
+) -> Result<StagedMsiUpdate> {
+    let pid = std::process::id();
+    let staged = staged_paths_for_layout(layout, pid, restart_path);
+    prepare_staged_directories(&staged)?;
+
+    let download_result = download_with_verification(asset_url, &staged.msi_path);
     if let Err(e) = download_result {
         // AC4: the partial never survives a verification failure. The
         // verifier already tried to clean up its `.partial`, but the
         // main MSI path may also exist from a prior run - drop it too
         // so the next attempt starts clean.
-        let _ = std::fs::remove_file(&msi_path);
+        let _ = std::fs::remove_file(&staged.msi_path);
         return Err(e);
     }
 
@@ -158,16 +136,46 @@ fn stage_with_restart_path(asset_url: &str, restart_path: PathBuf) -> Result<Sta
     // `WinVerifyTrust` chaining to a trusted root. Compiled out on non-Windows
     // (the MSI path is unreachable there).
     #[cfg(target_os = "windows")]
-    if let Err(e) = windows_verify_trust(&msi_path) {
-        let _ = std::fs::remove_file(&msi_path);
+    if let Err(e) = windows_verify_trust(&staged.msi_path) {
+        let _ = std::fs::remove_file(&staged.msi_path);
         return Err(e);
     }
 
-    Ok(StagedMsiUpdate {
-        msi_path,
-        log_path,
+    Ok(staged)
+}
+
+/// 纯路径计算：同一次更新的暂存与日志使用同一 PID 后缀，避免并发覆盖。
+fn staged_paths_for_layout(
+    layout: &UserDataLayout,
+    pid: u32,
+    restart_path: PathBuf,
+) -> StagedMsiUpdate {
+    let cache = layout.update_cache_dir();
+    let logs = layout.update_logs_dir();
+    StagedMsiUpdate {
+        msi_path: cache.join(format!("agent-workspace-update-{pid}.msi")),
+        log_path: logs.join(format!("agent-workspace-msi-{pid}.log")),
         restart_path,
-    })
+        relay_exe_path: cache.join(format!("agent-workspace-msi-relay-{pid}.exe")),
+        relay_log_path: logs.join(format!("agent-workspace-msi-relay-{pid}.log")),
+    }
+}
+
+/// 只在用户触发更新时创建当前操作真正需要的缓存与日志目录。
+fn prepare_staged_directories(staged: &StagedMsiUpdate) -> Result<()> {
+    for path in [
+        &staged.msi_path,
+        &staged.log_path,
+        &staged.relay_exe_path,
+        &staged.relay_log_path,
+    ] {
+        let parent = path
+            .parent()
+            .with_context(|| format!("Windows update path has no parent: {}", path.display()))?;
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("create Windows update directory {}", parent.display()))?;
+    }
+    Ok(())
 }
 
 /// Testable core. Parameterised on:
@@ -181,7 +189,7 @@ fn install_with(msi_path: &Path, log_path: &Path, runner: &dyn Msiexec) -> Resul
         Ok(()) => Ok(()),
         Err(MsiexecError::NotFound) => Err(anyhow::Error::new(UpdateError::EnvironmentBroken {
             message:
-                "msiexec.exe not found in System32 or on PATH - Windows system install appears broken. Reinstall PaneFlow manually from the releases page."
+                "msiexec.exe not found in System32 or on PATH - Windows system install appears broken. Reinstall AgentWorkspace manually from the releases page."
                     .to_string(),
         })),
         Err(MsiexecError::SpawnFailed(e)) => {
@@ -207,39 +215,38 @@ pub fn spawn_relay(staged: StagedMsiUpdate) -> Result<()> {
         };
 
         let parent_pid = std::process::id();
-        let temp = std::env::temp_dir();
-        let relay_exe = temp.join(format!("paneflow-msi-relay-{parent_pid}.exe"));
-        let relay_log = temp.join(format!("paneflow-msi-relay-{parent_pid}.log"));
-        let current_exe = std::env::current_exe().context("resolve current paneflow executable")?;
+        prepare_staged_directories(&staged)?;
+        let current_exe =
+            std::env::current_exe().context("resolve current AgentWorkspace executable")?;
 
-        std::fs::copy(&current_exe, &relay_exe).with_context(|| {
+        std::fs::copy(&current_exe, &staged.relay_exe_path).with_context(|| {
             format!(
                 "copy MSI relay helper {} -> {}",
                 current_exe.display(),
-                relay_exe.display()
+                staged.relay_exe_path.display()
             )
         })?;
 
         append_relay_log(
-            &relay_log,
+            &staged.relay_log_path,
             &format!(
                 "spawning relay parent={} relay={} msi={} elevated_msiexec={}",
                 parent_pid,
-                relay_exe.display(),
+                staged.relay_exe_path.display(),
                 staged.msi_path.display(),
                 restart_path_requires_elevation(&staged.restart_path)
             ),
         );
 
-        let args: Vec<OsString> = relay_args(parent_pid, &staged, &relay_log);
-        Command::new(&relay_exe)
+        let args: Vec<OsString> = relay_args(parent_pid, &staged, &staged.relay_log_path);
+        Command::new(&staged.relay_exe_path)
             .args(&args)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .creation_flags(CREATE_BREAKAWAY_FROM_JOB | CREATE_NEW_PROCESS_GROUP | DETACHED_PROCESS)
             .spawn()
-            .with_context(|| format!("spawn MSI relay {}", relay_exe.display()))?;
+            .with_context(|| format!("spawn MSI relay {}", staged.relay_exe_path.display()))?;
 
         Ok(())
     }
@@ -261,12 +268,12 @@ pub fn run_relay_from_args(args: &[String]) -> i32 {
         Ok(invocation) => match run_native_relay(invocation) {
             Ok(code) => code,
             Err(err) => {
-                eprintln!("paneflow-msi-relay: {err:#}");
+                eprintln!("agent-workspace-msi-relay: {err:#}");
                 1
             }
         },
         Err(err) => {
-            eprintln!("paneflow-msi-relay: {err:#}");
+            eprintln!("agent-workspace-msi-relay: {err:#}");
             if let Some(path) = relay_log_path_from_args(args) {
                 append_relay_log(&path, &format!("relay argument parse failed: {err:#}"));
             }
@@ -578,7 +585,7 @@ fn relaunch_paneflow(restart_path: &Path, relay_log_path: &Path) -> Result<()> {
 }
 
 fn binary_path_in_install_dir(install_path: &Path) -> PathBuf {
-    let mut exe = install_path.join("paneflow");
+    let mut exe = install_path.join("agent-workspace");
     if !std::env::consts::EXE_EXTENSION.is_empty() {
         exe.set_extension(std::env::consts::EXE_EXTENSION);
     }
@@ -798,6 +805,9 @@ fn wide_null(value: &std::ffi::OsStr) -> Vec<u16> {
 
 #[cfg(target_os = "windows")]
 fn append_relay_log(path: &Path, message: &str) {
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
     let timestamp = match std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
         Ok(elapsed) => format!("{}.{:03}", elapsed.as_secs(), elapsed.subsec_millis()),
         Err(_) => "time-unavailable".to_string(),
@@ -1116,20 +1126,81 @@ mod tests {
 
     #[cfg(target_os = "windows")]
     #[test]
+    fn update_paths_use_cache_and_logs_and_survive_cache_cleanup() {
+        let sandbox = tempfile::TempDir::new().expect("应能创建真实临时用户目录");
+        let layout = UserDataLayout::from_home(sandbox.path());
+        let durable_files = [
+            layout.settings_path(),
+            layout.workspaces_path(),
+            layout.telemetry_id_path(),
+            layout.bin_dir().join("paneflow-mcp.exe"),
+        ];
+        for path in &durable_files {
+            std::fs::create_dir_all(path.parent().expect("durable 文件必须有父目录")).unwrap();
+            std::fs::write(path, b"durable-update-boundary").unwrap();
+        }
+        let staged = staged_paths_for_layout(
+            &layout,
+            4242,
+            PathBuf::from(r"C:\Program Files\AgentWorkspace\agent-workspace.exe"),
+        );
+
+        prepare_staged_directories(&staged).expect("应能创建更新缓存与日志目录");
+        std::fs::write(&staged.msi_path, b"real-msi-staging-bytes").unwrap();
+        std::fs::write(&staged.relay_exe_path, b"real-relay-staging-bytes").unwrap();
+        std::fs::write(&staged.log_path, b"real-msi-log").unwrap();
+        append_relay_log(&staged.relay_log_path, "real relay log");
+
+        assert!(staged.msi_path.starts_with(layout.update_cache_dir()));
+        assert!(staged.relay_exe_path.starts_with(layout.update_cache_dir()));
+        assert!(staged.log_path.starts_with(layout.update_logs_dir()));
+        assert!(staged.relay_log_path.starts_with(layout.update_logs_dir()));
+        assert_eq!(
+            staged.msi_path.file_name().and_then(|name| name.to_str()),
+            Some("agent-workspace-update-4242.msi")
+        );
+        assert!(
+            !staged
+                .msi_path
+                .to_string_lossy()
+                .contains("paneflow-update")
+        );
+
+        let msi_log_before = std::fs::read(&staged.log_path).unwrap();
+        let relay_log_before = std::fs::read(&staged.relay_log_path).unwrap();
+        std::fs::remove_dir_all(layout.cache_dir()).unwrap();
+        prepare_staged_directories(&staged).expect("缓存删除后应能重建更新目录");
+
+        assert!(!staged.msi_path.exists());
+        assert!(!staged.relay_exe_path.exists());
+        assert_eq!(std::fs::read(&staged.log_path).unwrap(), msi_log_before);
+        assert_eq!(
+            std::fs::read(&staged.relay_log_path).unwrap(),
+            relay_log_before
+        );
+        for path in durable_files {
+            assert_eq!(std::fs::read(path).unwrap(), b"durable-update-boundary");
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
     fn relay_invocation_parses_paths_with_spaces() {
         let args = vec![
-            "paneflow".to_string(),
+            "agent-workspace".to_string(),
             MSI_RELAY_ARG.to_string(),
             RELAY_PARENT_PID_ARG.to_string(),
             "1234".to_string(),
             RELAY_MSI_ARG.to_string(),
-            "C:\\Users\\Example\\AppData\\Local\\Temp\\paneflow update.msi".to_string(),
+            "C:\\Users\\Example User\\.agent-workspace\\cache\\update\\agent-workspace update.msi"
+                .to_string(),
             RELAY_MSI_LOG_ARG.to_string(),
-            "C:\\Users\\Example\\AppData\\Local\\Temp\\paneflow msi.log".to_string(),
+            "C:\\Users\\Example User\\.agent-workspace\\logs\\update\\agent-workspace msi.log"
+                .to_string(),
             RELAY_RESTART_ARG.to_string(),
-            "C:\\Program Files\\PaneFlow\\paneflow.exe".to_string(),
+            "C:\\Program Files\\AgentWorkspace\\agent-workspace.exe".to_string(),
             RELAY_LOG_ARG.to_string(),
-            "C:\\Users\\Example\\AppData\\Local\\Temp\\relay.log".to_string(),
+            "C:\\Users\\Example User\\.agent-workspace\\logs\\update\\relay.log".to_string(),
         ];
 
         let parsed = parse_relay_invocation(&args).expect("parse relay args");
@@ -1137,11 +1208,13 @@ mod tests {
         assert_eq!(parsed.parent_pid, 1234);
         assert_eq!(
             parsed.msi_path,
-            PathBuf::from("C:\\Users\\Example\\AppData\\Local\\Temp\\paneflow update.msi")
+            PathBuf::from(
+                "C:\\Users\\Example User\\.agent-workspace\\cache\\update\\agent-workspace update.msi"
+            )
         );
         assert_eq!(
             parsed.restart_path,
-            PathBuf::from("C:\\Program Files\\PaneFlow\\paneflow.exe")
+            PathBuf::from("C:\\Program Files\\AgentWorkspace\\agent-workspace.exe")
         );
     }
 
@@ -1149,19 +1222,21 @@ mod tests {
     #[test]
     fn relay_invocation_parses_when_flag_is_not_argv1() {
         let args = vec![
-            "paneflow".to_string(),
+            "agent-workspace".to_string(),
             "--host-added-flag".to_string(),
             MSI_RELAY_ARG.to_string(),
             RELAY_PARENT_PID_ARG.to_string(),
             "1234".to_string(),
             RELAY_MSI_ARG.to_string(),
-            "C:\\Users\\Example\\AppData\\Local\\Temp\\paneflow-update.msi".to_string(),
+            "C:\\Users\\Example\\.agent-workspace\\cache\\update\\agent-workspace-update.msi"
+                .to_string(),
             RELAY_MSI_LOG_ARG.to_string(),
-            "C:\\Users\\Example\\AppData\\Local\\Temp\\paneflow-msi.log".to_string(),
+            "C:\\Users\\Example\\.agent-workspace\\logs\\update\\agent-workspace-msi.log"
+                .to_string(),
             RELAY_RESTART_ARG.to_string(),
-            "C:\\Program Files\\PaneFlow\\paneflow.exe".to_string(),
+            "C:\\Program Files\\AgentWorkspace\\agent-workspace.exe".to_string(),
             RELAY_LOG_ARG.to_string(),
-            "C:\\Users\\Example\\AppData\\Local\\Temp\\relay.log".to_string(),
+            "C:\\Users\\Example\\.agent-workspace\\logs\\update\\relay.log".to_string(),
         ];
 
         assert!(is_relay_invocation(&args));
@@ -1170,20 +1245,19 @@ mod tests {
         assert_eq!(parsed.parent_pid, 1234);
         assert_eq!(
             parsed.msi_log_path,
-            PathBuf::from("C:\\Users\\Example\\AppData\\Local\\Temp\\paneflow-msi.log")
+            PathBuf::from(
+                "C:\\Users\\Example\\.agent-workspace\\logs\\update\\agent-workspace-msi.log"
+            )
         );
     }
 
     #[cfg(target_os = "windows")]
     #[test]
     fn relay_parse_error_writes_relay_log_when_log_arg_is_present() {
-        let log_path = std::env::temp_dir().join(format!(
-            "paneflow-relay-parse-test-{}.log",
-            std::process::id()
-        ));
-        let _ = std::fs::remove_file(&log_path);
+        let sandbox = tempfile::TempDir::new().expect("应能创建真实日志目录");
+        let log_path = sandbox.path().join("logs/update/relay-parse-test.log");
         let args = vec![
-            "paneflow".to_string(),
+            "agent-workspace".to_string(),
             MSI_RELAY_ARG.to_string(),
             RELAY_LOG_ARG.to_string(),
             log_path.display().to_string(),
@@ -1191,7 +1265,6 @@ mod tests {
 
         let code = run_relay_from_args(&args);
         let contents = std::fs::read_to_string(&log_path).expect("relay parse log written");
-        let _ = std::fs::remove_file(&log_path);
 
         assert_eq!(code, 2);
         assert!(contents.contains("relay argument parse failed"));
@@ -1205,13 +1278,13 @@ mod tests {
 
         let args = vec![
             OsString::from("--flag"),
-            OsString::from("C:\\Program Files\\PaneFlow\\paneflow.exe"),
+            OsString::from("C:\\Program Files\\AgentWorkspace\\agent-workspace.exe"),
             OsString::from("quote\"inside"),
         ];
 
         assert_eq!(
             shell_execute_parameters(&args),
-            "--flag \"C:\\Program Files\\PaneFlow\\paneflow.exe\" \"quote\\\"inside\""
+            "--flag \"C:\\Program Files\\AgentWorkspace\\agent-workspace.exe\" \"quote\\\"inside\""
         );
     }
 
@@ -1220,10 +1293,14 @@ mod tests {
     fn msiexec_parameters_quote_windows_paths() {
         assert_eq!(
             shell_execute_parameters(&msiexec_args(
-                Path::new("C:\\Users\\Example\\AppData\\Local\\Temp\\paneflow update.msi"),
-                Path::new("C:\\Users\\Example\\AppData\\Local\\Temp\\paneflow msi.log"),
+                Path::new(
+                    "C:\\Users\\Example\\.agent-workspace\\cache\\update\\agent-workspace update.msi"
+                ),
+                Path::new(
+                    "C:\\Users\\Example\\.agent-workspace\\logs\\update\\agent-workspace msi.log"
+                ),
             )),
-            "/i \"C:\\Users\\Example\\AppData\\Local\\Temp\\paneflow update.msi\" /qb /norestart /l*v \"C:\\Users\\Example\\AppData\\Local\\Temp\\paneflow msi.log\""
+            "/i \"C:\\Users\\Example\\.agent-workspace\\cache\\update\\agent-workspace update.msi\" /qb /norestart /l*v \"C:\\Users\\Example\\.agent-workspace\\logs\\update\\agent-workspace msi.log\""
         );
     }
 
@@ -1242,14 +1319,23 @@ mod tests {
     fn program_files_restart_requires_elevation() {
         if let Some(program_files) = std::env::var_os("ProgramFiles") {
             let path = PathBuf::from(program_files)
-                .join("PaneFlow")
-                .join("paneflow.exe");
+                .join("AgentWorkspace")
+                .join("agent-workspace.exe");
             assert!(restart_path_requires_elevation(&path));
         }
 
         assert!(!restart_path_requires_elevation(Path::new(
-            "C:\\Users\\Example\\AppData\\Local\\Programs\\PaneFlow\\paneflow.exe"
+            "C:\\Users\\Example\\AppData\\Local\\Programs\\AgentWorkspace\\agent-workspace.exe"
         )));
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn install_directory_resolves_agent_workspace_executable() {
+        assert_eq!(
+            binary_path_in_install_dir(Path::new(r"C:\Program Files\AgentWorkspace")),
+            PathBuf::from(r"C:\Program Files\AgentWorkspace\agent-workspace.exe")
+        );
     }
 
     // ── Exit-code classification ─────────────────────────────────────
@@ -1276,7 +1362,9 @@ mod tests {
     fn map_exit_code_1603_is_install_failed_with_log_path() {
         // AC7: fatal install error carries the verbose log path through
         // for the bug-report attachment.
-        let log = PathBuf::from("C:\\Temp\\paneflow-msi-999.log");
+        let log = PathBuf::from(
+            "C:\\Users\\Example\\.agent-workspace\\logs\\update\\agent-workspace-msi-999.log",
+        );
         let err = map_exit_code(MSIEXEC_EXIT_FATAL, &log);
         match UpdateError::classify(&err) {
             UpdateError::InstallFailed { log_path } => {
@@ -1332,7 +1420,7 @@ mod tests {
         // Construct the same error install_with would produce on the
         // NotFound branch and verify classification.
         let err = anyhow::Error::new(UpdateError::EnvironmentBroken {
-            message: "msiexec.exe not found in System32 or on PATH - Windows system install appears broken. Reinstall PaneFlow manually from the releases page.".to_string(),
+            message: "msiexec.exe not found in System32 or on PATH - Windows system install appears broken. Reinstall AgentWorkspace manually from the releases page.".to_string(),
         });
         match UpdateError::classify(&err) {
             UpdateError::EnvironmentBroken { message } => {
