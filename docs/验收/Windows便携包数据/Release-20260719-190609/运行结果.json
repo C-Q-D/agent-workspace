@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "executedAt": "2026-07-19T19:06:09.0693539+08:00",
+  "environment": {
+    "os": "Microsoft Windows 11 专业版",
+    "version": "10.0.26200",
+    "architecture": "64 位",
+    "powershell": "7.6.3"
+  },
+  "package": {
+    "name": "agent-workspace-0.7.11-windows-x64.zip",
+    "length": 30943990,
+    "sha256": "2852a3c88dca9d92c09ef1b739f42e11c8e05746cef17cda8423a6a60c09b731",
+    "sidecarVerified": true,
+    "entryCount": 25,
+    "helperCount": 17,
+    "legalMaterialCount": 5
+  },
+  "determinism": {
+    "independentProcessBuilds": 2,
+    "identicalBytes": true,
+    "identicalSha256": true,
+    "fixedEntryMetadata": true,
+    "safeRelativeEntries": true,
+    "illegalVersionRejected": true,
+    "missingHelperRejected": true,
+    "realExecutableByteDriftDetected": true
+  },
+  "extraction": {
+    "allEntryHashesVerified": true,
+    "allEntryLengthsVerified": true,
+    "singlePackageRoot": "AgentWorkspace-0.7.11-windows-x64"
+  },
+  "execution": {
+    "exitCode": 0,
+    "version": "agent-workspace 0.7.11",
+    "processResidueCount": 0,
+    "isolatedUserProfile": true
+  },
+  "dataBoundary": {
+    "portableDataDirectoryCreated": false,
+    "developerDataFingerprintPreserved": true,
+    "expectedUserDataRootName": ".agent-workspace"
+  },
+  "regression": {
+    "upstreamAttributionGate": "passed",
+    "rustDependencyInventory": "1109 packages; 0 unresolved",
+    "thirdPartyLicenseTests": "4 passed",
+    "windowsLegalMaterialTests": "4 passed",
+    "applicationTests": "1426 unit tests and 5 layout integration tests passed",
+    "mcpInstallTests": "97 passed"
+  }
+}
