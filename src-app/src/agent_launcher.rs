@@ -9,8 +9,8 @@
 //!
 //! Each variant maps to a display name, an icon, an accent tint, a
 //! Settings → AI Agent visibility flag (`*_button_visible`), a stable
-//! persistence tag, and a launch command. The launch command honors
-//! `claude_code_bypass_permissions` exactly as the tab bar does.
+//! persistence tag, and a launch command. Claude Code 与 Codex 可从统一配置读取
+//! 完整命令；Claude Code 仍在同一规格上组合权限模式和受控 session ID。
 
 use std::collections::HashSet;
 use std::sync::{Mutex, OnceLock};
@@ -238,10 +238,10 @@ impl TerminalAgent {
     /// Tri-state on the `*_button_visible` config key:
     /// - `Some(true)`  - user explicitly enabled it: always shown.
     /// - `Some(false)` - user explicitly disabled it: always hidden.
-    /// - `None` (key absent, the default) - shown only if the agent's CLI
-    ///   binary is installed ([`Self::is_installed`]), so a fresh config
-    ///   surfaces exactly the agents present on the machine. The user can
-    ///   still force-show an uninstalled agent by toggling it on.
+    /// - `None` (key absent, the default) - shown when the agent's CLI binary
+    ///   is installed ([`Self::is_installed`]) or Claude/Codex has a valid
+    ///   custom command. The user can still force-show an uninstalled agent
+    ///   by toggling it on.
     pub fn is_visible(self, config: &PaneFlowConfig) -> bool {
         let explicit: Option<bool> = match self {
             TerminalAgent::ClaudeCode => config.claude_code_button_visible,
@@ -261,7 +261,7 @@ impl TerminalAgent {
             TerminalAgent::Qoder => config.qoder_button_visible,
             TerminalAgent::Openclaw => config.openclaw_button_visible,
         };
-        explicit.unwrap_or_else(|| self.is_installed())
+        explicit.unwrap_or_else(|| self.has_custom_command(config) || self.is_installed())
     }
 
     /// The CLI executable looked up on `PATH` to decide default visibility;
@@ -298,6 +298,28 @@ impl TerminalAgent {
         installed_binaries_contains(self.binary())
     }
 
+    /// 当前启动器是否具备可执行入口。
+    ///
+    /// Claude/Codex 的有效自定义命令由用户显式负责，因此无需再用默认 binary
+    /// 做 PATH 预检；其他 Agent 继续保持原有安装探测行为。
+    pub fn is_launchable(self, config: &PaneFlowConfig) -> bool {
+        self.has_custom_command(config) || self.is_installed()
+    }
+
+    /// 返回仅适用于 Claude/Codex 的有效自定义完整命令。
+    fn custom_command<'a>(self, config: &'a PaneFlowConfig) -> Option<&'a str> {
+        match self {
+            TerminalAgent::ClaudeCode => config.custom_claude_code_command(),
+            TerminalAgent::Codex => config.custom_codex_command(),
+            _ => None,
+        }
+    }
+
+    /// 判断用户是否显式提供了可用自定义命令，供可见性和启动预检共享。
+    fn has_custom_command(self, config: &PaneFlowConfig) -> bool {
+        self.custom_command(config).is_some()
+    }
+
     /// Static arguments appended after [`Self::binary`] for interactive agents
     /// whose CLI entry point is a subcommand rather than the bare executable.
     fn command_args(self) -> &'static [&'static str] {
@@ -309,7 +331,12 @@ impl TerminalAgent {
     }
 
     fn launch_spec(self, config: &PaneFlowConfig) -> AgentCommandSpec {
-        let mut spec = AgentCommandSpec::new(self.binary());
+        // 自定义值已经由配置层做空白、控制字符和长度校验；这里保留完整 Shell
+        // 命令，不尝试重新解析用户参数，只在其后追加应用控制的安全 token。
+        let mut spec = self
+            .custom_command(config)
+            .map(AgentCommandSpec::from_configured_command)
+            .unwrap_or_else(|| AgentCommandSpec::new(self.binary()));
         spec.extend_args(self.command_args().iter().copied());
         if self == TerminalAgent::ClaudeCode
             && config.claude_code_bypass_permissions.unwrap_or(false)
@@ -415,14 +442,28 @@ impl TerminalAgent {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct AgentCommandSpec {
-    program: &'static str,
+    /// 已规范化的完整基础命令。默认入口是单一 binary，自定义入口可包含参数。
+    base_command: String,
+    /// 由应用追加的纯 token；动态 session ID 必须先经过调用方白名单校验。
     args: Vec<String>,
 }
 
 impl AgentCommandSpec {
+    /// 从内置可执行文件名创建规格；内置值必须始终是单一安全 token。
     pub(crate) fn new(program: &'static str) -> Self {
+        debug_assert!(is_plain_shell_token(program));
         Self {
-            program,
+            base_command: program.to_string(),
+            args: Vec::new(),
+        }
+    }
+
+    /// 从配置层已经规范化的完整命令创建规格，不拆解用户自带参数。
+    pub(crate) fn from_configured_command(command: &str) -> Self {
+        debug_assert!(!command.is_empty());
+        debug_assert!(!command.chars().any(char::is_control));
+        Self {
+            base_command: command.to_string(),
             args: Vec::new(),
         }
     }
@@ -440,8 +481,7 @@ impl AgentCommandSpec {
     }
 
     pub(crate) fn render_shell_command(&self) -> String {
-        debug_assert!(is_plain_shell_token(self.program));
-        let mut command = self.program.to_string();
+        let mut command = self.base_command.clone();
         for arg in &self.args {
             debug_assert!(is_plain_shell_token(arg));
             command.push(' ');
@@ -586,6 +626,28 @@ mod tests {
     }
 
     #[test]
+    fn valid_custom_command_makes_launcher_visible_and_launchable() {
+        // 自定义入口由用户显式负责，因此短路默认 PATH 探测；显式隐藏仍具有最高优先级。
+        let configured = PaneFlowConfig {
+            claude_code_command: Some("agentworkspace-claude-wrapper --profile work".to_string()),
+            codex_command: Some("agentworkspace-codex-wrapper --profile work".to_string()),
+            ..Default::default()
+        };
+        assert!(TerminalAgent::ClaudeCode.is_visible(&configured));
+        assert!(TerminalAgent::ClaudeCode.is_launchable(&configured));
+        assert!(TerminalAgent::Codex.is_visible(&configured));
+        assert!(TerminalAgent::Codex.is_launchable(&configured));
+
+        let hidden = PaneFlowConfig {
+            claude_code_command: configured.claude_code_command,
+            claude_code_button_visible: Some(false),
+            ..Default::default()
+        };
+        assert!(!TerminalAgent::ClaudeCode.is_visible(&hidden));
+        assert!(TerminalAgent::ClaudeCode.is_launchable(&hidden));
+    }
+
+    #[test]
     fn icon_paths_are_embedded_assets() {
         // Every icon must live under an embedded asset root (`icons/` or
         // `agents/`) or the tab-bar `svg()` silently renders nothing.
@@ -628,6 +690,27 @@ mod tests {
     }
 
     #[test]
+    fn claude_and_codex_preserve_custom_base_commands() {
+        let config = PaneFlowConfig {
+            claude_code_command: Some(
+                "\"C:\\Program Files\\Claude\\claude.exe\" --profile work".to_string(),
+            ),
+            codex_command: Some("codex-wrapper --model gpt-5".to_string()),
+            claude_code_bypass_permissions: Some(true),
+            ..Default::default()
+        };
+        assert_eq!(
+            TerminalAgent::ClaudeCode.command(&config),
+            "\"C:\\Program Files\\Claude\\claude.exe\" --profile work --permission-mode bypassPermissions"
+        );
+        assert_eq!(
+            TerminalAgent::Codex.command(&config),
+            "codex-wrapper --model gpt-5"
+        );
+        assert_eq!(TerminalAgent::OpenCode.command(&config), "opencode");
+    }
+
+    #[test]
     fn launch_spec_keeps_program_and_args_structured_until_render() {
         let cfg = PaneFlowConfig {
             claude_code_bypass_permissions: Some(true),
@@ -636,7 +719,7 @@ mod tests {
 
         let spec = TerminalAgent::ClaudeCode.launch_spec(&cfg);
 
-        assert_eq!(spec.program, "claude");
+        assert_eq!(spec.base_command, "claude");
         assert_eq!(spec.args, vec!["--permission-mode", "bypassPermissions"]);
         assert_eq!(
             spec.render_shell_command(),
@@ -746,6 +829,22 @@ mod tests {
         assert_eq!(
             cmd,
             format!("claude --session-id {SAMPLE_UUID} --permission-mode bypassPermissions")
+        );
+    }
+
+    #[test]
+    fn custom_claude_command_composes_with_session_and_bypass() {
+        let cfg = PaneFlowConfig {
+            claude_code_command: Some("claude-wrapper --profile work".to_string()),
+            claude_code_bypass_permissions: Some(true),
+            ..Default::default()
+        };
+        let cmd = TerminalAgent::ClaudeCode.command_with_session(&cfg, Some(SAMPLE_UUID));
+        assert_eq!(
+            cmd,
+            format!(
+                "claude-wrapper --profile work --session-id {SAMPLE_UUID} --permission-mode bypassPermissions"
+            )
         );
     }
 

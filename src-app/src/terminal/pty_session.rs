@@ -3651,6 +3651,87 @@ mod tests {
         );
     }
 
+    /// 真实 Windows 验收：自定义 Claude 命令必须经 PowerShell 与 ConPTY 原样执行，
+    /// 并在用户参数之后收到应用追加的 session 与权限参数。
+    #[cfg(windows)]
+    #[test]
+    fn custom_agent_command_reaches_real_powershell_conpty() {
+        use crate::agent_launcher::TerminalAgent;
+        use paneflow_config::schema::PaneFlowConfig;
+
+        let dir = tempfile::tempdir().expect("应能创建自定义命令验收目录");
+        let script = dir.path().join("capture agent arguments.ps1");
+        let capture = dir.path().join("captured-arguments.txt");
+        std::fs::write(
+            &script,
+            "[IO.File]::WriteAllText($env:AGENTWORKSPACE_CAPTURE_PATH, ($args -join [Environment]::NewLine))\r\n",
+        )
+        .expect("应能写入真实 PowerShell 参数捕获脚本");
+
+        let mut env = std::collections::HashMap::new();
+        env.insert(
+            "AGENTWORKSPACE_CAPTURE_PATH".to_string(),
+            capture.to_string_lossy().into_owned(),
+        );
+        let mut params = TerminalState::resolve_spawn_params_with_profile_and_integration(
+            Some(dir.path().to_path_buf()),
+            9_002,
+            Some((100, 30)),
+            Some(env),
+            TerminalSurfaceProfile::Normal,
+            PtyIntegrationMode::Plain,
+        );
+        // 测试显式选择已安装的 PowerShell，避免用户 settings.json 中的默认 shell
+        // 改变验收语义；底层仍通过正式的 Windows ConPTY 创建路径启动进程。
+        params.shell = resolve_default_shell(Some("pwsh.exe"));
+        params.shell_quoting = ShellQuoting::PowerShell;
+        params.extra_args = vec!["-NoLogo".to_string(), "-NoProfile".to_string()];
+
+        let (mut state, events_tx) = TerminalState::new_pending_with_profile_and_shell_quoting(
+            params.cols,
+            params.rows,
+            params.profile,
+            params.shell_quoting,
+        );
+        let term = state.term.clone();
+        let spawned = TerminalState::open_pty_and_eventloop(params, term, events_tx, None)
+            .expect("应能打开真实 PowerShell ConPTY");
+        state.promote(spawned);
+
+        let escaped_script = script.to_string_lossy().replace('\'', "''");
+        let config = PaneFlowConfig {
+            default_shell: Some("pwsh.exe".to_string()),
+            claude_code_command: Some(format!("& '{escaped_script}' configured-value")),
+            claude_code_bypass_permissions: Some(true),
+            ..Default::default()
+        };
+        let session_id = "550e8400-e29b-41d4-a716-446655440000";
+        let command =
+            TerminalAgent::ClaudeCode.launch_command_with_session(&config, Some(session_id));
+
+        std::thread::sleep(std::time::Duration::from_millis(250));
+        state.notifier.notify(format!("{command}\r\n").into_bytes());
+
+        let captured = (0..120).find_map(|_| {
+            std::thread::sleep(std::time::Duration::from_millis(50));
+            std::fs::read_to_string(&capture).ok()
+        });
+        let captured_lines = captured
+            .as_deref()
+            .map(|text| text.lines().collect::<Vec<_>>());
+        assert_eq!(
+            captured_lines,
+            Some(vec![
+                "configured-value",
+                "--session-id",
+                session_id,
+                "--permission-mode",
+                "bypassPermissions",
+            ]),
+            "真实 ConPTY 必须把完整自定义命令和受控参数交给 PowerShell 脚本"
+        );
+    }
+
     #[cfg(windows)]
     #[test]
     fn windows_descendants_postorder_places_children_before_parent() {

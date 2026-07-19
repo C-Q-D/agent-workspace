@@ -632,7 +632,7 @@ pub(super) fn resolve_command(
     };
     let resolved = resolve_agent(agent)
         .ok_or_else(|| CliError::runtime(format!("pane {idx}: unknown agent '{agent}'")))?;
-    if !resolved.is_installed() {
+    if !resolved.is_launchable(config) {
         return Err(CliError::runtime(format!(
             "pane {idx}: agent '{agent}' ({}) not found on PATH",
             resolved.binary()
@@ -923,6 +923,31 @@ mod tests {
         let cfg = PaneFlowConfig::default();
         let resolved = resolve_command(0, &pane(None, Some("cargo watch")), &cfg).expect("ok");
         assert_eq!(resolved.as_deref(), Some("cargo watch"));
+    }
+
+    #[test]
+    fn resolve_command_accepts_custom_agent_command_without_default_path_probe() {
+        // 用户显式配置完整命令后，规划阶段不得再因默认 binary 不在 PATH 而拒绝。
+        let cfg = PaneFlowConfig {
+            claude_code_command: Some(
+                "\"C:\\Program Files\\Claude\\claude.exe\" --profile work".to_string(),
+            ),
+            codex_command: Some("codex-wrapper --profile work".to_string()),
+            ..Default::default()
+        };
+
+        let claude = resolve_command(0, &pane(Some("claude"), None), &cfg).expect("ok");
+        let codex = resolve_command(1, &pane(Some("codex"), None), &cfg).expect("ok");
+        assert!(
+            claude
+                .as_deref()
+                .is_some_and(|value| value.contains("Claude\\claude.exe\" --profile work"))
+        );
+        assert!(
+            codex
+                .as_deref()
+                .is_some_and(|value| value.contains("codex-wrapper --profile work"))
+        );
     }
 
     fn test_git(cwd: &std::path::Path, args: &[&str]) -> bool {

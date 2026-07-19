@@ -44,19 +44,20 @@ impl ReviewCli {
         }
     }
 
-    fn command(self) -> &'static str {
+    /// 映射到共享终端启动器，避免 Review 入口绕过 Claude/Codex 自定义命令。
+    fn terminal_agent(self) -> crate::agent_launcher::TerminalAgent {
         match self {
-            Self::ClaudeCode => "claude",
-            Self::Codex => "codex",
-            Self::OpenCode => "opencode",
-            Self::Pi => "pi",
+            Self::ClaudeCode => crate::agent_launcher::TerminalAgent::ClaudeCode,
+            Self::Codex => crate::agent_launcher::TerminalAgent::Codex,
+            Self::OpenCode => crate::agent_launcher::TerminalAgent::OpenCode,
+            Self::Pi => crate::agent_launcher::TerminalAgent::Pi,
         }
     }
 
     /// Shell-aware command that clears the pane and launches the interactive
     /// CLI. Mirrors the existing pane launch buttons (`pane.rs`).
     pub(crate) fn launch_command(self, config: &paneflow_config::schema::PaneFlowConfig) -> String {
-        crate::terminal::shell::clear_then(self.command(), config.default_shell.as_deref())
+        self.terminal_agent().launch_command(config)
     }
 }
 
@@ -125,12 +126,38 @@ mod tests {
 
     #[test]
     fn launch_commands_are_distinct_and_bare() {
-        let cmds: Vec<&str> = ReviewCli::all().iter().map(|cli| cli.command()).collect();
+        let cmds: Vec<&str> = ReviewCli::all()
+            .iter()
+            .map(|cli| cli.terminal_agent().binary())
+            .collect();
         assert_eq!(cmds.len(), 4);
         assert!(cmds.contains(&"claude"));
         assert!(cmds.contains(&"codex"));
         assert!(cmds.contains(&"opencode"));
         assert!(cmds.contains(&"pi"));
+    }
+
+    #[test]
+    fn review_launch_uses_shared_custom_agent_commands() {
+        let config = paneflow_config::schema::PaneFlowConfig {
+            default_shell: Some("pwsh.exe".to_string()),
+            claude_code_command: Some("claude-custom --profile review".to_string()),
+            codex_command: Some("codex-custom --profile review".to_string()),
+            ..Default::default()
+        };
+
+        assert_eq!(
+            ReviewCli::ClaudeCode.launch_command(&config),
+            "Clear-Host; claude-custom --profile review"
+        );
+        assert_eq!(
+            ReviewCli::Codex.launch_command(&config),
+            "Clear-Host; codex-custom --profile review"
+        );
+        assert_eq!(
+            ReviewCli::OpenCode.launch_command(&config),
+            "Clear-Host; opencode"
+        );
     }
 
     #[test]

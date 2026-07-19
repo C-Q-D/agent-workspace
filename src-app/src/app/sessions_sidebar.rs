@@ -1055,7 +1055,9 @@ fn resume_command_spec(
     }
     let spec = match agent {
         SessionAgent::Claude => {
-            let mut spec = AgentCommandSpec::new("claude");
+            // 会话恢复与普通启动共享同一自定义基础命令，只追加应用控制的参数。
+            let mut spec =
+                AgentCommandSpec::from_configured_command(config.resolved_claude_code_command());
             spec.push_arg("--resume");
             spec.push_arg(session_id);
             if claude_bypass_enabled(config) {
@@ -1065,7 +1067,8 @@ fn resume_command_spec(
             spec
         }
         SessionAgent::Codex => {
-            let mut spec = AgentCommandSpec::new("codex");
+            let mut spec =
+                AgentCommandSpec::from_configured_command(config.resolved_codex_command());
             spec.push_arg("resume");
             spec.push_arg(session_id);
             spec
@@ -1185,6 +1188,28 @@ mod tests {
             Some(format!(
                 "claude --resume {id} --permission-mode bypassPermissions"
             ))
+        );
+    }
+
+    #[test]
+    fn resume_command_preserves_custom_claude_and_codex_commands() {
+        let cfg = paneflow_config::schema::PaneFlowConfig {
+            claude_code_command: Some("claude-wrapper --profile work".to_string()),
+            codex_command: Some("codex-wrapper --model gpt-5".to_string()),
+            claude_code_bypass_permissions: Some(true),
+            ..Default::default()
+        };
+        let id = "019dc9ea-38d7-7372-9cc4-253ce944d41b";
+
+        assert_eq!(
+            resume_command(SessionAgent::Claude, id, &cfg),
+            Some(format!(
+                "claude-wrapper --profile work --resume {id} --permission-mode bypassPermissions"
+            ))
+        );
+        assert_eq!(
+            resume_command(SessionAgent::Codex, id, &cfg),
+            Some(format!("codex-wrapper --model gpt-5 resume {id}"))
         );
     }
 

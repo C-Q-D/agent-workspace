@@ -320,18 +320,28 @@ impl PaneFlowConfig {
     /// already adapts to a genuinely slow agent without a huge fixed floor.
     pub const MAX_SUBMIT_PASTE_DELAY_MS: u64 = 5_000;
 
+    /// 返回有效的 Claude Code 自定义命令；字段缺失或校验失败时返回 `None`。
+    pub fn custom_claude_code_command(&self) -> Option<&str> {
+        normalized_agent_command(self.claude_code_command.as_deref())
+    }
+
+    /// 返回有效的 Codex 自定义命令；字段缺失或校验失败时返回 `None`。
+    pub fn custom_codex_command(&self) -> Option<&str> {
+        normalized_agent_command(self.codex_command.as_deref())
+    }
+
     /// 返回规范化后的 Claude Code 启动命令。
     ///
     /// 此方法只读取并裁剪配置，不修改磁盘内容。空白、控制字符或超过
     /// [`PaneFlowConfig::MAX_AGENT_COMMAND_BYTES`] 的值会安全回退到缺省命令。
     pub fn resolved_claude_code_command(&self) -> &str {
-        normalized_agent_command(self.claude_code_command.as_deref())
+        self.custom_claude_code_command()
             .unwrap_or(Self::DEFAULT_CLAUDE_CODE_COMMAND)
     }
 
     /// 返回规范化后的 Codex 启动命令，校验规则与 Claude Code 一致。
     pub fn resolved_codex_command(&self) -> &str {
-        normalized_agent_command(self.codex_command.as_deref())
+        self.custom_codex_command()
             .unwrap_or(Self::DEFAULT_CODEX_COMMAND)
     }
 
@@ -1925,6 +1935,8 @@ mod tests {
     fn agent_commands_resolve_defaults_and_trim_valid_values() {
         // 缺失配置使用稳定的 CLI 命令名，保持既有启动行为。
         let defaults = PaneFlowConfig::default();
+        assert_eq!(defaults.custom_claude_code_command(), None);
+        assert_eq!(defaults.custom_codex_command(), None);
         assert_eq!(defaults.resolved_claude_code_command(), "claude");
         assert_eq!(defaults.resolved_codex_command(), "codex");
 
@@ -1940,6 +1952,11 @@ mod tests {
             config.resolved_claude_code_command(),
             "\"C:\\Program Files\\Claude\\claude.exe\" --profile work"
         );
+        assert_eq!(
+            config.custom_claude_code_command(),
+            Some("\"C:\\Program Files\\Claude\\claude.exe\" --profile work")
+        );
+        assert_eq!(config.custom_codex_command(), Some("codex --model gpt-5"));
         assert_eq!(config.resolved_codex_command(), "codex --model gpt-5");
     }
 
