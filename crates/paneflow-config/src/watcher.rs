@@ -72,7 +72,7 @@ impl ConfigWatcher {
     /// underlying OS watcher could not be created.
     pub fn start(&self) -> Result<(), notify::Error> {
         // Invariant: `self.config_path` is always a file path built from
-        // `config_path()` (e.g., `/home/u/.config/paneflow/paneflow.json`),
+        // `config_path()`（例如 `~/.agent-workspace/config/settings.json`），
         // so `.parent()` is guaranteed to be `Some`. `expect` is correct
         // here - documented invariant per CLAUDE.md.
         #[allow(clippy::expect_used)]

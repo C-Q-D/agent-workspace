@@ -4,6 +4,7 @@
 //! `.agent-workspace-dev`，避免源码运行覆盖已安装版本。这里不会探测或迁移
 //! Paneflow 的旧目录，旧数据导入必须由后续显式用户操作完成。
 
+use crate::data_layout::UserDataLayout;
 use crate::schema::{CommandDefinition, LayoutNode, PaneFlowConfig};
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value};
@@ -12,26 +13,11 @@ use std::path::{Path, PathBuf};
 use thiserror::Error;
 use tracing::warn;
 
-/// 用户主目录下的 AgentWorkspace 数据目录名。
-///
-/// 调试版使用独立目录，使 `cargo run` 与已安装发布版可以并行运行；发布版
-/// 始终使用用户确认的 `.agent-workspace`，不依赖 Windows AppData。
-pub const USER_DATA_DIRNAME: &str = if cfg!(debug_assertions) {
-    ".agent-workspace-dev"
-} else {
-    ".agent-workspace"
+// 保留 loader 的既有常量入口，避免路径布局收敛要求所有调用方同一提交迁移。
+pub use crate::data_layout::{
+    CACHE_DIRNAME, CONFIG_DIRNAME, SESSIONS_DIRNAME, SETTINGS_FILENAME, USER_DATA_DIRNAME,
+    WORKSPACES_FILENAME,
 };
-
-/// 配置文件相对路径中的目录名。
-pub const CONFIG_DIRNAME: &str = "config";
-/// 会话文件相对路径中的目录名。
-pub const SESSIONS_DIRNAME: &str = "sessions";
-/// 可安全重建缓存的相对目录名。
-pub const CACHE_DIRNAME: &str = "cache";
-/// AgentWorkspace 主设置文件名。
-pub const SETTINGS_FILENAME: &str = "settings.json";
-/// AgentWorkspace 工作区会话文件名。
-pub const WORKSPACES_FILENAME: &str = "workspaces.json";
 
 /// Hard cap on the size of any config file we will read into memory.
 /// Real configs are kilobytes; this guards against a runaway or hostile
@@ -54,7 +40,7 @@ pub enum ConfigError {
 /// 该纯函数不访问文件系统，供配置、会话和运行时路径共享，也便于在真实
 /// 临时目录中验证路径边界。
 pub fn user_data_root_from(home: &Path) -> PathBuf {
-    home.join(USER_DATA_DIRNAME)
+    UserDataLayout::from_home(home).root().to_path_buf()
 }
 
 /// 返回当前用户的 AgentWorkspace 数据根目录。
@@ -67,9 +53,7 @@ pub fn user_data_root() -> Option<PathBuf> {
 
 /// 根据指定主目录生成设置文件路径。
 pub fn config_path_from(home: &Path) -> PathBuf {
-    user_data_root_from(home)
-        .join(CONFIG_DIRNAME)
-        .join(SETTINGS_FILENAME)
+    UserDataLayout::from_home(home).settings_path()
 }
 
 /// 返回当前用户的 AgentWorkspace 设置文件路径。
@@ -79,9 +63,7 @@ pub fn config_path() -> Option<PathBuf> {
 
 /// 根据指定主目录生成工作区会话文件路径。
 pub fn session_path_from(home: &Path) -> PathBuf {
-    user_data_root_from(home)
-        .join(SESSIONS_DIRNAME)
-        .join(WORKSPACES_FILENAME)
+    UserDataLayout::from_home(home).workspaces_path()
 }
 
 /// 返回当前用户的 AgentWorkspace 工作区会话文件路径。
@@ -97,7 +79,7 @@ pub fn session_path() -> Option<PathBuf> {
 /// `filename` 由内部调用方提供；该函数只负责根目录归属，不创建目录或写入
 /// 文件。缓存清理不会影响配置与会话文件。
 pub fn cache_file_path_from(home: &Path, filename: &str) -> PathBuf {
-    user_data_root_from(home).join(CACHE_DIRNAME).join(filename)
+    UserDataLayout::from_home(home).cache_dir().join(filename)
 }
 
 /// 返回当前用户数据根目录下的缓存文件路径。
@@ -623,19 +605,14 @@ mod tests {
     fn agent_workspace_paths_share_one_home_root() {
         let home = Path::new("C:/Users/TestUser");
         let root = user_data_root_from(home);
+        let layout = UserDataLayout::from_home(home);
 
-        assert_eq!(root, home.join(USER_DATA_DIRNAME));
-        assert_eq!(
-            config_path_from(home),
-            root.join(CONFIG_DIRNAME).join(SETTINGS_FILENAME)
-        );
-        assert_eq!(
-            session_path_from(home),
-            root.join(SESSIONS_DIRNAME).join(WORKSPACES_FILENAME)
-        );
+        assert_eq!(root, layout.root());
+        assert_eq!(config_path_from(home), layout.settings_path());
+        assert_eq!(session_path_from(home), layout.workspaces_path());
         assert_eq!(
             cache_file_path_from(home, "theme.json"),
-            root.join(CACHE_DIRNAME).join("theme.json")
+            layout.cache_dir().join("theme.json")
         );
     }
 

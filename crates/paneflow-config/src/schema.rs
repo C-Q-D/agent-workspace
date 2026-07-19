@@ -1233,7 +1233,7 @@ pub enum AgentsTargetSession {
     Chat { thread_id: u64 },
 }
 
-/// Persisted session state written to `~/.cache/paneflow/session.json`.
+/// 写入 `~/.agent-workspace/sessions/workspaces.json` 的持久工作区会话状态。
 ///
 /// Backward-compat note: the three Agents-view fields (`projects`,
 /// `active_project`, `mode`) all carry `#[serde(default)]`. Loading a
