@@ -245,6 +245,8 @@ try {
     $env:PANEFLOW_IPC_SCRIPTING = '1'
     $process = Start-TestApp
 
+    Invoke-PaneflowRpc -Method 'workspace.create' -Params @{ name = '中文终端'; cwd = $fixtureRoot } | Out-Null
+    Start-Sleep -Seconds 2
     $surfaces = @((Invoke-PaneflowRpc -Method 'surface.list' -Params @{}).surfaces | Where-Object { $_.scope -eq 'workspace' })
     if ($surfaces.Count -ne 1) { throw "预期一个真实工作区终端，实际为 $($surfaces.Count)。" }
     $surface = $surfaces[0]

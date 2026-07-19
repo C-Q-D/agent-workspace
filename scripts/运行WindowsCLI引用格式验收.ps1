@@ -345,6 +345,8 @@ try {
     Wait-PaneflowReady
     $firstHandle = Get-RealMainWindow -Process $firstProcess
     $script:activeHandle = $firstHandle
+    # 保留两个工作区的原验收拓扑，但两者都通过显式目录入口创建。
+    Invoke-PaneflowRpc -Method 'workspace.create' -Params @{ name = '基线工作区'; cwd = $repoRoot } | Out-Null
     $create = Invoke-PaneflowRpc -Method 'workspace.create' -Params @{ name = '引用验收'; cwd = $fixtureRoot }
     if ([int]$create.index -ne 1) { throw "引用工作区索引应为 1，实际为 $($create.index)。" }
     Start-Sleep -Seconds 2

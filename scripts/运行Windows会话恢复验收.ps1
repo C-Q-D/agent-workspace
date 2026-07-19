@@ -339,7 +339,8 @@ try {
     $firstProcess = Start-Process -FilePath $binary -WorkingDirectory $repoRoot -WindowStyle Normal -PassThru
     Wait-PaneflowReady
     Prepare-Window -Process $firstProcess | Out-Null
-    for ($index = 1; $index -lt $WorkspaceCount; $index++) {
+    # 空白首启不再隐式创建终端；恢复基线中的每个工作区都显式绑定仓库目录。
+    for ($index = 0; $index -lt $WorkspaceCount; $index++) {
         Invoke-PaneflowRpc -Method 'workspace.create' -Params @{
             name = 'restore-{0:D2}' -f ($index + 1)
             cwd = $repoRoot
@@ -352,7 +353,7 @@ try {
     }
     # surface.title 是 PowerShell 自己的终端标题，不是左侧工作区标题；
     # 顺序基准使用本轮通过生产入口实际创建的确定名称。
-    $expectedTitles = @('app') + @(2..$WorkspaceCount | ForEach-Object { 'restore-{0:D2}' -f $_ })
+    $expectedTitles = @(1..$WorkspaceCount | ForEach-Object { 'restore-{0:D2}' -f $_ })
     $firstWindowHandle = Prepare-Window -Process $firstProcess
     Save-WindowScreenshot -Handle $firstWindowHandle -Path $firstPagePath
     Select-NextGridPage -Process $firstProcess

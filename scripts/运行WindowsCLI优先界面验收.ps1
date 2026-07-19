@@ -306,6 +306,8 @@ try {
 
     # 第一次真实启动只负责生成与当前 schema 完全一致的会话，随后改成旧 Agents 模式。
     $process = Start-TestApp
+    Invoke-PaneflowRpc -Method 'workspace.create' -Params @{ name = 'CLI优先验收'; cwd = $fixtureRoot } | Out-Null
+    Start-Sleep -Seconds 2
     $seedClose = Stop-TestApp -Process $process
     $process = $null
     if ($seedClose.Remaining.Count -ne 0) { throw "种子启动关闭后仍有残留：$($seedClose.Remaining -join ',')" }

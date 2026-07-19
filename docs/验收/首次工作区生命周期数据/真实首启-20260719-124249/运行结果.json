@@ -1,0 +1,35 @@
+{
+  "RunId": "真实首启-20260719-124249",
+  "Commit": "17ce26ba3a656e0abe1b5eff8422648194c481af",
+  "BinaryPath": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\target\\release\\paneflow.exe",
+  "BinarySha256": "0350A6878082C26AA00440F1EFBE7C8C05A3BF3CF4ECA5914E984DA1C05ED135",
+  "EmptyWorkspaceCount": 0,
+  "EmptySurfaceCount": 0,
+  "EmptyPowerShellCount": 0,
+  "EmptyConhostCount": 0,
+  "LaunchDirectoryGitCreated": false,
+  "FolderDialogObserved": true,
+  "WorkspaceCountAfterCancel": 0,
+  "CreatedWorkspaceIndex": 0,
+  "CreateRpcMilliseconds": 47.124,
+  "WorkspaceRoot": "F:\\AWFirstWorkspace-20260719-124249\\显式工作区",
+  "WorkspaceGitInitialized": true,
+  "FirstPowerShellProcessIds": [
+    35752
+  ],
+  "RestoredPowerShellProcessIds": [
+    16712
+  ],
+  "PowerShellPidsFullyReplaced": true,
+  "MalformedSessionWorkspaceCount": 0,
+  "EmptyScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\首次工作区生命周期数据\\真实首启-20260719-124249\\空工作区.png",
+  "CancelScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\首次工作区生命周期数据\\真实首启-20260719-124249\\取消选目录后.png",
+  "NarrowScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\首次工作区生命周期数据\\真实首启-20260719-124249\\窄窗口空工作区.png",
+  "CreatedScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\首次工作区生命周期数据\\真实首启-20260719-124249\\创建首个工作区.png",
+  "RestoredScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\首次工作区生命周期数据\\真实首启-20260719-124249\\重启恢复工作区.png",
+  "MalformedScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\首次工作区生命周期数据\\真实首启-20260719-124249\\损坏会话降级空工作区.png",
+  "FirstRemainingProcessIds": [],
+  "RestoredRemainingProcessIds": [],
+  "MalformedRemainingProcessIds": [],
+  "Passed": true
+}

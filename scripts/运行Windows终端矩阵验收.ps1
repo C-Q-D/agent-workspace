@@ -371,8 +371,8 @@ try {
     $process = Start-Process -FilePath $binary -WorkingDirectory $repoRoot -WindowStyle Normal -PassThru
     Wait-PaneflowReady
 
-    # 空白启动已包含一个真实 workspace；其余工作区逐个走生产 IPC 创建入口。
-    for ($index = 1; $index -lt $TerminalCount; $index++) {
+    # 首次启动保持零工作区；全部真实终端都必须通过显式目录的生产入口创建。
+    for ($index = 0; $index -lt $TerminalCount; $index++) {
         Invoke-PaneflowRpc -Method 'workspace.create' -Params @{
             name = 'perf-{0:D2}' -f ($index + 1)
             cwd = $repoRoot

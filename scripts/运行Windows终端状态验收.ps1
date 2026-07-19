@@ -262,7 +262,7 @@ try {
 
     $statusTrace = [Collections.Generic.List[object]]::new()
     # 快速创建真实 PTY，记录后台创建窗口；随后删去临时工作区，只保留验收四项。
-    for ($index = 1; $index -lt 15; $index++) {
+    for ($index = 0; $index -lt 15; $index++) {
         $created = Invoke-PaneflowRpc -Method 'workspace.create' -Params @{ name = 'state-{0:D2}' -f ($index + 1); cwd = $repoRoot }
         $snapshot = @(Get-WorkspaceList)
         $statusTrace.Add([pscustomobject]@{

@@ -333,7 +333,6 @@ try {
 
     Invoke-PaneflowRpc -Method 'workspace.create' -Params @{ name = 'Review-A'; cwd = $repoA } | Out-Null
     Invoke-PaneflowRpc -Method 'workspace.create' -Params @{ name = 'Review-B'; cwd = $repoB } | Out-Null
-    Invoke-PaneflowRpc -Method 'workspace.close' -Params @{ index = 0 } | Out-Null
     Start-Sleep -Seconds 2
 
     $workspaces = @((Invoke-PaneflowRpc -Method 'workspace.list' -Params @{}).workspaces | Sort-Object index)
