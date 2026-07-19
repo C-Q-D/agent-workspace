@@ -88,17 +88,7 @@ impl PaneFlowApp {
         ];
 
         let current_shell = config.default_shell.clone().unwrap_or_default();
-        let shell_opts: Vec<SelectOption> = shells
-            .iter()
-            .map(|(label, val)| {
-                (
-                    (*label).to_string(),
-                    None,
-                    Value::String(val.clone()),
-                    shell_preset_eq(&current_shell, val),
-                )
-            })
-            .collect();
+        let shell_opts = shell_setting_options(&current_shell, &shells);
         let shell_label = shell_opts
             .iter()
             .find(|(_, _, _, selected)| *selected)
@@ -439,6 +429,26 @@ fn shell_preset_eq(stored: &str, chip: &str) -> bool {
     }
 }
 
+/// 生成默认 Shell 下拉选项，并始终允许用户删除自定义值、回到平台解析链。
+fn shell_setting_options(current_shell: &str, shells: &[(&str, String)]) -> Vec<SelectOption> {
+    let mut options = Vec::with_capacity(shells.len() + 1);
+    options.push((
+        "System default".to_string(),
+        None,
+        Value::Null,
+        current_shell.trim().is_empty(),
+    ));
+    options.extend(shells.iter().map(|(label, value)| {
+        (
+            (*label).to_string(),
+            None,
+            Value::String(value.clone()),
+            shell_preset_eq(current_shell, value),
+        )
+    }));
+    options
+}
+
 #[cfg(test)]
 mod tests {
     use paneflow_config::schema::WorkspaceGridDensity;
@@ -463,6 +473,36 @@ mod tests {
             r"C:\Windows\System32\bash.exe",
             r"C:\Program Files\Git\bin\bash.exe"
         ));
+    }
+
+    /// 默认、预设和自定义 Shell 都应得到唯一且可恢复的选中状态。
+    #[test]
+    fn shell_options_include_system_default_and_keep_custom_value_unselected() {
+        let shells = vec![
+            ("PowerShell", "pwsh.exe".to_string()),
+            ("Command Prompt", "cmd.exe".to_string()),
+        ];
+        let simplify = |current: &str| {
+            super::shell_setting_options(current, &shells)
+                .into_iter()
+                .map(|(label, _icon, value, selected)| (label, value, selected))
+                .collect::<Vec<_>>()
+        };
+
+        let defaults = simplify("");
+        assert_eq!(
+            defaults[0],
+            ("System default".to_string(), serde_json::Value::Null, true)
+        );
+        assert_eq!(defaults.iter().filter(|row| row.2).count(), 1);
+
+        let preset = simplify("pwsh.exe");
+        assert_eq!(preset.iter().filter(|row| row.2).count(), 1);
+        assert!(preset.iter().any(|row| row.0 == "PowerShell" && row.2));
+
+        let custom = simplify(r"C:\Tools\custom-shell.exe");
+        assert_eq!(custom.iter().filter(|row| row.2).count(), 0);
+        assert_eq!(custom[0].1, serde_json::Value::Null);
     }
 
     #[test]

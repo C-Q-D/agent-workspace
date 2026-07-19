@@ -673,4 +673,31 @@ mod tests {
         }
         assert!(!nav_item_matches(item, "font size"));
     }
+
+    /// 七类稳定设置都必须能用不含歧义的用户词汇定位到唯一设置页面。
+    #[test]
+    fn stable_setting_categories_have_unique_navigation_queries() {
+        let cases = [
+            ("default shell", SettingsSection::General),
+            ("launch command", SettingsSection::AiAgent),
+            ("theme", SettingsSection::Appearance),
+            ("font size", SettingsSection::Terminal),
+            ("file reference", SettingsSection::General),
+            ("density", SettingsSection::General),
+            ("git init", SettingsSection::General),
+        ];
+
+        for (query, expected) in cases {
+            let matches: Vec<_> = NAV_GROUPS
+                .iter()
+                .flat_map(|group| group.items.iter())
+                .filter(|item| nav_item_matches(item, query))
+                .map(|item| item.section)
+                .collect();
+            assert!(
+                matches.len() == 1 && matches[0] == expected,
+                "稳定设置查询词 {query} 必须唯一定位到预期页面"
+            );
+        }
+    }
 }
