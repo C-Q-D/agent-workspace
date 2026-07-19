@@ -1,0 +1,24 @@
+AgentWorkspace 0.7.11 - native terminal workspace for coding agents
+
+Usage: agent-workspace [OPTIONS]
+       agent-workspace mcp <install|status|uninstall>
+
+Options:
+  -h, --help       Print this help message
+  -v, --version    Print version
+  --update-and-exit  Check for an update and exit (CI harness)
+
+Agent workflow:
+  Launch Claude Code, Codex, opencode, Pi, or any CLI agent in panes
+  Use `agent-workspace mcp install` so capable agents can read pane output
+
+Keybindings:
+  Ctrl+Shift+D/E   Split horizontal/vertical
+  Ctrl+Shift+W     Close pane
+  Alt+Arrow        Focus adjacent pane
+  Ctrl+Shift+N     New workspace
+  Ctrl+Tab         Next workspace
+  Ctrl+1-9         Switch to workspace N
+
+Config paths and IPC endpoints are documented in the README.
+https://github.com/C-Q-D/agent-workspace

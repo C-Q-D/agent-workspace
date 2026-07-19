@@ -1,0 +1,6 @@
+agent-workspace mcp - register the AgentWorkspace MCP bridge with your CLI agents
+
+Usage:
+  agent-workspace mcp install      Register the bridge with every detected agent
+  agent-workspace mcp uninstall    Remove the AgentWorkspace entry from every agent
+  agent-workspace mcp status       Report the bridge registration state per agent

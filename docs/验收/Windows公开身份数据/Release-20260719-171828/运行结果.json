@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "executedAt": "2026-07-19T17:18:30.2780482+08:00",
+  "repository": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+  "targetDirectory": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\target\\identity-atom",
+  "executable": {
+    "path": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\target\\identity-atom\\release\\agent-workspace.exe",
+    "name": "agent-workspace.exe",
+    "length": 73209344,
+    "sha256": "5e820067d27155168c94a57689a182f6dc05ee432f41dcf94605f81dfa97d2f3",
+    "legacyExecutableAbsent": true
+  },
+  "commands": [
+    {
+      "name": "帮助",
+      "arguments": [
+        "--help"
+      ],
+      "exitCode": 0,
+      "output": "AgentWorkspace 0.7.11 - native terminal workspace for coding agents\r\n\r\nUsage: agent-workspace [OPTIONS]\r\n       agent-workspace mcp <install|status|uninstall>\r\n\r\nOptions:\r\n  -h, --help       Print this help message\r\n  -v, --version    Print version\r\n  --update-and-exit  Check for an update and exit (CI harness)\r\n\r\nAgent workflow:\r\n  Launch Claude Code, Codex, opencode, Pi, or any CLI agent in panes\r\n  Use `agent-workspace mcp install` so capable agents can read pane output\r\n\r\nKeybindings:\r\n  Ctrl+Shift+D/E   Split horizontal/vertical\r\n  Ctrl+Shift+W     Close pane\r\n  Alt+Arrow        Focus adjacent pane\r\n  Ctrl+Shift+N     New workspace\r\n  Ctrl+Tab         Next workspace\r\n  Ctrl+1-9         Switch to workspace N\r\n\r\nConfig paths and IPC endpoints are documented in the README.\r\nhttps://github.com/C-Q-D/agent-workspace",
+      "log": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\Windows公开身份数据\\Release-20260719-171828\\帮助.txt"
+    },
+    {
+      "name": "版本",
+      "arguments": [
+        "--version"
+      ],
+      "exitCode": 0,
+      "output": "agent-workspace 0.7.11",
+      "log": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\Windows公开身份数据\\Release-20260719-171828\\版本.txt"
+    },
+    {
+      "name": "未知命令",
+      "arguments": [
+        "searh"
+      ],
+      "exitCode": 2,
+      "output": "agent-workspace: unknown verb 'searh'; see `agent-workspace --help` for the verb list",
+      "log": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\Windows公开身份数据\\Release-20260719-171828\\未知命令.txt"
+    },
+    {
+      "name": "MCP帮助",
+      "arguments": [
+        "mcp"
+      ],
+      "exitCode": 2,
+      "output": "agent-workspace mcp - register the AgentWorkspace MCP bridge with your CLI agents\r\n\r\nUsage:\r\n  agent-workspace mcp install      Register the bridge with every detected agent\r\n  agent-workspace mcp uninstall    Remove the AgentWorkspace entry from every agent\r\n  agent-workspace mcp status       Report the bridge registration state per agent",
+      "log": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\Windows公开身份数据\\Release-20260719-171828\\MCP帮助.txt"
+    },
+    {
+      "name": "Hook帮助",
+      "arguments": [
+        "hooks",
+        "bogus"
+      ],
+      "exitCode": 2,
+      "output": "agent-workspace hooks - register the AgentWorkspace agent-notification hooks with your agents\r\n\r\nUsage:\r\n  agent-workspace hooks setup       Install persistent hooks for every supported agent\r\n  agent-workspace hooks uninstall   Remove the AgentWorkspace hooks\r\n  agent-workspace hooks status      Report the hook installation state per agent",
+      "log": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\Windows公开身份数据\\Release-20260719-171828\\Hook帮助.txt"
+    }
+  ],
+  "windowsIdentity": {
+    "aumid": "CQD.AgentWorkspace",
+    "wixProductName": "AgentWorkspace",
+    "wixExecutable": "agent-workspace.exe"
+  },
+  "publicRepository": "https://github.com/C-Q-D/agent-workspace",
+  "latestReleaseApi": "https://api.github.com/repos/C-Q-D/agent-workspace/releases/latest",
+  "result": "passed"
+}

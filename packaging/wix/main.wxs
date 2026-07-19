@@ -102,7 +102,7 @@
                     </Directory>
 
                     <!-- PATH environment variable: add the install dir so
-                         `paneflow` is discoverable in cmd.exe, PowerShell,
+                         `agent-workspace` is discoverable in cmd.exe, PowerShell,
                          and Windows Terminal without the full path. -->
                     <Component Id='Path' Guid='C77DA741-90B0-40F0-9AB3-A01C59E9978B' KeyPath='yes'>
                         <Environment

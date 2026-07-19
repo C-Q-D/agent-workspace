@@ -1,0 +1,6 @@
+agent-workspace hooks - register the AgentWorkspace agent-notification hooks with your agents
+
+Usage:
+  agent-workspace hooks setup       Install persistent hooks for every supported agent
+  agent-workspace hooks uninstall   Remove the AgentWorkspace hooks
+  agent-workspace hooks status      Report the hook installation state per agent
