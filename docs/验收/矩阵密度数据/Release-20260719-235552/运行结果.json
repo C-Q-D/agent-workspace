@@ -1,0 +1,426 @@
+{
+  "schemaVersion": 1,
+  "runId": "Release-20260719-235552",
+  "executedAt": "2026-07-19T23:56:22.5876449+08:00",
+  "baseCommit": "898d588b8ba3a3123ea738997bd74789d1640788",
+  "binary": {
+    "path": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\target\\release\\agent-workspace.exe",
+    "length": 73543680,
+    "sha256": "79a1362df0701485e38b3c0c294f524771e8f823aeb97e3ad932eace96128472",
+    "version": "agent-workspace 0.7.11"
+  },
+  "matrix": {
+    "workspaces": 16,
+    "surfaces": 16,
+    "powershellProcesses": 16,
+    "initialSurfaceIds": [
+      4294967314,
+      4294967317,
+      4294967320,
+      4294967323,
+      4294967326,
+      4294967329,
+      4294967332,
+      4294967335,
+      4294967338,
+      4294967341,
+      4294967344,
+      4294967347,
+      4294967350,
+      4294967353,
+      4294967356,
+      12884901889
+    ],
+    "stages": [
+      {
+        "density": "comfortable",
+        "surfaceIdsUnchanged": true,
+        "powershellPidsUnchanged": true,
+        "terminalOutputContinuous": true
+      },
+      {
+        "density": "compact",
+        "surfaceIdsUnchanged": true,
+        "powershellPidsUnchanged": true,
+        "terminalOutputContinuous": true
+      },
+      {
+        "density": "auto",
+        "surfaceIdsUnchanged": true,
+        "powershellPidsUnchanged": true,
+        "terminalOutputContinuous": true
+      }
+    ],
+    "compactPersistedAcrossRestart": true,
+    "restoredWorkspaces": 16,
+    "restoredSurfaces": 16,
+    "restoredPowerShellProcesses": 16
+  },
+  "performance": {
+    "beforeRestart": {
+      "cpuMillisecondsOverTwoSeconds": 78.125,
+      "workingSetMiB": 172.973,
+      "privateMemoryMiB": 202.859,
+      "threads": 70,
+      "handles": 686
+    },
+    "afterRestart": {
+      "cpuMillisecondsOverTwoSeconds": 828.125,
+      "workingSetMiB": 190.102,
+      "privateMemoryMiB": 240.164,
+      "threads": 82,
+      "handles": 665
+    }
+  },
+  "configuration": {
+    "unknownFieldPreserved": true,
+    "timestampStableAfterWrite": true,
+    "finalDensity": "compact"
+  },
+  "process": {
+    "firstTracked": [
+      {
+        "id": 3196,
+        "name": "conhost",
+        "startedUtcTicks": 639200733556504994
+      },
+      {
+        "id": 7520,
+        "name": "pwsh",
+        "startedUtcTicks": 639200733555979606
+      },
+      {
+        "id": 8956,
+        "name": "conhost",
+        "startedUtcTicks": 639200733554656835
+      },
+      {
+        "id": 16396,
+        "name": "pwsh",
+        "startedUtcTicks": 639200733554690722
+      },
+      {
+        "id": 30264,
+        "name": "pwsh",
+        "startedUtcTicks": 639200733553426707
+      },
+      {
+        "id": 35980,
+        "name": "conhost",
+        "startedUtcTicks": 639200733559382836
+      },
+      {
+        "id": 36112,
+        "name": "conhost",
+        "startedUtcTicks": 639200733560681967
+      },
+      {
+        "id": 36156,
+        "name": "conhost",
+        "startedUtcTicks": 639200733551100031
+      },
+      {
+        "id": 38352,
+        "name": "pwsh",
+        "startedUtcTicks": 639200733554064130
+      },
+      {
+        "id": 38368,
+        "name": "conhost",
+        "startedUtcTicks": 639200733553395830
+      },
+      {
+        "id": 38940,
+        "name": "pwsh",
+        "startedUtcTicks": 639200733560107150
+      },
+      {
+        "id": 39320,
+        "name": "conhost",
+        "startedUtcTicks": 639200733557643776
+      },
+      {
+        "id": 39668,
+        "name": "pwsh",
+        "startedUtcTicks": 639200733558219242
+      },
+      {
+        "id": 39748,
+        "name": "agent-workspace",
+        "startedUtcTicks": 639200733535364294
+      },
+      {
+        "id": 39860,
+        "name": "pwsh",
+        "startedUtcTicks": 639200733556559181
+      },
+      {
+        "id": 40740,
+        "name": "conhost",
+        "startedUtcTicks": 639200733554035379
+      },
+      {
+        "id": 40832,
+        "name": "pwsh",
+        "startedUtcTicks": 639200733552775374
+      },
+      {
+        "id": 41108,
+        "name": "pwsh",
+        "startedUtcTicks": 639200733559428219
+      },
+      {
+        "id": 41120,
+        "name": "pwsh",
+        "startedUtcTicks": 639200733555303783
+      },
+      {
+        "id": 41316,
+        "name": "pwsh",
+        "startedUtcTicks": 639200733557694448
+      },
+      {
+        "id": 41652,
+        "name": "conhost",
+        "startedUtcTicks": 639200733558176086
+      },
+      {
+        "id": 41792,
+        "name": "pwsh",
+        "startedUtcTicks": 639200733551116085
+      },
+      {
+        "id": 44728,
+        "name": "conhost",
+        "startedUtcTicks": 639200733552757330
+      },
+      {
+        "id": 47044,
+        "name": "conhost",
+        "startedUtcTicks": 639200733557049614
+      },
+      {
+        "id": 47048,
+        "name": "pwsh",
+        "startedUtcTicks": 639200733558851546
+      },
+      {
+        "id": 48280,
+        "name": "conhost",
+        "startedUtcTicks": 639200733558808886
+      },
+      {
+        "id": 48352,
+        "name": "pwsh",
+        "startedUtcTicks": 639200733552219885
+      },
+      {
+        "id": 49400,
+        "name": "conhost",
+        "startedUtcTicks": 639200733552198400
+      },
+      {
+        "id": 49476,
+        "name": "conhost",
+        "startedUtcTicks": 639200733560061294
+      },
+      {
+        "id": 51956,
+        "name": "pwsh",
+        "startedUtcTicks": 639200733560710115
+      },
+      {
+        "id": 52944,
+        "name": "pwsh",
+        "startedUtcTicks": 639200733557090072
+      },
+      {
+        "id": 53160,
+        "name": "conhost",
+        "startedUtcTicks": 639200733555279529
+      },
+      {
+        "id": 53408,
+        "name": "conhost",
+        "startedUtcTicks": 639200733555936766
+      }
+    ],
+    "restoredTracked": [
+      {
+        "id": 8456,
+        "name": "conhost",
+        "startedUtcTicks": 639200733785025846
+      },
+      {
+        "id": 13676,
+        "name": "pwsh",
+        "startedUtcTicks": 639200733785058612
+      },
+      {
+        "id": 13764,
+        "name": "pwsh",
+        "startedUtcTicks": 639200733785075928
+      },
+      {
+        "id": 13864,
+        "name": "agent-workspace",
+        "startedUtcTicks": 639200733768031309
+      },
+      {
+        "id": 13960,
+        "name": "conhost",
+        "startedUtcTicks": 639200733785035462
+      },
+      {
+        "id": 15220,
+        "name": "conhost",
+        "startedUtcTicks": 639200733784982934
+      },
+      {
+        "id": 20976,
+        "name": "conhost",
+        "startedUtcTicks": 639200733785035753
+      },
+      {
+        "id": 24748,
+        "name": "conhost",
+        "startedUtcTicks": 639200733785002249
+      },
+      {
+        "id": 27336,
+        "name": "pwsh",
+        "startedUtcTicks": 639200733785051712
+      },
+      {
+        "id": 29260,
+        "name": "conhost",
+        "startedUtcTicks": 639200733785025777
+      },
+      {
+        "id": 33596,
+        "name": "pwsh",
+        "startedUtcTicks": 639200733785064255
+      },
+      {
+        "id": 33708,
+        "name": "pwsh",
+        "startedUtcTicks": 639200733785071920
+      },
+      {
+        "id": 34628,
+        "name": "pwsh",
+        "startedUtcTicks": 639200733785039422
+      },
+      {
+        "id": 36104,
+        "name": "pwsh",
+        "startedUtcTicks": 639200733785047680
+      },
+      {
+        "id": 36920,
+        "name": "pwsh",
+        "startedUtcTicks": 639200733784567254
+      },
+      {
+        "id": 38484,
+        "name": "pwsh",
+        "startedUtcTicks": 639200733785067468
+      },
+      {
+        "id": 38908,
+        "name": "pwsh",
+        "startedUtcTicks": 639200733785061046
+      },
+      {
+        "id": 38976,
+        "name": "pwsh",
+        "startedUtcTicks": 639200733784564117
+      },
+      {
+        "id": 39492,
+        "name": "conhost",
+        "startedUtcTicks": 639200733784521554
+      },
+      {
+        "id": 40452,
+        "name": "conhost",
+        "startedUtcTicks": 639200733784995274
+      },
+      {
+        "id": 40716,
+        "name": "conhost",
+        "startedUtcTicks": 639200733785005447
+      },
+      {
+        "id": 41024,
+        "name": "conhost",
+        "startedUtcTicks": 639200733784554438
+      },
+      {
+        "id": 41448,
+        "name": "conhost",
+        "startedUtcTicks": 639200733785030845
+      },
+      {
+        "id": 43808,
+        "name": "conhost",
+        "startedUtcTicks": 639200733785019056
+      },
+      {
+        "id": 46840,
+        "name": "pwsh",
+        "startedUtcTicks": 639200733785095760
+      },
+      {
+        "id": 49192,
+        "name": "pwsh",
+        "startedUtcTicks": 639200733784988244
+      },
+      {
+        "id": 49356,
+        "name": "pwsh",
+        "startedUtcTicks": 639200733785054334
+      },
+      {
+        "id": 49768,
+        "name": "conhost",
+        "startedUtcTicks": 639200733784538554
+      },
+      {
+        "id": 50308,
+        "name": "pwsh",
+        "startedUtcTicks": 639200733784985237
+      },
+      {
+        "id": 50412,
+        "name": "conhost",
+        "startedUtcTicks": 639200733784538878
+      },
+      {
+        "id": 51836,
+        "name": "conhost",
+        "startedUtcTicks": 639200733785012268
+      },
+      {
+        "id": 52968,
+        "name": "pwsh",
+        "startedUtcTicks": 639200733785044538
+      },
+      {
+        "id": 53648,
+        "name": "conhost",
+        "startedUtcTicks": 639200733785016142
+      }
+    ],
+    "gracefulExitBothRuns": true,
+    "residueCount": 0
+  },
+  "screenshots": [
+    "01-Auto-16终端.png",
+    "02-comfortable-16终端.png",
+    "02-compact-16终端.png",
+    "02-auto-16终端.png",
+    "03-Compact-重启恢复.png"
+  ],
+  "result": "passed"
+}

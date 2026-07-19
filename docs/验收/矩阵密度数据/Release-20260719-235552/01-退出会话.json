@@ -1,0 +1,314 @@
+{
+  "version": 1,
+  "active_workspace": 15,
+  "workspace_grid_page": 0,
+  "workspaces": [
+    {
+      "title": "Density-01",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "t 'GRID-DENSITY-01'\nt 'GRID-DENSITY-01'\nGRID-DENSITY-01\nPS F:\\workspace\\projects\\\nAgentWorkspaceLab\\agent-w\norkspace\\app>"
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "title": "Density-02",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "GRID-DENSITY-02'\nGRID-DENSITY-02'\nGRID-DENSITY-02\nPS F:\\workspace\\projects\\A\ngentWorkspaceLab\\agent-wor\nkspace\\app>"
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "title": "Density-03",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "t 'GRID-DENSITY-03'\nt 'GRID-DENSITY-03'\nGRID-DENSITY-03\nPS F:\\workspace\\projects\\\nAgentWorkspaceLab\\agent-w\norkspace\\app>"
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "title": "Density-04",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "GRID-DENSITY-04'\nGRID-DENSITY-04'\nGRID-DENSITY-04\nPS F:\\workspace\\projects\\A\ngentWorkspaceLab\\agent-wor\nkspace\\app>"
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "title": "Density-05",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "t 'GRID-DENSITY-05'\nt 'GRID-DENSITY-05'\nGRID-DENSITY-05\nPS F:\\workspace\\projects\\\nAgentWorkspaceLab\\agent-w\norkspace\\app>"
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "title": "Density-06",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "GRID-DENSITY-06'\nGRID-DENSITY-06'\nGRID-DENSITY-06\nPS F:\\workspace\\projects\\A\ngentWorkspaceLab\\agent-wor\nkspace\\app>"
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "title": "Density-07",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "t 'GRID-DENSITY-07'\nt 'GRID-DENSITY-07'\nGRID-DENSITY-07\nPS F:\\workspace\\projects\\\nAgentWorkspaceLab\\agent-w\norkspace\\app>"
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "title": "Density-08",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "GRID-DENSITY-08'\nGRID-DENSITY-08'\nGRID-DENSITY-08\nPS F:\\workspace\\projects\\A\ngentWorkspaceLab\\agent-wor\nkspace\\app>"
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "title": "Density-09",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "t 'GRID-DENSITY-09'\nt 'GRID-DENSITY-09'\nGRID-DENSITY-09\nPS F:\\workspace\\projects\\\nAgentWorkspaceLab\\agent-w\norkspace\\app>"
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "title": "Density-10",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "GRID-DENSITY-10'\nGRID-DENSITY-10\nPS F:\\workspace\\projects\\A\ngentWorkspaceLab\\agent-wor\nkspace\\app>"
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "title": "Density-11",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "t 'GRID-DENSITY-11'\nGRID-DENSITY-11\nPS F:\\workspace\\projects\\\nAgentWorkspaceLab\\agent-w\norkspace\\app>"
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "title": "Density-12",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "GRID-DENSITY-12'\nGRID-DENSITY-12\nPS F:\\workspace\\projects\\A\ngentWorkspaceLab\\agent-wor\nkspace\\app>"
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "title": "Density-13",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "t 'GRID-DENSITY-13'\nGRID-DENSITY-13\nPS F:\\workspace\\projects\\\nAgentWorkspaceLab\\agent-w\norkspace\\app>"
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "title": "Density-14",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "GRID-DENSITY-14'\nGRID-DENSITY-14\nPS F:\\workspace\\projects\\A\ngentWorkspaceLab\\agent-wor\nkspace\\app>"
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "title": "Density-15",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "t 'GRID-DENSITY-15'\nGRID-DENSITY-15\nPS F:\\workspace\\projects\\\nAgentWorkspaceLab\\agent-w\norkspace\\app>"
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "title": "Density-16",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "GRID-DENSITY-16'\nGRID-DENSITY-16\nPS F:\\workspace\\projects\\A\ngentWorkspaceLab\\agent-wor\nkspace\\app>"
+          }
+        ]
+      },
+      "reference_format": "common"
+    }
+  ],
+  "active_project": 0,
+  "mode": "cli",
+  "diff_scope": "project"
+}
