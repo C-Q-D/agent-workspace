@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "executedAt": "2026-07-19T19:11:29.6028029+08:00",
+  "environment": {
+    "os": "Microsoft Windows 11 专业版",
+    "version": "10.0.26200",
+    "architecture": "64 位",
+    "powershell": "7.6.3"
+  },
+  "artifacts": {
+    "version": "0.7.11",
+    "msi": {
+      "length": 28028928,
+      "sha256": "de9856aebe8a54d475173b5035d79e14130344af4996c78a294b901e6a77dd2c"
+    },
+    "zip": {
+      "length": 30943990,
+      "sha256": "2852a3c88dca9d92c09ef1b739f42e11c8e05746cef17cda8423a6a60c09b731",
+      "sidecarVerified": true
+    }
+  },
+  "msiLifecycle": {
+    "initialInstall": true,
+    "majorUpgrade": true,
+    "uninstall": true,
+    "projectDataPreserved": true,
+    "userDataPreserved": true
+  },
+  "portable": {
+    "deterministic": true,
+    "identicalIndependentBuilds": true,
+    "realExecution": true,
+    "userDataBoundary": true,
+    "entryCount": 25
+  },
+  "payloadParity": {
+    "sharedFileCount": 24,
+    "allIdentical": true,
+    "onlyPortableEntry": "便携版说明.txt",
+    "realExecutableDriftRejected": true,
+    "realMsiDriftRejectedBeforeRegression": true
+  },
+  "regression": {
+    "upstreamAttribution": true,
+    "dependencyInventory": "1109 packages; 0 unresolved",
+    "thirdPartyLicenseTests": 4,
+    "windowsLegalMaterialTests": 4,
+    "applicationTests": 1426,
+    "layoutIntegrationTests": 5,
+    "mcpInstallTests": 97,
+    "allExitCodes": 0
+  },
+  "systemResidue": {
+    "uninstallRegistryCount": 0,
+    "installDirectoryPresent": false,
+    "startMenuPresent": false,
+    "machinePathPresent": false,
+    "processCount": 0
+  }
+}
