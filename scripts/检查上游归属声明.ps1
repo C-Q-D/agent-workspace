@@ -15,8 +15,10 @@ $ErrorActionPreference = "Stop"
 # 所有路径从脚本位置解析，调用者可以在任意目录运行。
 $RepositoryRoot = Split-Path -Parent $PSScriptRoot
 $AttributionPath = Join-Path $RepositoryRoot "上游归属与修改说明.md"
+$AboutPath = Join-Path $RepositoryRoot "ABOUT.md"
 $LicensePath = Join-Path $RepositoryRoot "LICENSE"
 $ManifestPath = Join-Path $RepositoryRoot "Cargo.toml"
+$AppManifestPath = Join-Path $RepositoryRoot "src-app\Cargo.toml"
 $UpstreamBase = "040f71a4f8112db131f2e00a4b80550a3620963d"
 $FirstDerivativeCommit = "d5c26d88dd0d4ff7d3a34d0f79ad2f1cb4c0c0e9"
 $ExpectedDerivativeDate = "2026-07-15"
@@ -37,15 +39,17 @@ function Assert-Contains {
     }
 }
 
-foreach ($Path in @($AttributionPath, $LicensePath, $ManifestPath)) {
+foreach ($Path in @($AttributionPath, $AboutPath, $LicensePath, $ManifestPath, $AppManifestPath)) {
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
         throw "缺少归属验收文件：$Path"
     }
 }
 
 $Attribution = Get-Content -LiteralPath $AttributionPath -Raw
+$About = Get-Content -LiteralPath $AboutPath -Raw
 $License = Get-Content -LiteralPath $LicensePath -Raw
 $Manifest = Get-Content -LiteralPath $ManifestPath -Raw
+$AppManifest = Get-Content -LiteralPath $AppManifestPath -Raw
 
 foreach ($Fact in @(
     "AgentWorkspace 是 [Paneflow](https://github.com/ArthurDEV44/paneflow) 的独立修改版本",
@@ -66,6 +70,22 @@ foreach ($Fact in @(
 Assert-Contains -Text $License -Expected "GNU GENERAL PUBLIC LICENSE" -Label "LICENSE"
 Assert-Contains -Text $License -Expected "Version 3, 29 June 2007" -Label "LICENSE"
 Assert-Contains -Text $Manifest -Expected 'license = "GPL-3.0-or-later"' -Label "Cargo 工作区"
+foreach ($Fact in @(
+    "# AgentWorkspace",
+    "AgentWorkspace 基于 [Paneflow](https://github.com/ArthurDEV44/paneflow) 修改",
+    "不是 Paneflow 官方发行版",
+    "上游归属与修改说明.md",
+    "GPL-3.0-or-later",
+    "https://github.com/C-Q-D/agent-workspace",
+    "不附带任何明示或默示担保"
+)) {
+    Assert-Contains -Text $About -Expected $Fact -Label "ABOUT"
+}
+if ($About.Contains("# About Paneflow") -or $About.Contains("paneflow.dev")) {
+    throw "ABOUT 仍把当前产品表述为 Paneflow 官方项目"
+}
+Assert-Contains -Text $AppManifest -Expected 'maintainer = "C-Q-D"' -Label "应用包元数据"
+Assert-Contains -Text $AppManifest -Expected 'copyright = "2025 Arthur Jean; 2026 C-Q-D"' -Label "应用包元数据"
 
 Push-Location $RepositoryRoot
 try {

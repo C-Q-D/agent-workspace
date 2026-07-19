@@ -436,8 +436,8 @@ name = "agent-workspace"
 # Build: cargo deb -p paneflow-app --target x86_64-unknown-linux-gnu
 [package.metadata.deb]
 name = "paneflow"
-maintainer = "Arthur Jean <arthur.jean@strivex.fr>"
-copyright = "2025 Arthur Jean"
+maintainer = "C-Q-D"
+copyright = "2025 Arthur Jean; 2026 C-Q-D"
 license-file = ["../LICENSE", "0"]
 changelog = "../debian/changelog"
 section = "utils"
