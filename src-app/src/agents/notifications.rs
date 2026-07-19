@@ -18,8 +18,6 @@ const NOTIFICATION_DETAIL_CAP_CHARS: usize = 512;
 
 #[cfg(target_os = "windows")]
 const AGENT_WORKSPACE_WINDOWS_NOTIFICATION_ICON_ASSET: &str = "icons/agent-workspace.png";
-#[cfg(target_os = "windows")]
-const AGENT_WORKSPACE_WINDOWS_NOTIFICATION_ICON_FILE: &str = "agent-workspace-notification.png";
 
 /// Windows 通知使用独立公开图标名；其他平台继续使用现有上游打包名，
 /// 避免 UNIT-27 越界修改未纳入当前产品范围的 Linux/macOS 发布资产。
@@ -247,15 +245,32 @@ fn ensure_windows_notification_icon() -> Result<std::path::PathBuf, String> {
             )
         })?
         .data;
-    let icon_dir = crate::runtime_paths::data_dir()
-        .ok_or_else(|| "AgentWorkspace data dir is unavailable for notification icon".to_string())?
-        .join("icons");
+    let icon_path = crate::runtime_paths::user_data_layout()
+        .ok_or_else(|| {
+            "AgentWorkspace user data layout is unavailable for notification icon".to_string()
+        })?
+        .notification_icon_path();
+    ensure_windows_notification_icon_at(&icon_path, data.as_ref())?;
+    Ok(icon_path)
+}
+
+/// 在明确缓存路径写入 Windows 通知图标，相同内容不重复写盘。
+#[cfg(target_os = "windows")]
+fn ensure_windows_notification_icon_at(
+    icon_path: &std::path::Path,
+    data: &[u8],
+) -> Result<(), String> {
+    let icon_dir = icon_path.parent().ok_or_else(|| {
+        format!(
+            "notification icon path {} has no parent",
+            icon_path.display()
+        )
+    })?;
     std::fs::create_dir_all(&icon_dir)
         .map_err(|err| format!("create notification icon dir {}: {err}", icon_dir.display()))?;
 
-    let icon_path = icon_dir.join(AGENT_WORKSPACE_WINDOWS_NOTIFICATION_ICON_FILE);
-    let needs_write = match std::fs::read(&icon_path) {
-        Ok(existing) => existing != data.as_ref(),
+    let needs_write = match std::fs::read(icon_path) {
+        Ok(existing) => existing != data,
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => true,
         Err(err) => {
             return Err(format!(
@@ -265,15 +280,36 @@ fn ensure_windows_notification_icon() -> Result<std::path::PathBuf, String> {
         }
     };
     if needs_write {
-        std::fs::write(&icon_path, data.as_ref())
+        std::fs::write(icon_path, data)
             .map_err(|err| format!("write notification icon {}: {err}", icon_path.display()))?;
     }
-    Ok(icon_path)
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn notification_icon_rebuilds_only_inside_cache() {
+        let sandbox = tempfile::TempDir::new().expect("应能创建真实临时目录");
+        let layout = paneflow_config::data_layout::UserDataLayout::from_home(sandbox.path());
+        let durable = layout.settings_path();
+        std::fs::create_dir_all(durable.parent().expect("durable 文件必须有父目录")).unwrap();
+        std::fs::write(&durable, b"durable-settings").unwrap();
+
+        let icon_path = layout.notification_icon_path();
+        ensure_windows_notification_icon_at(&icon_path, b"embedded-icon-v1").unwrap();
+        assert_eq!(std::fs::read(&icon_path).unwrap(), b"embedded-icon-v1");
+        assert!(!layout.root().join("icons").exists());
+
+        std::fs::remove_dir_all(layout.cache_dir()).unwrap();
+        ensure_windows_notification_icon_at(&icon_path, b"embedded-icon-v1").unwrap();
+
+        assert_eq!(std::fs::read(&icon_path).unwrap(), b"embedded-icon-v1");
+        assert_eq!(std::fs::read(&durable).unwrap(), b"durable-settings");
+    }
 
     #[test]
     fn notification_gate_honors_never_and_window_focus() {

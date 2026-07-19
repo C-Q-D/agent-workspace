@@ -96,6 +96,7 @@ mod tests {
         let build_script = include_str!("../build.rs");
         let about_dialog = include_str!("app/about_dialog.rs");
         let notifications = include_str!("agents/notifications.rs");
+        let data_layout = include_str!("../../crates/paneflow-config/src/data_layout.rs");
 
         // 四个公开入口必须使用同名 AgentWorkspace 资产，防止后续改动只更新
         // 窗口或安装器的一部分，重新出现任务栏与 About 图标不一致。
@@ -109,7 +110,10 @@ mod tests {
         assert!(about_dialog.contains("icons/agent-workspace.png"));
         assert!(!about_dialog.contains("icons/paneflow.png"));
         assert!(notifications.contains("icons/agent-workspace.png"));
-        assert!(notifications.contains("agent-workspace-notification.png"));
+        assert!(notifications.contains(".notification_icon_path()"));
+        assert!(data_layout.contains(
+            "pub const NOTIFICATION_ICON_FILENAME: &str = \"agent-workspace-notification.png\""
+        ));
     }
 
     #[cfg(target_os = "windows")]

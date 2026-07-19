@@ -1,12 +1,8 @@
-//! Shell resolution + automatic OSC 7 injection.
+//! 解析默认 Shell 并按需生成 OSC 7 集成脚本。
 //!
-//! `resolve_default_shell` picks the shell binary to launch in every PTY,
-//! following a platform-specific fallback chain. `setup_shell_integration`
-//! writes small per-shell rc scripts into Paneflow's local data dir
-//! (`runtime_paths::shell_integration_dir`) and returns the extra CLI
-//! args/env needed to wire them in.
-//!
-//! Keep this module shell-specific: no terminal state, no GPUI.
+//! `resolve_default_shell` 负责平台回退链；`setup_shell_integration` 只把小型
+//! rc 脚本写入 AgentWorkspace 的 `cache/shell/`，并返回启动 Shell 所需参数
+//! 与环境变量。本模块不持有终端状态，也不接触 GPUI。
 
 use std::collections::HashMap;
 
@@ -492,19 +488,10 @@ fn to_shell_path(p: &std::path::Path) -> String {
     }
 }
 
-/// Write OSC 7 shell integration scripts and return the extra shell args
-/// and env vars needed to activate them. Scripts are written to
-/// `runtime_paths::shell_integration_dir()/{zsh,bash,fish,pwsh}/`.
+/// 按需写入 OSC 7 Shell 集成脚本，并返回激活脚本所需参数和环境变量。
 ///
-/// Supported shells:
-/// - **zsh, bash, fish** - BEL-terminated OSC 7 via per-prompt hooks.
-/// - **PowerShell 5.1 / pwsh 7** (US-012) - `prompt` function wrapper,
-///   dot-sourced so the user's `$PROFILE`-defined prompt still renders.
-/// - **cmd.exe** - `info!` log only; cmd has no per-prompt scripting hook,
-///   so split-pane CWD inheritance from a cmd.exe pane is v1-unsupported
-///   (documented in `docs/WINDOWS.md` per US-022).
-/// - **Shells without injection** (nushell, elvish, xonsh): rely on
-///   `cwd_now()` fallback. On macOS this requires `proc_pidinfo()`.
+/// 脚本位于 `cache/shell/{zsh,bash,fish,pwsh}/`；缓存删除后，下次创建终端
+/// 会自动重建。cmd.exe 和无法注入的 Shell 返回空参数并使用现有降级逻辑。
 pub(super) fn setup_shell_integration(
     shell: &str,
     env: &mut HashMap<String, String>,
@@ -513,7 +500,16 @@ pub(super) fn setup_shell_integration(
     let Some(base) = crate::runtime_paths::shell_integration_dir() else {
         return vec![];
     };
+    setup_shell_integration_at(&base, shell, env, profile)
+}
 
+/// 使用明确缓存目录生成脚本，供生产入口和真实文件系统测试共享。
+fn setup_shell_integration_at(
+    base: &std::path::Path,
+    shell: &str,
+    env: &mut HashMap<String, String>,
+    profile: TerminalSurfaceProfile,
+) -> Vec<String> {
     // US-006 - `Path::file_name()` is path-separator-agnostic:
     //   /bin/zsh  → "zsh"      (Unix)
     //   C:\Windows\System32\cmd.exe → "cmd.exe"  (Windows)
@@ -645,6 +641,48 @@ fn quote_fish_arg(arg: &str) -> String {
 mod tests {
     use super::{clear_then_for_shell, powershell_startup_args};
     use paneflow_config::schema::TerminalSurfaceProfile;
+
+    #[test]
+    fn powershell_integration_rebuilds_only_inside_cache() {
+        let sandbox = tempfile::TempDir::new().expect("应能创建真实临时目录");
+        let layout = paneflow_config::data_layout::UserDataLayout::from_home(sandbox.path());
+        let durable_files = [
+            layout.settings_path(),
+            layout.workspaces_path(),
+            layout.telemetry_id_path(),
+            layout.bin_dir().join("paneflow-mcp.exe"),
+        ];
+        for path in &durable_files {
+            std::fs::create_dir_all(path.parent().expect("durable 文件必须有父目录")).unwrap();
+            std::fs::write(path, b"durable-bytes").unwrap();
+        }
+        let mut env = std::collections::HashMap::new();
+
+        let first = super::setup_shell_integration_at(
+            &layout.shell_integration_dir(),
+            "pwsh.exe",
+            &mut env,
+            TerminalSurfaceProfile::Normal,
+        );
+        let script = layout.shell_integration_dir().join("pwsh/osc7.ps1");
+        let first_bytes = std::fs::read(&script).expect("首次应生成 PowerShell 集成脚本");
+        assert!(!first.is_empty());
+        assert!(!layout.root().join("shell").exists());
+
+        std::fs::remove_dir_all(layout.cache_dir()).unwrap();
+        let second = super::setup_shell_integration_at(
+            &layout.shell_integration_dir(),
+            "pwsh.exe",
+            &mut env,
+            TerminalSurfaceProfile::Normal,
+        );
+
+        assert_eq!(first, second);
+        assert_eq!(std::fs::read(&script).unwrap(), first_bytes);
+        for path in durable_files {
+            assert_eq!(std::fs::read(path).unwrap(), b"durable-bytes");
+        }
+    }
 
     // (B) Unix well-known-dir shell lookup: a bare name not on PATH still
     // resolves from a standard install dir (the macOS pwsh-under-Homebrew gap),

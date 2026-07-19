@@ -156,8 +156,9 @@ pub(crate) fn socket_path() -> Option<PathBuf> {
     socket_path_spec().map(|spec| spec.path)
 }
 
+/// 返回 Shell 集成脚本的可重建缓存目录，不创建目录。
 pub(crate) fn shell_integration_dir() -> Option<PathBuf> {
-    data_dir().map(|dir| dir.join("shell"))
+    user_data_layout().map(|layout| layout.shell_integration_dir())
 }
 
 fn socket_path_from_env(raw: Option<std::ffi::OsString>) -> Option<PathBuf> {
@@ -319,29 +320,12 @@ mod data_path_tests {
     }
 }
 
-/// Stable, **non-versioned** absolute path of the embedded `paneflow-mcp`
-/// bridge binary (EP-001 US-003).
+/// 返回内嵌 MCP bridge 的稳定、无版本绝对路径。
 ///
-/// Unlike the shim / ai-hook helpers - which live under
-/// `cache_dir()/paneflow/bin/<VERSION>/` and are re-resolved by Paneflow on
-/// every launch - the bridge path is written into **external, persistent
-/// agent configs** (`~/.claude.json`, `~/.codex/config.toml`, ...) by
-/// `paneflow mcp install`. A version-pinned path would go stale on the next
-/// Paneflow update, and `cache_dir()` can be purged by the OS. So the bridge
-/// lives under `data_dir()` (durable, non-versioned):
-///
-/// - Linux:   `~/.local/share/paneflow/bin/paneflow-mcp`
-/// - macOS:   `~/Library/Application Support/paneflow/bin/paneflow-mcp`
-/// - Windows: `%LOCALAPPDATA%\paneflow\bin\paneflow-mcp.exe`
-///
-/// Returns `None` when `data_dir()` is unresolvable or unwritable. Callers
-/// (`ai_hooks::extract::ensure_bridge_extracted`, and later `paneflow mcp
-/// install`) must treat `None` as "refuse to register a config pointing at a
-/// path that does not exist" rather than fabricating a path.
-///
-/// This only **computes** the path; it does not extract. The byte
-/// materialization + SHA-compared atomic rewrite is
-/// `ai_hooks::extract::ensure_bridge_extracted`.
+/// 外部 Codex/Claude 配置会持久引用此路径，因此 helper 必须位于
+/// `~/.agent-workspace/bin/`（调试版使用对应 dev 根），不能进入可清理缓存。
+/// 本函数只计算路径；无法准备用户数据根时返回 `None`，实际原子释放由
+/// `ai_hooks::extract::ensure_bridge_extracted` 负责。
 pub fn bridge_binary_path() -> Option<PathBuf> {
     let suffix = if cfg!(windows) { ".exe" } else { "" };
     Some(
@@ -351,20 +335,11 @@ pub fn bridge_binary_path() -> Option<PathBuf> {
     )
 }
 
-/// Stable, non-versioned path of the `paneflow-ai-hook` callback binary
-/// (EP-004 US-016, prd-cli-agent-orchestration). Same rationale as
-/// [`bridge_binary_path`]: `paneflow hooks setup` writes this path into
-/// **external, persistent agent configs** (`~/.claude/settings.json`, …), so it
-/// must survive Paneflow updates - unlike the version-pinned shim/ai-hook copy
-/// under `cache_dir()/paneflow/bin/<VERSION>/` that the shim itself resolves at
-/// launch. Lives alongside the bridge under `data_dir()/paneflow/bin/`:
+/// 返回 AI Hook callback 的稳定、无版本绝对路径。
 ///
-/// - Linux:   `~/.local/share/paneflow/bin/paneflow-ai-hook`
-/// - macOS:   `~/Library/Application Support/paneflow/bin/paneflow-ai-hook`
-/// - Windows: `%LOCALAPPDATA%\paneflow\bin\paneflow-ai-hook.exe`
-///
-/// Returns `None` when `data_dir()` is unresolvable. Computes the path only;
-/// the byte materialization is `ai_hooks::extract::ensure_ai_hook_extracted`.
+/// 与 [`bridge_binary_path`] 相同，外部配置会持久引用此文件，因此它属于
+/// durable `bin/`，不会随 `cache/` 清理。函数只计算路径，实际释放由
+/// `ai_hooks::extract::ensure_ai_hook_extracted` 负责。
 pub fn ai_hook_binary_path() -> Option<PathBuf> {
     let suffix = if cfg!(windows) { ".exe" } else { "" };
     Some(
