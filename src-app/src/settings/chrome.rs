@@ -143,6 +143,11 @@ const NAV_GROUPS: &[NavGroup] = &[
                     "permissions",
                     "launcher",
                     "tab bar",
+                    "command",
+                    "commands",
+                    "launch command",
+                    "executable",
+                    "path",
                 ],
             },
             NavItem {
@@ -154,6 +159,15 @@ const NAV_GROUPS: &[NavGroup] = &[
         ],
     },
 ];
+
+/// 判断设置导航项是否匹配已经标准化为小写的查询词。
+///
+/// 将匹配规则抽成纯函数，既避免渲染路径重复分配，也便于验证命令相关关键词。
+fn nav_item_matches(item: &NavItem, query: &str) -> bool {
+    query.is_empty()
+        || item.label.to_lowercase().contains(query)
+        || item.keywords.iter().any(|keyword| keyword.contains(query))
+}
 
 /// Human page title shown as the content H1.
 pub(crate) fn section_title(section: SettingsSection) -> &'static str {
@@ -232,11 +246,7 @@ impl PaneFlowApp {
             let items: Vec<&NavItem> = group
                 .items
                 .iter()
-                .filter(|it| {
-                    query.is_empty()
-                        || it.label.to_lowercase().contains(&query)
-                        || it.keywords.iter().any(|k| k.contains(query.as_str()))
-                })
+                .filter(|item| nav_item_matches(item, query.as_str()))
                 .collect();
             if items.is_empty() {
                 continue;
@@ -557,6 +567,12 @@ impl PaneFlowApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        let previous_section = self.settings_section;
+        // 离开 AI Agent 页面时提交尚未通过回车或失焦保存的命令输入。
+        if previous_section == Some(SettingsSection::AiAgent) && section != SettingsSection::AiAgent
+        {
+            self.commit_ai_agent_command_inputs(cx);
+        }
         self.settings_section = Some(section);
         self.reset_settings_scroll();
         self.font_dropdown_open = false;
@@ -576,7 +592,35 @@ impl PaneFlowApp {
         if section == SettingsSection::Workspaces {
             self.sync_workspace_template_inputs(cx);
         }
+        // 进入页面时从内存配置重新同步，确保外部配置重载后的显示值一致。
+        if section == SettingsSection::AiAgent && previous_section != Some(SettingsSection::AiAgent)
+        {
+            self.sync_ai_agent_command_inputs(cx);
+        }
         self.settings_focus.focus(window, cx);
         cx.notify();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// AI Agent 导航必须能通过工具名和启动命令相关词汇被检索到。
+    #[test]
+    fn ai_agent_navigation_matches_command_keywords() {
+        let item = NAV_GROUPS
+            .iter()
+            .flat_map(|group| group.items.iter())
+            .find(|item| item.section == SettingsSection::AiAgent)
+            .expect("AI Agent 导航项应当存在");
+
+        for query in ["claude", "codex", "command", "launch command", "executable"] {
+            assert!(
+                nav_item_matches(item, query),
+                "查询词 {query} 应匹配 AI Agent 页面"
+            );
+        }
+        assert!(!nav_item_matches(item, "font size"));
     }
 }

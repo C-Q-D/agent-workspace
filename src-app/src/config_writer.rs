@@ -131,8 +131,39 @@ pub fn save_config_values_checked<const N: usize>(values: [(&str, serde_json::Va
         log::warn!("config: cannot determine config path, not saving");
         return false;
     };
+    save_config_values_to_path_checked(&path, values, || true)
+}
+
+/// 仅当调用方的保存代次仍是最新值时写入一个顶层字段。
+///
+/// 代次判断位于全局配置写锁内部，因此同字段的旧后台任务即使晚于新任务获得
+/// 执行机会，也只会被视为已合并成功，不会把磁盘值回滚到旧输入。
+pub fn save_config_value_checked_if_current(
+    key: &str,
+    value: serde_json::Value,
+    generation: &std::sync::atomic::AtomicU64,
+    expected_generation: u64,
+) -> bool {
+    let Some(path) = paneflow_config::loader::config_path() else {
+        log::warn!("config: cannot determine config path, not saving");
+        return false;
+    };
+    save_config_values_to_path_checked(&path, [(key, value)], || {
+        generation.load(std::sync::atomic::Ordering::Acquire) == expected_generation
+    })
+}
+
+/// 在指定真实文件上执行带锁的顶层字段读改写，供正式入口和文件级测试共用。
+fn save_config_values_to_path_checked<const N: usize>(
+    path: &PathBuf,
+    values: [(&str, serde_json::Value); N],
+    should_write: impl FnOnce() -> bool,
+) -> bool {
     let _guard = config_write_guard();
-    let Ok(mut json) = load_raw_config(&path) else {
+    if !should_write() {
+        return true;
+    }
+    let Ok(mut json) = load_raw_config(path) else {
         return false;
     };
     if let Some(root) = json.as_object_mut() {
@@ -144,7 +175,7 @@ pub fn save_config_values_checked<const N: usize>(values: [(&str, serde_json::Va
             }
         }
     }
-    write_config_checked(&path, &json)
+    write_config_checked(path, &json)
 }
 
 /// Pure read-modify-write of the `shortcuts` map. Extracted from
@@ -383,7 +414,7 @@ pub fn save_commands_checked(commands: Vec<paneflow_config::schema::CommandDefin
 mod tests {
     use super::{
         apply_agent_panel_field, apply_terminal_field, load_raw_config, merge_shortcut,
-        write_config_checked,
+        save_config_values_to_path_checked, write_config_checked,
     };
     use serde_json::{Value, json};
 
@@ -440,6 +471,64 @@ mod tests {
             load_raw_config(&p).is_err(),
             "a valid JSON non-object is not a writable paneflow config root"
         );
+    }
+
+    #[test]
+    fn concurrent_top_level_saves_preserve_unknown_fields_and_each_other() {
+        // 两个真实后台线程同时保存 Claude/Codex，验证全局锁内的重新读取不会丢字段。
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = std::sync::Arc::new(dir.path().join("paneflow.json"));
+        std::fs::write(
+            path.as_ref(),
+            serde_json::to_vec_pretty(&json!({"future_setting": {"enabled": true}})).unwrap(),
+        )
+        .unwrap();
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(3));
+
+        let claude_path = std::sync::Arc::clone(&path);
+        let claude_barrier = std::sync::Arc::clone(&barrier);
+        let claude = std::thread::spawn(move || {
+            claude_barrier.wait();
+            save_config_values_to_path_checked(
+                &claude_path,
+                [("claude_code_command", json!("claude-wrapper"))],
+                || true,
+            )
+        });
+        let codex_path = std::sync::Arc::clone(&path);
+        let codex_barrier = std::sync::Arc::clone(&barrier);
+        let codex = std::thread::spawn(move || {
+            codex_barrier.wait();
+            save_config_values_to_path_checked(
+                &codex_path,
+                [("codex_command", json!("codex-wrapper"))],
+                || true,
+            )
+        });
+        barrier.wait();
+        assert!(claude.join().unwrap());
+        assert!(codex.join().unwrap());
+
+        let saved: Value = serde_json::from_slice(&std::fs::read(path.as_ref()).unwrap()).unwrap();
+        assert_eq!(saved["claude_code_command"], json!("claude-wrapper"));
+        assert_eq!(saved["codex_command"], json!("codex-wrapper"));
+        assert_eq!(saved["future_setting"]["enabled"], json!(true));
+    }
+
+    #[test]
+    fn superseded_generation_skips_stale_real_file_write() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("paneflow.json");
+        std::fs::write(&path, r#"{"claude_code_command":"newest"}"#).unwrap();
+        let generation = std::sync::atomic::AtomicU64::new(2);
+
+        assert!(save_config_values_to_path_checked(
+            &path,
+            [("claude_code_command", json!("stale"))],
+            || generation.load(std::sync::atomic::Ordering::Acquire) == 1,
+        ));
+        let saved: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        assert_eq!(saved["claude_code_command"], json!("newest"));
     }
 
     fn shortcuts(pairs: &[(&str, &str)]) -> serde_json::Map<String, Value> {

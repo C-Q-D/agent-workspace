@@ -38,6 +38,8 @@ impl PaneFlowApp {
         // always visible (a leftover query could filter the nav to a section
         // that doesn't match the displayed page).
         self.clear_settings_search(cx);
+        // 设置页重新打开时，以当前内存配置刷新输入框，避免沿用上一次未保存的显示值。
+        self.sync_ai_agent_command_inputs(cx);
         // Warm the MCP bridge status off-thread so the MCP page can render its
         // button label without ever doing config I/O during a frame.
         self.refresh_mcp_status(cx);
@@ -46,6 +48,10 @@ impl PaneFlowApp {
     }
 
     pub(crate) fn close_settings(&mut self, cx: &mut Context<Self>) {
+        // 关闭 AI Agent 设置页等同于离开该页，需要提交仍停留在输入框中的有效值。
+        if self.settings_section == Some(SettingsSection::AiAgent) {
+            self.commit_ai_agent_command_inputs(cx);
+        }
         self.settings_section = None;
         self.profile_menu_open = None;
         self.font_dropdown_open = false;
@@ -124,6 +130,55 @@ impl PaneFlowApp {
             if !ok {
                 log::warn!(
                     "settings: failed to persist {key}; choice is in-memory only this session"
+                );
+                let _ = this.update(cx, |this, cx| {
+                    this.show_toast(format!("Could not save setting: {key}"), cx);
+                });
+            }
+        })
+        .detach();
+    }
+
+    /// 保存 Claude/Codex 完整启动命令，并保证同字段最后一次提交获胜。
+    ///
+    /// 输入阶段不调用该方法；只有 Enter、失焦或恢复默认才更新内存配置并调度
+    /// 后台原子写入。两个字段使用独立代次，互不取消；同字段旧任务在配置写锁
+    /// 内检查代次后自动跳过，避免慢任务把新命令回滚。
+    pub(crate) fn persist_agent_command_setting(
+        &mut self,
+        key: &'static str,
+        value: serde_json::Value,
+        cx: &mut Context<Self>,
+    ) {
+        let generation = match key {
+            "claude_code_command" => std::sync::Arc::clone(&self.ai_agent_claude_command_save_seq),
+            "codex_command" => std::sync::Arc::clone(&self.ai_agent_codex_command_save_seq),
+            _ => {
+                log::warn!("settings: unsupported agent command key {key}");
+                self.show_toast("Could not save unsupported agent command setting", cx);
+                return;
+            }
+        };
+        let expected_generation = generation
+            .fetch_add(1, std::sync::atomic::Ordering::AcqRel)
+            .saturating_add(1);
+
+        self.cached_config =
+            config_writer::with_field(&self.cached_config, false, key, value.clone());
+        cx.notify();
+        cx.spawn(async move |this, cx| {
+            let ok = smol::unblock(move || {
+                config_writer::save_config_value_checked_if_current(
+                    key,
+                    value,
+                    &generation,
+                    expected_generation,
+                )
+            })
+            .await;
+            if !ok {
+                log::warn!(
+                    "settings: failed to persist {key}; command is in-memory only this session"
                 );
                 let _ = this.update(cx, |this, cx| {
                     this.show_toast(format!("Could not save setting: {key}"), cx);

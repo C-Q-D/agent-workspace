@@ -992,6 +992,14 @@ struct PaneFlowApp {
     /// Codex settings nav search box (filters the section list). A real
     /// single-line `TextInput`, observed so each keystroke re-renders the nav.
     settings_search_input: gpui::Entity<crate::widgets::text_input::TextInput>,
+    /// AI Agent 页的 Claude/Codex 完整启动命令输入；编辑只更新实体，提交时才写盘。
+    ai_agent_claude_command_input: gpui::Entity<crate::widgets::text_input::TextInput>,
+    ai_agent_codex_command_input: gpui::Entity<crate::widgets::text_input::TextInput>,
+    /// 最近一次命令设置的校验或保存提示，避免错误只存在于日志中。
+    ai_agent_command_status: Option<String>,
+    /// 每个字段独立的保存代次；后台旧任务不得覆盖同字段的更新值。
+    ai_agent_claude_command_save_seq: std::sync::Arc<std::sync::atomic::AtomicU64>,
+    ai_agent_codex_command_save_seq: std::sync::Arc<std::sync::atomic::AtomicU64>,
     /// Codex settings: which Terminal-page dropdown is open (`None` = closed).
     terminal_dropdown: Option<TerminalDropdown>,
     /// Codex settings: which General-page select is open (`None` = closed).

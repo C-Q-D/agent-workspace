@@ -815,6 +815,16 @@ impl PaneFlowApp {
             cx.new(|cx| crate::widgets::text_input::TextInput::new("", "Search settings…", cx));
         cx.observe(&settings_search_input, |_, _, cx| cx.notify())
             .detach();
+        // Agent 命令输入与搜索框相同，只在内存中响应按键；保存由 AI Agent 页
+        // 的 Enter、失焦和恢复默认操作显式触发，避免逐键磁盘写入。
+        let ai_agent_claude_command_input =
+            cx.new(|cx| crate::widgets::text_input::TextInput::new("", "claude", cx));
+        cx.observe(&ai_agent_claude_command_input, |_, _, cx| cx.notify())
+            .detach();
+        let ai_agent_codex_command_input =
+            cx.new(|cx| crate::widgets::text_input::TextInput::new("", "codex", cx));
+        cx.observe(&ai_agent_codex_command_input, |_, _, cx| cx.notify())
+            .detach();
         let workspace_template_name_input =
             cx.new(|cx| crate::widgets::text_input::TextInput::new("", "Workspace name", cx));
         cx.observe(&workspace_template_name_input, |_, _, cx| cx.notify())
@@ -874,6 +884,15 @@ impl PaneFlowApp {
             settings_scroll: gpui::ScrollHandle::new(),
             settings_drag: None,
             settings_search_input,
+            ai_agent_claude_command_input,
+            ai_agent_codex_command_input,
+            ai_agent_command_status: None,
+            ai_agent_claude_command_save_seq: std::sync::Arc::new(
+                std::sync::atomic::AtomicU64::new(0),
+            ),
+            ai_agent_codex_command_save_seq: std::sync::Arc::new(
+                std::sync::atomic::AtomicU64::new(0),
+            ),
             terminal_dropdown: None,
             general_dropdown: None,
             workspace_template_dropdown: None,
@@ -1092,6 +1111,7 @@ impl PaneFlowApp {
 
         // 应用字段完整后再登记恢复工作区，确保非 Git 目录也进入与显式创建相同的
         // 后台初始化、稳定 ID 回填和 watcher 引用计数流程。
+        app.sync_ai_agent_command_inputs(cx);
         app.register_workspace_lifecycles(&restored_lifecycles, cx);
 
         // US-013 AC #1 - fire `app_started` once per launch. `Null` clients
