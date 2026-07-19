@@ -787,7 +787,10 @@ mod tests {
         // All bundled themes must produce a readable selection foreground.
         for (label, theme) in [
             ("One Dark", apply_surface_overrides(one_dark())),
-            ("PaneFlow Light", apply_surface_overrides(paneflow_light())),
+            (
+                crate::product_identity::LIGHT_THEME_NAME,
+                apply_surface_overrides(paneflow_light()),
+            ),
             ("Vercel", apply_surface_overrides(vercel())),
             ("Claude", apply_surface_overrides(claude())),
             ("Cursor", apply_surface_overrides(cursor())),
@@ -935,7 +938,7 @@ mod tests {
         // US-001 AC #1/#5: ≥ 18 distinct color values per theme (up from 8).
         for (label, theme) in [
             ("One Dark", one_dark()),
-            ("PaneFlow Light", paneflow_light()),
+            (crate::product_identity::LIGHT_THEME_NAME, paneflow_light()),
             ("Vercel", vercel()),
             ("Claude", claude()),
             ("Cursor", cursor()),
@@ -956,7 +959,7 @@ mod tests {
         let default = Hsla::default();
         for (label, theme) in [
             ("One Dark", one_dark()),
-            ("PaneFlow Light", paneflow_light()),
+            (crate::product_identity::LIGHT_THEME_NAME, paneflow_light()),
             ("Vercel", vercel()),
             ("Claude", claude()),
             ("Cursor", cursor()),

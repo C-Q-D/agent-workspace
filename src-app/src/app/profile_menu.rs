@@ -1,7 +1,7 @@
-//! Profile menu - opened by clicking the user avatar on the right of the
-//! title bar. Mirrors Zed's user menu shape: a user-info header and an app
-//! action list (Settings, Themes…, About). Sign Out will be added once auth
-//! is wired.
+//! 标题栏右侧用户头像打开的个人菜单。
+//!
+//! 菜单提供用户摘要和 Settings、Themes、About 等应用操作；认证能力接入后
+//! 再增加 Sign Out，本文件不负责账号状态。
 
 use gpui::{
     AnyElement, ClickEvent, Context, InteractiveElement, IntoElement, MouseButton, ParentElement,
@@ -122,7 +122,7 @@ impl PaneFlowApp {
 
         let documentation = menu_item(
             "title-bar-help-documentation",
-            "Paneflow Documentation",
+            "AgentWorkspace Documentation",
             Box::new(cx.listener(|this, _: &ClickEvent, _, cx| {
                 this.title_bar_help_menu_open = None;
                 this.open_help_url(DOCUMENTATION_URL, cx);
@@ -167,7 +167,7 @@ impl PaneFlowApp {
         );
         let about = menu_item(
             "title-bar-help-about",
-            "About Paneflow",
+            "About AgentWorkspace",
             Box::new(cx.listener(|this, _: &ClickEvent, _, cx| {
                 this.title_bar_help_menu_open = None;
                 this.show_about_dialog = true;
@@ -288,7 +288,7 @@ impl PaneFlowApp {
 
         let about_item = self.render_context_menu_item(
             SharedString::from("profile-menu-about"),
-            "About PaneFlow",
+            "About AgentWorkspace",
             None,
             ui,
             cx.listener(|this, _: &ClickEvent, _w, cx| {

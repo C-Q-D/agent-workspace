@@ -580,7 +580,7 @@ impl Render for TitleBar {
                             ("Installing update…".to_string(), PillStyle::Busy)
                         }
                         SelfUpdatePillState::ReadyToRestart => {
-                            ("Restart Paneflow".to_string(), PillStyle::Clickable)
+                            ("Restart AgentWorkspace".to_string(), PillStyle::Clickable)
                         }
                         SelfUpdatePillState::Errored => {
                             ("Update failed".to_string(), PillStyle::Clickable)

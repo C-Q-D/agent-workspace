@@ -1,4 +1,4 @@
-//! About Paneflow modal, styled as a compact native application dialog.
+//! AgentWorkspace 的紧凑型原生 About 对话框。
 
 use gpui::{
     AnyElement, ClickEvent, Context, InteractiveElement, IntoElement, MouseButton, ObjectFit,
@@ -6,6 +6,7 @@ use gpui::{
 };
 
 use crate::PaneFlowApp;
+use crate::product_identity::PRODUCT_NAME;
 
 impl PaneFlowApp {
     pub(crate) fn render_about_dialog(&self, cx: &mut Context<Self>) -> AnyElement {
@@ -66,7 +67,7 @@ impl PaneFlowApp {
                             .text_size(px(12.))
                             .font_weight(gpui::FontWeight::NORMAL)
                             .text_color(ui.text)
-                            .child("About Paneflow"),
+                            .child(format!("About {PRODUCT_NAME}")),
                     ),
             )
             .child(close_x);
@@ -91,7 +92,7 @@ impl PaneFlowApp {
                     .text_color(ui.text)
                     .text_size(px(16.))
                     .font_weight(gpui::FontWeight::SEMIBOLD)
-                    .child("Paneflow"),
+                    .child(PRODUCT_NAME),
             )
             .child(
                 div()
@@ -105,7 +106,7 @@ impl PaneFlowApp {
                     .mt(px(14.))
                     .text_color(ui.muted)
                     .text_size(px(12.))
-                    .child("© Arthur Jean"),
+                    .child("Open-source contributors"),
             );
 
         let ok_button = div()

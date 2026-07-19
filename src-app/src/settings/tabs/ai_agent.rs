@@ -187,7 +187,7 @@ impl PaneFlowApp {
         let permissions_card = setting_card(ui).child(setting_row(
             "row-claude-bypass",
             "Bypass permissions",
-            "Adds --permission-mode bypassPermissions whenever Paneflow \
+            "Adds --permission-mode bypassPermissions whenever AgentWorkspace \
              launches Claude Code in a terminal (tab-bar button and the \
              Agents-view thread picker). Anthropic warns this mode offers \
              no protection against prompt injection - only enable on \

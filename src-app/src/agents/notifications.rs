@@ -10,6 +10,7 @@ use gpui::BackgroundExecutor;
 use paneflow_config::schema::{AgentPanelConfig, NotifyWhenAgentWaiting, PaneFlowConfig};
 
 use crate::agent_launcher::TerminalAgent;
+use crate::product_identity::PRODUCT_NAME;
 #[cfg(target_os = "windows")]
 use crate::windows_app_identity::AGENT_WORKSPACE_WINDOWS_AUMID;
 
@@ -150,7 +151,7 @@ pub(crate) fn notification_context_body(
     session_summary
         .and_then(notification_detail)
         .or_else(|| notification_detail(workspace_title))
-        .unwrap_or_else(|| "Paneflow".to_string())
+        .unwrap_or_else(|| PRODUCT_NAME.to_string())
 }
 
 pub(crate) fn attention_notification_body(workspace_title: &str, message: Option<&str>) -> String {
@@ -176,7 +177,7 @@ fn show_desktop_notification(notification: DesktopNotification) -> Result<(), St
     builder
         .summary(&notification.summary)
         .body(&notification.body)
-        .appname("Paneflow")
+        .appname(PRODUCT_NAME)
         .icon("paneflow")
         .timeout(std::time::Duration::from_secs(8));
 
@@ -220,7 +221,7 @@ fn ensure_windows_app_user_model_id_registered() -> Result<(), String> {
     let key = windows_registry::CURRENT_USER
         .create(&key_path)
         .map_err(|err| format!("create HKCU\\{key_path}: {err}"))?;
-    key.set_string("DisplayName", "Paneflow")
+    key.set_string("DisplayName", PRODUCT_NAME)
         .map_err(|err| format!("set DisplayName: {err}"))?;
     key.set_string("IconBackgroundColor", "0")
         .map_err(|err| format!("set IconBackgroundColor: {err}"))?;
@@ -240,7 +241,7 @@ fn ensure_windows_notification_icon() -> Result<std::path::PathBuf, String> {
         })?
         .data;
     let icon_dir = crate::runtime_paths::data_dir()
-        .ok_or_else(|| "Paneflow data dir is unavailable for notification icon".to_string())?
+        .ok_or_else(|| "AgentWorkspace data dir is unavailable for notification icon".to_string())?
         .join("icons");
     std::fs::create_dir_all(&icon_dir)
         .map_err(|err| format!("create notification icon dir {}: {err}", icon_dir.display()))?;
@@ -275,11 +276,11 @@ mod tests {
         ));
         assert!(
             !should_fire_desktop_notification(NotifyWhenAgentWaiting::PrimaryScreen, true),
-            "active Paneflow window suppresses OS notifications"
+            "active AgentWorkspace window suppresses OS notifications"
         );
         assert!(
             should_fire_desktop_notification(NotifyWhenAgentWaiting::PrimaryScreen, false),
-            "inactive Paneflow window notifies"
+            "inactive AgentWorkspace window notifies"
         );
         assert!(should_fire_desktop_notification(
             NotifyWhenAgentWaiting::AllScreens,
@@ -310,6 +311,7 @@ mod tests {
             "Allow `cargo test`?"
         );
         assert_eq!(attention_notification_body("backend", None), "backend");
+        assert_eq!(notification_context_body("", None), PRODUCT_NAME);
         assert_eq!(
             attention_notification_body("backend", Some("   ")),
             "backend"

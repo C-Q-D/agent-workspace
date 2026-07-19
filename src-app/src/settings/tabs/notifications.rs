@@ -1,5 +1,4 @@
-//! "Notifications" settings page - channel-level controls for OS-native
-//! notifications and the in-app Rosetta surface.
+//! “Notifications” 设置页：控制系统原生通知与应用内 Rosetta 状态面。
 
 use gpui::{
     ClickEvent, Context, CursorStyle, InteractiveElement, IntoElement, ParentElement, SharedString,
@@ -27,7 +26,7 @@ impl PaneFlowApp {
             .child(agent_panel_toggle_row(
                 "row-native-notifications",
                 "Native OS notifications",
-                "Send system notifications when agents need attention or finish while Paneflow is unfocused.",
+                "Send system notifications when agents need attention or finish while AgentWorkspace is unfocused.",
                 native_notifications,
                 "notify_when_agent_waiting",
                 if native_notifications {

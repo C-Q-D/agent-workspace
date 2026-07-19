@@ -254,7 +254,7 @@ impl PaneFlowApp {
             .child(self.terminal_toggle_row(
                 "term-integrated-glyphs",
                 "Integrated glyphs",
-                "Draw block elements with Paneflow's built-in renderer instead of the font glyph.",
+                "Draw block elements with AgentWorkspace's built-in renderer instead of the font glyph.",
                 integrated_glyphs,
                 "integrated_glyphs",
                 true,
@@ -363,7 +363,7 @@ impl PaneFlowApp {
 
         if self.font_dropdown_open {
             let search = self.font_search.to_lowercase();
-            let default_label = format!("PaneFlow default - {default_font}");
+            let default_label = format!("AgentWorkspace default - {default_font}");
             let default_matches =
                 search.is_empty() || default_label.to_lowercase().contains(&search);
             let filtered: Vec<&String> = self

@@ -49,6 +49,7 @@ mod pane;
 mod pane_drag;
 mod pi_sessions;
 mod pricing;
+mod product_identity;
 mod project;
 mod reference_formatter;
 mod runtime_paths;
@@ -142,7 +143,7 @@ impl ThemeMode {
     }
 
     pub(crate) fn from_theme_name(name: &str) -> Self {
-        if name.eq_ignore_ascii_case("PaneFlow Light") {
+        if name.eq_ignore_ascii_case(product_identity::LIGHT_THEME_NAME) {
             Self::Light
         } else {
             Self::Dark
@@ -159,11 +160,11 @@ impl ThemeMode {
 
     pub(crate) fn resolved_theme_name(self, appearance: gpui::WindowAppearance) -> &'static str {
         match self {
-            Self::Light => "PaneFlow Light",
+            Self::Light => product_identity::LIGHT_THEME_NAME,
             Self::Dark => "One Dark",
             Self::System => {
                 if Self::appearance_is_light(appearance) {
-                    "PaneFlow Light"
+                    product_identity::LIGHT_THEME_NAME
                 } else {
                     "One Dark"
                 }
@@ -1094,7 +1095,7 @@ struct PaneFlowApp {
     swap_source: Option<Entity<crate::pane::Pane>>,
     /// LIFO stack of recently closed panes for undo-close (US-014).
     closed_panes: Vec<ClosedPaneRecord>,
-    /// Whether the "About PaneFlow" dialog is visible.
+    /// 是否显示 “About AgentWorkspace” 对话框。
     show_about_dialog: bool,
     /// 等待用户确认关闭的稳定 workspace ID；索引可能在对话框期间发生变化。
     pending_workspace_close: Option<u64>,
@@ -2648,7 +2649,7 @@ fn main() {
         }
         Err(err) => {
             log::warn!(
-                "parent_guard: failed to install Job Object; kill -9 of Paneflow may orphan agent CLIs ({err})"
+                "parent_guard: failed to install Job Object; force-killing AgentWorkspace may orphan agent CLIs ({err})"
             );
         }
     }
@@ -2985,7 +2986,7 @@ fn main() {
             match window_result {
                 Ok(_) => cx.activate(true),
                 Err(e) => {
-                    log::error!("Failed to open PaneFlow window: {e}");
+                    log::error!("Failed to open AgentWorkspace window: {e}");
                     #[cfg(target_os = "linux")]
                     eprintln!(
                         "Error: PaneFlow requires a GPU with Vulkan support.\n\n\
@@ -3000,8 +3001,8 @@ fn main() {
                     );
                     #[cfg(target_os = "windows")]
                     eprintln!(
-                        "Error: PaneFlow could not create its GPU-backed window on Windows.\n\n\
-                         Update your GPU driver from NVIDIA, AMD, Intel, or your PC vendor, then restart Paneflow.\n\
+                        "Error: AgentWorkspace could not create its GPU-backed window on Windows.\n\n\
+                         Update your GPU driver from NVIDIA, AMD, Intel, or your PC vendor, then restart AgentWorkspace.\n\
                          If this started after enabling a native backdrop, launch once with:\n\
                          \x20 PANEFLOW_WINDOW_BACKDROP=off\n\n\
                          Underlying error: {e}"

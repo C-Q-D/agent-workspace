@@ -1,4 +1,4 @@
-//! Bundled terminal themes and the registry used to look them up by name.
+//! 内置终端主题及按公开名称检索主题的注册表。
 
 use super::model::{SyntaxPalette, TerminalTheme, UiColors, h, ha};
 
@@ -6,7 +6,7 @@ pub type ThemeEntry = (&'static str, fn() -> TerminalTheme);
 
 pub static THEMES: &[ThemeEntry] = &[
     ("One Dark", one_dark),
-    ("PaneFlow Light", paneflow_light),
+    (crate::product_identity::LIGHT_THEME_NAME, paneflow_light),
     ("Vercel", vercel),
     ("Claude", claude),
     ("Cursor", cursor),

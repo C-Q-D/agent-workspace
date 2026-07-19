@@ -78,7 +78,7 @@ fn apply_native_theme(hwnd: isize, is_light: bool) {
     };
 
     if result < 0 {
-        log::debug!("Could not align the Windows backdrop with PaneFlow's theme");
+        log::debug!("Could not align the Windows backdrop with AgentWorkspace's theme");
         return;
     }
 
@@ -95,7 +95,7 @@ fn win32_hwnd(window: &gpui::Window) -> Option<isize> {
         return None;
     };
     let RawWindowHandle::Win32(handle) = window_handle.as_raw() else {
-        log::warn!("PaneFlow received a non-Win32 window handle on Windows");
+        log::warn!("AgentWorkspace received a non-Win32 window handle on Windows");
         return None;
     };
     Some(handle.hwnd.get())

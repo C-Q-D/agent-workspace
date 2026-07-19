@@ -13,7 +13,8 @@ use crate::widgets::scrollbar;
 use crate::{PaneFlowApp, ThemeMode, config_writer};
 
 pub(crate) fn is_default_theme_name(name: &str) -> bool {
-    name.eq_ignore_ascii_case("One Dark") || name.eq_ignore_ascii_case("PaneFlow Light")
+    name.eq_ignore_ascii_case("One Dark")
+        || name.eq_ignore_ascii_case(crate::product_identity::LIGHT_THEME_NAME)
 }
 
 impl PaneFlowApp {
