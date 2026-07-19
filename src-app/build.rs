@@ -74,9 +74,9 @@ fn main() {
         .expect("src-app manifest dir has a parent (the workspace root)")
         .to_path_buf();
 
-    // Windows：把多尺寸应用图标嵌入 agent-workspace.exe，供 Explorer 和
-    // 任务栏读取；否则裸可执行文件会显示系统通用图标。GPUI 运行时窗口图标
-    // 仍由内嵌 PNG 设置。UNIT-27 前暂时使用现有 PaneFlow.ico。
+    // Windows：把 AgentWorkspace 多尺寸应用图标嵌入 agent-workspace.exe，
+    // 供 Explorer 和任务栏读取；否则裸可执行文件会显示系统通用图标。
+    // GPUI 运行时窗口图标仍由同源的内嵌 PNG 设置。
     #[cfg(windows)]
     embed_windows_app_icon(&workspace_root);
 
@@ -278,7 +278,7 @@ fn enforce_embed_size_budget(embed_dir: &Path) {
 /// `winresource` 受 `cfg(windows)` 约束，不会进入其他平台构建图。
 #[cfg(windows)]
 fn embed_windows_app_icon(workspace_root: &Path) {
-    let icon = workspace_root.join("assets").join("PaneFlow.ico");
+    let icon = workspace_root.join("assets").join("AgentWorkspace.ico");
     let Some(icon_str) = icon.to_str() else {
         println!(
             "cargo:warning=winresource: icon path {} is not valid UTF-8; skipping exe icon embed",

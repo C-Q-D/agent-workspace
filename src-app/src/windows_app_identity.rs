@@ -90,6 +90,28 @@ mod tests {
         assert!(workspace_manifest.contains("https://github.com/C-Q-D/agent-workspace"));
     }
 
+    #[test]
+    fn windows_public_icon_chain_uses_agent_workspace_assets() {
+        let wix = include_str!("../../packaging/wix/main.wxs");
+        let build_script = include_str!("../build.rs");
+        let about_dialog = include_str!("app/about_dialog.rs");
+        let notifications = include_str!("agents/notifications.rs");
+
+        // 四个公开入口必须使用同名 AgentWorkspace 资产，防止后续改动只更新
+        // 窗口或安装器的一部分，重新出现任务栏与 About 图标不一致。
+        assert!(build_script.contains("join(\"AgentWorkspace.ico\")"));
+        assert!(!build_script.contains("join(\"PaneFlow.ico\")"));
+        assert!(wix.contains(
+            "<Icon Id='AgentWorkspaceICO' SourceFile='packaging/wix/agent-workspace.ico'/>"
+        ));
+        assert!(wix.contains("<Property Id='ARPPRODUCTICON' Value='AgentWorkspaceICO'/>"));
+        assert!(!wix.contains("packaging/wix/paneflow.ico"));
+        assert!(about_dialog.contains("icons/agent-workspace.png"));
+        assert!(!about_dialog.contains("icons/paneflow.png"));
+        assert!(notifications.contains("icons/agent-workspace.png"));
+        assert!(notifications.contains("agent-workspace-notification.png"));
+    }
+
     #[cfg(target_os = "windows")]
     #[test]
     fn windows_wide_null_is_null_terminated() {

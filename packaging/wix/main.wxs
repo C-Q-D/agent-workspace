@@ -3,8 +3,8 @@
   AgentWorkspace Windows 安装器身份定义。
   主程序直接安装到 %ProgramFiles%\AgentWorkspace\agent-workspace.exe，
   开始菜单快捷方式、任务栏 AUMID、卸载项和 PATH 均使用独立产品命名空间。
-  UNIT-27 前暂时复用 `packaging/wix/paneflow.ico`，不复用 Paneflow 的
-  UpgradeCode、组件 GUID、安装目录或注册表键。
+  Explorer、快捷方式和卸载项统一使用 AgentWorkspace 独立图标，不复用
+  Paneflow 的图标、UpgradeCode、组件 GUID、安装目录或注册表键。
 
   GUIDs baked in here MUST match `[package.metadata.wix]` in
   src-app/Cargo.toml:
@@ -180,12 +180,10 @@
 
         <SetProperty Id='ARPINSTALLLOCATION' Value='[APPLICATIONFOLDER]' After='CostFinalize'/>
 
-        <!-- AC-2c - ARP icon + publisher. ARPPRODUCTICON is referenced
-             from "Apps & features" and the legacy "Programs and Features"
-             control panel. Multi-resolution (16/32/48/128/256) built
-             from packaging/wix/paneflow.ico. -->
-        <Icon Id='PaneflowICO' SourceFile='packaging/wix/paneflow.ico'/>
-        <Property Id='ARPPRODUCTICON' Value='PaneflowICO'/>
+        <!-- “应用和功能”及旧控制面板共同读取此多尺寸 AgentWorkspace 图标；
+             开始菜单快捷方式则直接继承 agent-workspace.exe 的同源图标。 -->
+        <Icon Id='AgentWorkspaceICO' SourceFile='packaging/wix/agent-workspace.ico'/>
+        <Property Id='ARPPRODUCTICON' Value='AgentWorkspaceICO'/>
 
         <Property Id='ARPHELPLINK' Value='https://github.com/C-Q-D/agent-workspace'/>
         <Property Id='ARPURLINFOABOUT' Value='https://github.com/C-Q-D/agent-workspace'/>

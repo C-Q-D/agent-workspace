@@ -57,7 +57,7 @@ impl PaneFlowApp {
                     .items_center()
                     .gap(px(7.))
                     .child(
-                        img("icons/paneflow.png")
+                        img("icons/agent-workspace.png")
                             .w(px(16.))
                             .h(px(16.))
                             .object_fit(ObjectFit::Contain),
@@ -81,7 +81,7 @@ impl PaneFlowApp {
             .justify_center()
             .bg(rgb(0x202020))
             .child(
-                img("icons/paneflow.png")
+                img("icons/agent-workspace.png")
                     .w(px(64.))
                     .h(px(64.))
                     .object_fit(ObjectFit::Contain),

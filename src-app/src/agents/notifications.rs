@@ -17,12 +17,19 @@ use crate::windows_app_identity::AGENT_WORKSPACE_WINDOWS_AUMID;
 const NOTIFICATION_DETAIL_CAP_CHARS: usize = 512;
 
 #[cfg(target_os = "windows")]
-const PANEFLOW_WINDOWS_NOTIFICATION_ICON_ASSET: &str = "icons/paneflow.png";
+const AGENT_WORKSPACE_WINDOWS_NOTIFICATION_ICON_ASSET: &str = "icons/agent-workspace.png";
 #[cfg(target_os = "windows")]
-const PANEFLOW_WINDOWS_NOTIFICATION_ICON_FILE: &str = "paneflow-notification.png";
+const AGENT_WORKSPACE_WINDOWS_NOTIFICATION_ICON_FILE: &str = "agent-workspace-notification.png";
+
+/// Windows 通知使用独立公开图标名；其他平台继续使用现有上游打包名，
+/// 避免 UNIT-27 越界修改未纳入当前产品范围的 Linux/macOS 发布资产。
+#[cfg(target_os = "windows")]
+const DESKTOP_NOTIFICATION_ICON_NAME: &str = "agent-workspace";
+#[cfg(not(target_os = "windows"))]
+const DESKTOP_NOTIFICATION_ICON_NAME: &str = "paneflow";
 
 /// Window-active gate updated by `cx.observe_window_activation`.
-/// `true` while the OS reports the Paneflow window as the focused one.
+/// 当操作系统报告 AgentWorkspace 窗口获得焦点时为 `true`。
 static WINDOW_ACTIVE: AtomicBool = AtomicBool::new(true);
 
 /// Update the window-active flag. Called from
@@ -32,7 +39,7 @@ pub fn set_window_active(active: bool) {
     WINDOW_ACTIVE.store(active, Ordering::Relaxed);
 }
 
-/// Is the Paneflow window currently the focused surface?
+/// 返回 AgentWorkspace 窗口当前是否为获得焦点的界面。
 pub fn window_active() -> bool {
     WINDOW_ACTIVE.load(Ordering::Relaxed)
 }
@@ -178,7 +185,7 @@ fn show_desktop_notification(notification: DesktopNotification) -> Result<(), St
         .summary(&notification.summary)
         .body(&notification.body)
         .appname(PRODUCT_NAME)
-        .icon("paneflow")
+        .icon(DESKTOP_NOTIFICATION_ICON_NAME)
         .timeout(std::time::Duration::from_secs(8));
 
     #[cfg(any(all(unix, not(target_os = "macos")), target_os = "windows"))]
@@ -233,10 +240,10 @@ fn ensure_windows_app_user_model_id_registered() -> Result<(), String> {
 
 #[cfg(target_os = "windows")]
 fn ensure_windows_notification_icon() -> Result<std::path::PathBuf, String> {
-    let data = crate::assets::Assets::get(PANEFLOW_WINDOWS_NOTIFICATION_ICON_ASSET)
+    let data = crate::assets::Assets::get(AGENT_WORKSPACE_WINDOWS_NOTIFICATION_ICON_ASSET)
         .ok_or_else(|| {
             format!(
-                "embedded notification icon {PANEFLOW_WINDOWS_NOTIFICATION_ICON_ASSET} not found"
+                "embedded notification icon {AGENT_WORKSPACE_WINDOWS_NOTIFICATION_ICON_ASSET} not found"
             )
         })?
         .data;
@@ -246,7 +253,7 @@ fn ensure_windows_notification_icon() -> Result<std::path::PathBuf, String> {
     std::fs::create_dir_all(&icon_dir)
         .map_err(|err| format!("create notification icon dir {}: {err}", icon_dir.display()))?;
 
-    let icon_path = icon_dir.join(PANEFLOW_WINDOWS_NOTIFICATION_ICON_FILE);
+    let icon_path = icon_dir.join(AGENT_WORKSPACE_WINDOWS_NOTIFICATION_ICON_FILE);
     let needs_write = match std::fs::read(&icon_path) {
         Ok(existing) => existing != data.as_ref(),
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => true,
