@@ -140,6 +140,12 @@ pub struct PaneFlowConfig {
     /// all four support that suffix natively to jump to the target
     /// position.
     pub external_editor: Option<String>,
+    /// Claude Code 的完整启动命令。允许包含参数和带引号的可执行文件路径；
+    /// 缺失或无效时由读取器回退为 `claude`，且不会改写用户的原始配置。
+    pub claude_code_command: Option<String>,
+    /// Codex 的完整启动命令。允许包含参数和带引号的可执行文件路径；
+    /// 缺失或无效时由读取器回退为 `codex`，且不会改写用户的原始配置。
+    pub codex_command: Option<String>,
     /// When `Some(true)`, the Claude Code terminal launcher adds
     /// `--permission-mode bypassPermissions` to the spawned CLI in the tab bar,
     /// Agents view, Launch Pad, and session resume paths.
@@ -270,6 +276,13 @@ pub struct PaneFlowConfig {
 }
 
 impl PaneFlowConfig {
+    /// Claude Code 缺省启动命令；仅在用户未提供可用自定义命令时使用。
+    pub const DEFAULT_CLAUDE_CODE_COMMAND: &'static str = "claude";
+    /// Codex 缺省启动命令；仅在用户未提供可用自定义命令时使用。
+    pub const DEFAULT_CODEX_COMMAND: &'static str = "codex";
+    /// Agent 启动命令的最大 UTF-8 字节数，避免异常配置形成过大的命令行。
+    pub const MAX_AGENT_COMMAND_BYTES: usize = 4096;
+
     /// EP-004 US-011 (cli-cockpit) + US-013 (agent-control-plane): default
     /// Stalled silence threshold. Tightened from 300 s to 60 s so a likely-lost
     /// `ai.stop` surfaces in seconds, not minutes (a wedged Thinking agent was
@@ -306,6 +319,21 @@ impl PaneFlowConfig {
     /// Upper bound: past this the dispatch feels laggy; the echo-confirm path
     /// already adapts to a genuinely slow agent without a huge fixed floor.
     pub const MAX_SUBMIT_PASTE_DELAY_MS: u64 = 5_000;
+
+    /// 返回规范化后的 Claude Code 启动命令。
+    ///
+    /// 此方法只读取并裁剪配置，不修改磁盘内容。空白、控制字符或超过
+    /// [`PaneFlowConfig::MAX_AGENT_COMMAND_BYTES`] 的值会安全回退到缺省命令。
+    pub fn resolved_claude_code_command(&self) -> &str {
+        normalized_agent_command(self.claude_code_command.as_deref())
+            .unwrap_or(Self::DEFAULT_CLAUDE_CODE_COMMAND)
+    }
+
+    /// 返回规范化后的 Codex 启动命令，校验规则与 Claude Code 一致。
+    pub fn resolved_codex_command(&self) -> &str {
+        normalized_agent_command(self.codex_command.as_deref())
+            .unwrap_or(Self::DEFAULT_CODEX_COMMAND)
+    }
 
     /// Resolve the Stalled-detection master switch (default ON).
     pub fn agent_stall_detection_enabled(&self) -> bool {
@@ -426,6 +454,21 @@ impl PaneFlowConfig {
     pub fn rosetta_show_passive_enabled(&self) -> bool {
         self.rosetta_show_passive.unwrap_or(false)
     }
+}
+
+/// 校验用户提供的 Agent 启动命令并返回裁剪后的只读视图。
+///
+/// 普通空格和引号属于合法命令内容；换行、制表符等控制字符会被拒绝，
+/// 防止单个设置值意外拆成多条终端输入。长度按 UTF-8 字节计算，与落盘大小一致。
+fn normalized_agent_command(value: Option<&str>) -> Option<&str> {
+    let command = value?.trim();
+    if command.is_empty()
+        || command.len() > PaneFlowConfig::MAX_AGENT_COMMAND_BYTES
+        || command.chars().any(char::is_control)
+    {
+        return None;
+    }
+    Some(command)
 }
 
 /// Lenient `Option<bool>` deserializer for the security-sensitive AI-access
@@ -1590,6 +1633,8 @@ mod tests {
             review_prefill_delay_ms: Some(2000),
             submit_paste_delay_ms: Some(70),
             external_editor: Some("auto".to_string()),
+            claude_code_command: Some("claude --model sonnet".to_string()),
+            codex_command: Some("codex --model gpt-5".to_string()),
             claude_code_bypass_permissions: Some(false),
             ai_unrestricted: Some(true),
             ai_injection_fence: Some(false),
@@ -1874,6 +1919,49 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(cfg.resolved_agent_stall_threshold_secs(), 600);
+    }
+
+    #[test]
+    fn agent_commands_resolve_defaults_and_trim_valid_values() {
+        // 缺失配置使用稳定的 CLI 命令名，保持既有启动行为。
+        let defaults = PaneFlowConfig::default();
+        assert_eq!(defaults.resolved_claude_code_command(), "claude");
+        assert_eq!(defaults.resolved_codex_command(), "codex");
+
+        // 带参数和带引号路径的完整命令合法，首尾空白不会进入启动器。
+        let config = PaneFlowConfig {
+            claude_code_command: Some(
+                "  \"C:\\Program Files\\Claude\\claude.exe\" --profile work  ".to_string(),
+            ),
+            codex_command: Some("  codex --model gpt-5  ".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(
+            config.resolved_claude_code_command(),
+            "\"C:\\Program Files\\Claude\\claude.exe\" --profile work"
+        );
+        assert_eq!(config.resolved_codex_command(), "codex --model gpt-5");
+    }
+
+    #[test]
+    fn agent_commands_reject_empty_control_and_oversized_values() {
+        let oversized = "x".repeat(PaneFlowConfig::MAX_AGENT_COMMAND_BYTES + 1);
+        let config = PaneFlowConfig {
+            claude_code_command: Some(" \t ".to_string()),
+            codex_command: Some(oversized),
+            ..Default::default()
+        };
+        assert_eq!(config.resolved_claude_code_command(), "claude");
+        assert_eq!(config.resolved_codex_command(), "codex");
+
+        let boundary = "x".repeat(PaneFlowConfig::MAX_AGENT_COMMAND_BYTES);
+        let config = PaneFlowConfig {
+            claude_code_command: Some("codex\nsecond-command".to_string()),
+            codex_command: Some(boundary.clone()),
+            ..Default::default()
+        };
+        assert_eq!(config.resolved_claude_code_command(), "claude");
+        assert_eq!(config.resolved_codex_command(), boundary);
     }
 
     #[test]

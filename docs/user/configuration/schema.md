@@ -48,6 +48,8 @@ Unknown top-level keys are ignored by the runtime. The schema uses
 | `review_prefill_delay_ms` | integer or null | `2000` | Delay before Review pre-fills a freshly launched CLI. Clamped to `250` to `10000`. |
 | `submit_paste_delay_ms` | integer or null | `70` | Minimum delay between bracketed paste and submit carriage return. Clamped to `10` to `5000`. |
 | `external_editor` | string or null | `auto` | `auto`, `system`, `zed`, `cursor`, `windsurf`, or `code`. |
+| `claude_code_command` | string or null | `claude` | Claude Code 的完整启动命令，可包含参数和带引号路径。空白、包含控制字符或超过 4096 个 UTF-8 字节时回退到默认值。 |
+| `codex_command` | string or null | `codex` | Codex 的完整启动命令，可包含参数和带引号路径。空白、包含控制字符或超过 4096 个 UTF-8 字节时回退到默认值。 |
 | `shortcuts` | object | `{}` | Custom keybindings: `{ "ctrl+shift+t": "new_tab" }`. |
 | `terminal` | object or null | defaults below | Terminal renderer and PTY settings. |
 | `commands` | array | `[]` | Command palette entries and workspace templates. |
@@ -267,6 +269,8 @@ unconditionally.
   "review_prefill_delay_ms": 2000,
   "submit_paste_delay_ms": 70,
   "external_editor": "auto",
+  "claude_code_command": null,
+  "codex_command": null,
   "shortcuts": {},
   "terminal": {
     "ligatures": false,

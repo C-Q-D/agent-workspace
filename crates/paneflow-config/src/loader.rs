@@ -298,6 +298,8 @@ pub fn try_parse_and_validate(json: &str) -> Result<PaneFlowConfig, serde_json::
     set_field!(review_prefill_delay_ms);
     set_field!(submit_paste_delay_ms);
     set_field!(external_editor);
+    set_field!(claude_code_command);
+    set_field!(codex_command);
     set_field!(claude_code_bypass_permissions);
     set_field!(ai_unrestricted);
     set_field!(ai_injection_fence);
@@ -1173,6 +1175,8 @@ mod tests {
             agent_stall_threshold_secs: None,
             review_prefill_delay_ms: None,
             submit_paste_delay_ms: None,
+            claude_code_command: Some("claude --model sonnet".to_string()),
+            codex_command: Some("codex --model gpt-5".to_string()),
             claude_code_bypass_permissions: None,
             ai_unrestricted: None,
             ai_injection_fence: None,
@@ -1204,6 +1208,30 @@ mod tests {
         let json = serde_json::to_string_pretty(&config).unwrap();
         let reparsed = parse_and_validate(&json);
         assert_eq!(config, reparsed);
+    }
+
+    #[test]
+    fn test_agent_command_fields_parse_roundtrip_and_preserve_siblings() {
+        // 使用真实 JSON 配置形状验证两个字段能与未知字段及现有设置共存。
+        let json = r#"{
+            "claude_code_command": "  \"C:\\Program Files\\Claude\\claude.exe\" --profile work  ",
+            "codex_command": "codex --model gpt-5",
+            "theme": "One Dark",
+            "future_setting": {"enabled": true}
+        }"#;
+        let config = parse_and_validate(json);
+        assert_eq!(
+            config.resolved_claude_code_command(),
+            "\"C:\\Program Files\\Claude\\claude.exe\" --profile work"
+        );
+        assert_eq!(config.resolved_codex_command(), "codex --model gpt-5");
+        assert_eq!(config.theme.as_deref(), Some("One Dark"));
+
+        let serialized = serde_json::to_string(&config).unwrap();
+        let reparsed = parse_and_validate(&serialized);
+        assert_eq!(reparsed.claude_code_command, config.claude_code_command);
+        assert_eq!(reparsed.codex_command, config.codex_command);
+        assert_eq!(reparsed.theme, config.theme);
     }
 
     #[test]

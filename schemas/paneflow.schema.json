@@ -131,6 +131,18 @@
       "enum": ["auto", "system", "zed", "cursor", "windsurf", "code", null],
       "default": "auto"
     },
+    "claude_code_command": {
+      "type": ["string", "null"],
+      "description": "Complete Claude Code launch command. Arguments and quoted executable paths are allowed. Missing, blank, control-character-containing, or over-4096-byte values fall back to 'claude' without rewriting the stored value.",
+      "maxLength": 4096,
+      "default": null
+    },
+    "codex_command": {
+      "type": ["string", "null"],
+      "description": "Complete Codex launch command. Arguments and quoted executable paths are allowed. Missing, blank, control-character-containing, or over-4096-byte values fall back to 'codex' without rewriting the stored value.",
+      "maxLength": 4096,
+      "default": null
+    },
     "shortcuts": {
       "type": "object",
       "description": "Custom keybindings overriding the defaults. Format: { 'ctrl+t': 'new_tab' }. The full list of action names is defined in src-app/src/app/actions.rs.",
