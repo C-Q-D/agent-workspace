@@ -3,9 +3,9 @@
 复现并判定 Paneflow Windows CLI 成功请求后的异常退出。
 
 .DESCRIPTION
-脚本隔离真实用户状态，启动真实桌面服务端，再用同一二进制执行 `new --cwd`。
-服务端创建成功但客户端退出码不是 0 时，脚本输出精确症状并以 1 退出；修复后同一
-脚本应转绿。该反馈环不使用模拟服务端、模拟终端或模拟目录。
+脚本隔离真实用户状态，启动真实桌面服务端，再用同一二进制执行指定 CLI 场景。
+服务端状态正确但客户端退出码不符合命令约定时，脚本输出精确症状并以 1 退出；
+修复后同一脚本应转绿。该反馈环不使用模拟服务端、模拟终端或模拟目录。
 #>
 [CmdletBinding()]
 param(
@@ -127,12 +127,17 @@ try {
     } | Format-List | Out-Host
 
     $expectedWorkspaceCount = if ($ClientScenario -eq 'new') { 1 } else { 0 }
+    $expectedClientExitCode = if ($ClientScenario -eq 'status-missing') { 3 } else { 0 }
     if ($workspaces.Count -ne $expectedWorkspaceCount) { throw "服务端工作区数量应为 $expectedWorkspaceCount，实际为 $($workspaces.Count)。" }
-    if ($client.ExitCode -ne 0) {
-        Write-Error "复现成功：服务端状态符合 $ClientScenario 场景预期，但 CLI 以 $exitHex 退出。"
-        exit 1
+    if ($client.ExitCode -ne $expectedClientExitCode) {
+        throw "服务端状态符合 $ClientScenario 场景预期，但 CLI 应退出 $expectedClientExitCode，实际为 $exitHex。"
     }
-    if ([string]::IsNullOrWhiteSpace($stdout)) { throw 'CLI 已正常退出但没有输出成功结果。' }
+    if ($expectedClientExitCode -eq 0 -and [string]::IsNullOrWhiteSpace($stdout)) {
+        throw 'CLI 已正常退出但没有输出成功结果。'
+    }
+    if ($expectedClientExitCode -ne 0 -and [string]::IsNullOrWhiteSpace($stderr)) {
+        throw 'CLI 已按错误码退出但没有输出错误信息。'
+    }
 }
 finally {
     if ($null -ne $server -and $null -ne (Get-Process -Id $server.Id -ErrorAction SilentlyContinue)) {
