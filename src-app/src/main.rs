@@ -1388,11 +1388,11 @@ impl PaneFlowApp {
         workspace_id: u64,
         cx: &mut Context<Self>,
     ) -> Entity<Pane> {
-        cx.subscribe(&terminal, Self::handle_terminal_event)
-            .detach();
-        let pane = cx.new(|cx| Pane::new(terminal, workspace_id, cx));
-        cx.subscribe(&pane, Self::handle_pane_event).detach();
-        pane
+        crate::app::workspace_lifecycle::WorkspaceLifecycle::create_terminal_pane(
+            terminal,
+            workspace_id,
+            cx,
+        )
     }
 
     /// Create a pane around an existing tab and subscribe to pane-level events.

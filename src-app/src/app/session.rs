@@ -14,7 +14,7 @@ use gpui::{App, AppContext, Context, Entity};
 use paneflow_config::schema::LayoutNode;
 
 use crate::PaneFlowApp;
-use crate::app::workspace_lifecycle::WorkspaceLifecycle;
+use crate::app::workspace_lifecycle::{WorkspaceLifecycle, WorkspaceLifecycleRegistration};
 use crate::layout::{LayoutTree, MAX_PANES};
 use crate::limits::MAX_SESSION_SIZE_BYTES;
 use crate::pane::Pane;
@@ -381,14 +381,17 @@ impl PaneFlowApp {
         }
     }
 
-    /// Rebuild workspaces from a saved session. Each workspace's layout tree
-    /// is reconstructed via `LayoutTree::from_layout_node` with CWD-aware
-    /// terminal spawning. Returns the workspace list and active index.
+    /// 从持久化会话重建工作区和真实终端布局。
+    ///
+    /// 返回过滤后的工作区列表、活动索引和生命周期回执；回执必须等应用结构体完成
+    /// 构造后再提交，确保恢复入口不会绕过 Git 准备和 watcher 登记。
     pub(crate) fn restore_workspaces(
         session: &paneflow_config::schema::SessionState,
         cx: &mut Context<Self>,
-    ) -> (Vec<Workspace>, usize) {
+    ) -> (Vec<Workspace>, usize, Vec<WorkspaceLifecycleRegistration>) {
         let mut workspaces = Vec::new();
+        let mut restored_session_indices = Vec::new();
+        let mut registrations = Vec::new();
 
         // U-016: cap restored workspaces. Each layout's pane count is bounded by
         // `validate_layout` (US-011) below, so this is the only remaining
@@ -400,7 +403,9 @@ impl PaneFlowApp {
                 session.workspaces.len()
             );
         }
-        for ws_session in session.workspaces.iter().take(MAX_WORKSPACES) {
+        for (session_index, ws_session) in
+            session.workspaces.iter().take(MAX_WORKSPACES).enumerate()
+        {
             let Some(restored_root) =
                 WorkspaceLifecycle::plan_restored_root(&ws_session.title, &ws_session.cwd)
             else {
@@ -437,10 +442,7 @@ impl PaneFlowApp {
             } else {
                 let terminal =
                     cx.new(|cx| TerminalView::with_cwd(ws_id, Some(cwd.clone()), None, cx));
-                cx.subscribe(&terminal, Self::handle_terminal_event)
-                    .detach();
-                let pane = cx.new(|cx| Pane::new(terminal, ws_id, cx));
-                cx.subscribe(&pane, Self::handle_pane_event).detach();
+                let pane = WorkspaceLifecycle::create_terminal_pane(terminal, ws_id, cx);
                 Workspace::with_cwd_and_id(ws_id, title.clone(), cwd, pane)
             };
 
@@ -467,8 +469,13 @@ impl PaneFlowApp {
                     &ws_session.reference_format,
                 );
             workspace.propagate_custom_buttons(cx);
-            // US-013: kick off the deferred git-stats probe (off render thread).
-            Self::spawn_initial_git_stats(ws_id, workspace.cwd.clone(), cx);
+            let workspace_index = workspaces.len();
+            registrations.push(WorkspaceLifecycle::registration(
+                ws_id,
+                workspace_index,
+                workspace.cwd.clone(),
+            ));
+            restored_session_indices.push(session_index);
             workspaces.push(workspace);
         }
 
@@ -497,10 +504,11 @@ impl PaneFlowApp {
             .detach();
         }
 
-        let active_idx = session
-            .active_workspace
-            .min(workspaces.len().saturating_sub(1));
-        (workspaces, active_idx)
+        let active_idx = WorkspaceLifecycle::restored_active_index(
+            session.active_workspace,
+            &restored_session_indices,
+        );
+        (workspaces, active_idx, registrations)
     }
 
     /// Create a `Pane` (with one tab per surface) from serialized surface
@@ -519,7 +527,6 @@ impl PaneFlowApp {
             let t = cx.new(|cx| {
                 TerminalView::with_cwd(workspace_id, Some(fallback_cwd.to_path_buf()), None, cx)
             });
-            cx.subscribe(&t, Self::handle_terminal_event).detach();
             vec![crate::pane::TabContent::Terminal(t)]
         } else {
             surfaces
@@ -592,7 +599,6 @@ impl PaneFlowApp {
                             view.terminal.font_size_override = Some(size);
                         });
                     }
-                    cx.subscribe(&t, Self::handle_terminal_event).detach();
                     if surface.focus == Some(true) {
                         focus_idx = i;
                     }
@@ -606,14 +612,9 @@ impl PaneFlowApp {
             let t = cx.new(|cx| {
                 TerminalView::with_cwd(workspace_id, Some(fallback_cwd.to_path_buf()), None, cx)
             });
-            cx.subscribe(&t, Self::handle_terminal_event).detach();
-            let pane = cx.new(|cx| Pane::new(t, workspace_id, cx));
-            cx.subscribe(&pane, Self::handle_pane_event).detach();
-            return pane;
+            return WorkspaceLifecycle::create_terminal_pane(t, workspace_id, cx);
         };
-        let pane = cx.new(|cx| Pane::new_with_tabs(tabs, focus_idx, workspace_id, cx));
-        cx.subscribe(&pane, Self::handle_pane_event).detach();
-        pane
+        WorkspaceLifecycle::create_restored_pane(tabs, focus_idx, workspace_id, cx)
     }
 }
 

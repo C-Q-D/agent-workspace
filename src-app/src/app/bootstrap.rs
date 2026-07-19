@@ -10,7 +10,6 @@
 //! instead of manufacturing a terminal from the process working directory.
 
 use gpui::{AppContext, Context};
-use notify::Watcher;
 
 use crate::telemetry;
 use crate::terminal::blink::{BlinkPhase, BlinkPhaseGlobal, CURSOR_BLINK_INTERVAL};
@@ -265,7 +264,7 @@ impl PaneFlowApp {
                 .unwrap_or(0),
         };
 
-        let (workspaces, active_idx) = match saved_session {
+        let (workspaces, active_idx, restored_lifecycles) = match saved_session {
             Some(session) => {
                 log::info!(
                     "restoring session: {} workspace(s), {} project(s), mode={:?}",
@@ -273,45 +272,36 @@ impl PaneFlowApp {
                     session.projects.len(),
                     session.mode
                 );
-                let (workspaces, active_idx) = Self::restore_workspaces(&session, cx);
+                let (workspaces, active_idx, registrations) =
+                    Self::restore_workspaces(&session, cx);
                 if workspaces.is_empty() {
                     // 首次启动、空会话或全部条目失效时必须保持零工作区，不能把
                     // GUI 进程偶然继承的当前目录伪装成用户主动选择的 workspaceRoot。
                     log::info!(
                         "session restore: no restorable workspaces; waiting for folder selection"
                     );
-                    (Vec::new(), 0)
+                    (Vec::new(), 0, Vec::new())
                 } else {
-                    (workspaces, active_idx)
+                    (workspaces, active_idx, registrations)
                 }
             }
             // 没有会话时不构造 Terminal/Pane，因此首帧不会产生 PowerShell 或
             // conhost 后代；目录选择完成后再走既有显式创建入口。
-            None => (Vec::new(), 0),
+            None => (Vec::new(), 0, Vec::new()),
         };
 
         // Setup notify file watcher for .git directories
         let (git_event_tx, git_event_rx) = std::sync::mpsc::channel();
-        let mut git_watcher = match notify::recommended_watcher(git_event_tx) {
+        let git_watcher = match notify::recommended_watcher(git_event_tx) {
             Ok(w) => Some(w),
             Err(e) => {
                 log::warn!("git file watcher unavailable: {e}. Falling back to polling.");
                 None
             }
         };
-        let mut git_watch_counts = std::collections::HashMap::new();
-        // Watch all workspaces' .git directories
-        if let Some(ref mut watcher) = git_watcher {
-            for ws in &workspaces {
-                if let Some(ref git_dir) = ws.git_dir {
-                    if let Err(e) = watcher.watch(git_dir, notify::RecursiveMode::NonRecursive) {
-                        log::warn!("git watcher: failed to watch {}: {e}", git_dir.display());
-                    } else {
-                        *git_watch_counts.entry(git_dir.clone()).or_insert(0) += 1;
-                    }
-                }
-            }
-        }
+        // 恢复工作区不在构造阶段直接登记 watcher；应用结构完成后统一进入
+        // WorkspaceLifecycle 的 Git 准备，成功回填时再建立对称的 watcher 引用。
+        let git_watch_counts = std::collections::HashMap::new();
 
         // Poll git watcher events with 300ms debounce.
         // Filter: only HEAD and index matter. NonRecursive mode limits events to
@@ -858,7 +848,7 @@ impl PaneFlowApp {
             cached_config.theme.as_deref(),
         );
 
-        let app = Self {
+        let mut app = Self {
             workspaces,
             active_idx,
             renaming_workspace_id: None,
@@ -1099,6 +1089,10 @@ impl PaneFlowApp {
         // 第一版不为旧 Agents 项目执行启动 Git 扫描，也不挂载其终端或注册缓存
         // 清理定时器。公开 CLI/Review 的运行成本只由真实工作区承担；历史 Agents
         // 元数据暂留内存用于后续迁移，但不会派生进程、文件读取或周期唤醒。
+
+        // 应用字段完整后再登记恢复工作区，确保非 Git 目录也进入与显式创建相同的
+        // 后台初始化、稳定 ID 回填和 watcher 引用计数流程。
+        app.register_workspace_lifecycles(&restored_lifecycles, cx);
 
         // US-013 AC #1 - fire `app_started` once per launch. `Null` clients
         // (opt-out / unanswered consent / env kill-switch) no-op; only a

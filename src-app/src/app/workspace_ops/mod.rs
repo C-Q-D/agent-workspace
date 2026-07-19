@@ -21,6 +21,7 @@ mod tab;
 
 use gpui::{App, AppContext, ClipboardItem, Context, Focusable, PathPromptOptions, Window};
 
+use crate::app::workspace_lifecycle::{WorkspaceLifecycle, WorkspaceLifecycleRegistration};
 use crate::layout::{LayoutTree, MAX_PANES, SplitDirection};
 use crate::terminal::TerminalView;
 use crate::workspace::{MAX_WORKSPACES, Workspace, next_workspace_id};
@@ -40,18 +41,6 @@ pub(crate) enum WorkspaceFocusTarget {
         pane: gpui::Entity<crate::pane::Pane>,
         tab_idx: usize,
     },
-}
-
-/// 一次显式目录工作区创建在应用内的稳定回执。
-///
-/// UI 目录选择器和 IPC 创建入口共享该回执，把“构造并加入列表”与“确认成功后
-/// 启动 Git 准备及持久化”分开。这样 IPC 布局校验失败时可以先回滚，绝不会在
-/// 已删除的工作区目录中留下 `.git` 副作用。
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct WorkspaceCreation {
-    pub(crate) workspace_id: u64,
-    pub(crate) index: usize,
-    pub(crate) workspace_root: String,
 }
 
 fn push_closed_pane_record(records: &mut Vec<ClosedPaneRecord>, mut record: ClosedPaneRecord) {
@@ -478,7 +467,7 @@ impl PaneFlowApp {
         title: String,
         workspace_root: std::path::PathBuf,
         cx: &mut Context<Self>,
-    ) -> Option<WorkspaceCreation> {
+    ) -> Option<WorkspaceLifecycleRegistration> {
         if self.workspaces.len() >= MAX_WORKSPACES {
             return None;
         }
@@ -490,11 +479,11 @@ impl PaneFlowApp {
         let workspace_root = ws.cwd.clone();
         self.workspaces.push(ws);
         self.active_idx = self.workspaces.len() - 1;
-        Some(WorkspaceCreation {
-            workspace_id: ws_id,
-            index: self.active_idx,
+        Some(WorkspaceLifecycle::registration(
+            ws_id,
+            self.active_idx,
             workspace_root,
-        })
+        ))
     }
 
     /// 完成一批已经成功加入列表的显式目录工作区。
@@ -503,19 +492,13 @@ impl PaneFlowApp {
     /// 后续和 IPC 工作区在 watcher、聚焦状态、会话保存及 Diff 刷新上继续漂移。
     pub(crate) fn finish_workspace_creations(
         &mut self,
-        creations: &[WorkspaceCreation],
+        creations: &[WorkspaceLifecycleRegistration],
         cx: &mut Context<Self>,
     ) {
         if creations.is_empty() {
             return;
         }
-        for creation in creations {
-            self.spawn_workspace_git_preparation(
-                creation.workspace_id,
-                creation.workspace_root.clone(),
-                cx,
-            );
-        }
+        self.register_workspace_lifecycles(creations, cx);
         self.reconcile_maximized_workspace_after_change(cx);
         self.save_session(cx);
         cx.notify();
