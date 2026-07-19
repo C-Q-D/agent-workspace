@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "executedAt": "2026-07-19T20:19:36.6152167+08:00",
+  "branch": "experiment/e01-pty-decoupling",
+  "verifiedHead": "2680940b2a3d6433f417c2746ea85ce230dec083",
+  "p2_04Base": "0132940140c9257feb01bcde7e3e0e5cd41332b1",
+  "contract": {
+    "releaseRoot": "%USERPROFILE%\\.agent-workspace",
+    "debugRoot": "%USERPROFILE%\\.agent-workspace-dev",
+    "durable": ["config", "sessions", "state", "bin"],
+    "rebuildable": ["cache"],
+    "diagnostic": ["logs"]
+  },
+  "units": [
+    {
+      "id": "UNIT-34",
+      "result": "passed",
+      "lastCommit": "5de3ca5",
+      "evidence": "docs/验收/用户数据布局契约数据/Release-20260719-192127/运行结果.json"
+    },
+    {
+      "id": "UNIT-35",
+      "result": "passed",
+      "lastCommit": "883bc78",
+      "evidence": "docs/验收/现有持久化写入归位数据/Release-20260719-194220/运行结果.json"
+    },
+    {
+      "id": "UNIT-36",
+      "result": "passed",
+      "atoms": [
+        { "id": "ATOM-36-01", "commit": "6d1a12f", "scenario": "real-release-write-inventory" },
+        { "id": "ATOM-36-02", "commit": "aa21f66", "scenario": "real-msi-upgrade-uninstall" },
+        { "id": "ATOM-36-03", "commit": "2680940", "scenario": "installed-portable-shared-boundary" }
+      ]
+    }
+  ],
+  "realWindowsEvidence": [
+    {
+      "scenario": "release",
+      "path": "docs/验收/Windows用户数据边界数据/Release-20260719-195902/运行结果.json",
+      "sha256": "5a9a6de985deac517c843073999409a8bb2b2e169bad0ce3c4a79a565597d86c",
+      "result": "passed"
+    },
+    {
+      "scenario": "msi",
+      "path": "docs/验收/Windows用户数据边界数据/MSI-20260719-200357/运行结果.json",
+      "sha256": "821a1cf55804298e5afcc715ce0a5a9118b4c5b07cd6b732ee7453aa4d5b37a2",
+      "result": "passed"
+    },
+    {
+      "scenario": "installed-and-portable",
+      "path": "docs/验收/Windows用户数据边界数据/Distribution-20260719-201436/运行结果.json",
+      "sha256": "6b18053c94019abbe0c01377ab4eb5a14e42ef863e16e269042a38b448f8f960",
+      "result": "passed"
+    }
+  ],
+  "sourceAudit": {
+    "productionRange": "0132940140c9257feb01bcde7e3e0e5cd41332b1..2680940b2a3d6433f417c2746ea85ce230dec083",
+    "persistentWritesRoutedThroughUserDataLayout": true,
+    "legacyPathConstructorAdded": false,
+    "pollingAdded": false,
+    "residentThreadAdded": false,
+    "timerAdded": false,
+    "defaultFileLoggerAdded": false,
+    "oneTimeTelemetryCreateNewWrite": true
+  },
+  "regression": {
+    "cargoFmt": "passed",
+    "paneflowConfig": { "unit": 106, "failed": 0 },
+    "paneflowTelemetry": { "unit": 34, "doc": 1, "failed": 0 },
+    "paneflowMcpInstall": { "unit": 97, "failed": 0 },
+    "paneflowApp": { "unit": 1435, "integration": 5, "failed": 0 },
+    "windowsSharedPayload": { "files": 24, "allBytesIdentical": true }
+  },
+  "finalSystemState": {
+    "processResidueCount": 0,
+    "installedProductCount": 0,
+    "installDirectoryExists": false
+  },
+  "result": "passed"
+}
