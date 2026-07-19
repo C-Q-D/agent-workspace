@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "executedAt": "2026-07-19T18:57:44.3323937+08:00",
+  "environment": {
+    "os": "Microsoft Windows 11 专业版",
+    "version": "10.0.26200",
+    "architecture": "64 位",
+    "powershell": "7.6.3",
+    "wix": "3.14.1.8722",
+    "cargoWix": "0.3.9"
+  },
+  "packages": {
+    "previous": {
+      "productVersion": "0.7.10",
+      "productCode": "{C795E1C4-574A-40FB-A93A-08BED0E1CB93}",
+      "upgradeCode": "{7D0C2220-1B4E-4E86-9D5E-AC3479C95B23}",
+      "length": 28028928,
+      "sha256": "5827cbbfedd6271257fa32b66efbca12454b3503cbc2894470c5c88e2ae4310a"
+    },
+    "current": {
+      "productVersion": "0.7.11",
+      "productCode": "{8DB0BE44-8087-4D22-88E7-F583FAB6ECAD}",
+      "upgradeCode": "{7D0C2220-1B4E-4E86-9D5E-AC3479C95B23}",
+      "length": 28028928,
+      "sha256": "de9856aebe8a54d475173b5035d79e14130344af4996c78a294b901e6a77dd2c"
+    }
+  },
+  "lifecycle": {
+    "initialInstall": {
+      "exitCode": 0,
+      "registeredVersion": "0.7.10",
+      "registeredProductCode": "{C795E1C4-574A-40FB-A93A-08BED0E1CB93}",
+      "installedExecutableVersion": "agent-workspace 0.7.11",
+      "applicationFilesPresent": true,
+      "legalFilesPresent": 5,
+      "machinePathPresent": true
+    },
+    "majorUpgrade": {
+      "exitCode": 0,
+      "registeredProductCount": 1,
+      "registeredVersion": "0.7.11",
+      "registeredProductCode": "{8DB0BE44-8087-4D22-88E7-F583FAB6ECAD}",
+      "oldProductRemoved": true,
+      "installedExecutableVersion": "agent-workspace 0.7.11"
+    },
+    "uninstall": {
+      "exitCode": 0,
+      "uninstallRegistryRemoved": true,
+      "installDirectoryRemoved": true,
+      "startMenuRemoved": true,
+      "machinePathRemoved": true,
+      "processResidueCount": 0
+    }
+  },
+  "sentinels": {
+    "project": {
+      "sha256": "0fa586a90125be8ea707a04e2644668a8e9ab3f6eac4d09a81c7516a7883ee13",
+      "preservedAfterUpgrade": true,
+      "preservedAfterUninstall": true
+    },
+    "userData": {
+      "rootName": ".agent-workspace",
+      "sha256": "8e2a93eadcf2da8511aa0e93775c0a9663d92bdca73bff394ed924a0a27d270a",
+      "preservedAfterUpgrade": true,
+      "preservedAfterUninstall": true
+    }
+  },
+  "windowsInstallerEvidence": {
+    "initialInstall": "Installation completed successfully; MainEngineThread=0",
+    "majorUpgrade": "FindRelatedProducts and RemoveExistingProducts completed; Installation completed successfully; MainEngineThread=0",
+    "uninstall": "Removal completed successfully; MainEngineThread=0"
+  },
+  "regression": {
+    "upstreamAttributionGate": "passed",
+    "rustDependencyInventory": "1109 packages; 0 unresolved",
+    "thirdPartyLicenseTests": "4 passed",
+    "windowsLegalMaterialTests": "4 passed",
+    "applicationTests": "1426 unit tests and 5 layout integration tests passed",
+    "mcpInstallTests": "97 passed"
+  }
+}

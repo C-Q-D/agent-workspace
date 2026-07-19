@@ -1,10 +1,12 @@
 # 在真实 Windows Installer 上验证 AgentWorkspace MSI 的准备、安装、升级与卸载边界。
 # -PrepareOnly 检查既有安装、生成低版本/当前版本 MSI，并读取真实 MSI 数据库；
-# -InstallAndUpgrade 使用准备结果执行初装和 MajorUpgrade。卸载在下一原子接入。
+# -InstallAndUpgrade 使用准备结果执行初装和 MajorUpgrade；
+# -Uninstall 消费安装升级结果，执行卸载并验证应用资源与用户数据边界。
 [CmdletBinding()]
 param(
     [switch]$PrepareOnly,
     [switch]$InstallAndUpgrade,
+    [switch]$Uninstall,
     [string]$PreviousVersion = "0.7.10",
     [string]$CurrentVersion = "0.7.11",
     [string]$OutputDirectory
@@ -18,13 +20,18 @@ if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
 $OutputDirectory = [System.IO.Path]::GetFullPath($OutputDirectory)
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 
-function Assert-ElevatedAndUninstalled {
-    # perMachine MSI 需要提升权限；发现既有用户安装时必须在任何写操作前停止。
+function Assert-Elevated {
+    # perMachine MSI 的安装与卸载都必须由提升权限的 Windows 进程执行。
     $Identity = [Security.Principal.WindowsIdentity]::GetCurrent()
     $Principal = [Security.Principal.WindowsPrincipal]::new($Identity)
     if (-not $Principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
         throw "MSI 生命周期验收需要管理员权限"
     }
+}
+
+function Assert-ElevatedAndUninstalled {
+    # 准备和初装前除检查权限外，还要拒绝覆盖任何不属于本次验收的既有产品。
+    Assert-Elevated
 
     $UninstallRoots = @(
         "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*",
@@ -205,6 +212,20 @@ function Assert-MachinePathContainsInstallDirectory {
     }
 }
 
+function Assert-MachinePathDoesNotContainInstallDirectory {
+    # 卸载后读取注册表中的系统 PATH，避免当前进程仍持有安装前环境而产生误判。
+    param([string]$InstallDirectory)
+    $Expected = $InstallDirectory.TrimEnd("\")
+    $Entries = @(
+        [Environment]::GetEnvironmentVariable("Path", "Machine") -split ";" |
+            ForEach-Object { $_.Trim().TrimEnd("\") } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
+    if ($Entries | Where-Object { $_ -ieq $Expected }) {
+        throw "卸载后系统 PATH 仍包含 AgentWorkspace 安装目录：$InstallDirectory"
+    }
+}
+
 function Invoke-InstalledVersionProbe {
     # 在隔离 USERPROFILE 下执行已安装 EXE 的真实 CLI 版本探针，避免读写开发者现有会话。
     param([string]$Executable, [string]$UserRoot, [string]$ResultRoot, [string]$Label)
@@ -237,11 +258,9 @@ function Invoke-InstalledVersionProbe {
     return $Output
 }
 
-if ($PrepareOnly -and $InstallAndUpgrade) {
-    throw "-PrepareOnly 与 -InstallAndUpgrade 不能同时使用"
-}
-if (-not $PrepareOnly -and -not $InstallAndUpgrade) {
-    throw "必须选择 -PrepareOnly 或 -InstallAndUpgrade"
+$SelectedModeCount = [int][bool]$PrepareOnly + [int][bool]$InstallAndUpgrade + [int][bool]$Uninstall
+if ($SelectedModeCount -ne 1) {
+    throw "必须且只能选择 -PrepareOnly、-InstallAndUpgrade 或 -Uninstall 之一"
 }
 
 if ($PrepareOnly) {
@@ -316,6 +335,109 @@ if ($PrepareOnly) {
     Write-Output "低版本：$PreviousMsi"
     Write-Output "当前版本：$CurrentMsi"
     Write-Output "UpgradeCode：$($CurrentProperties.upgradeCode)"
+    exit 0
+}
+
+if ($Uninstall) {
+    # 卸载只接受上一阶段留下的受控产品和证据，避免误删用户自行安装的同名应用。
+    Assert-Elevated
+    $InstallResultPath = Join-Path $OutputDirectory "安装升级结果.json"
+    if (-not (Test-Path -LiteralPath $InstallResultPath -PathType Leaf)) {
+        throw "缺少安装升级结果，拒绝卸载未知产品：$InstallResultPath"
+    }
+    $InstallResult = Get-Content -Raw -LiteralPath $InstallResultPath | ConvertFrom-Json
+    $Installed = Get-InstalledAgentWorkspace
+    if ($Installed.Count -ne 1 -or $Installed[0].DisplayVersion -ne $CurrentVersion) {
+        throw "当前系统不是本次验收预期的单一 $CurrentVersion 产品，拒绝卸载"
+    }
+    $ExpectedProductCode = ([string]$InstallResult.current.productCode).Trim("{}").ToUpperInvariant()
+    $ActualProductCode = ([string]$Installed[0].PSChildName).Trim("{}").ToUpperInvariant()
+    if ($ActualProductCode -ne $ExpectedProductCode) {
+        throw "当前 ProductCode 与安装升级结果不一致，拒绝卸载：$($Installed[0].PSChildName)"
+    }
+
+    $InstallDirectory = [string]$InstallResult.installDirectory
+    $StartMenuDirectory = Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs\AgentWorkspace"
+    if (-not (Test-Path -LiteralPath (Join-Path $InstallDirectory "agent-workspace.exe") -PathType Leaf)) {
+        throw "卸载前缺少受控主程序，拒绝在不完整现场继续"
+    }
+    if (-not (Test-Path -LiteralPath $StartMenuDirectory -PathType Container)) {
+        throw "卸载前缺少受控开始菜单目录，拒绝在不完整现场继续"
+    }
+    Assert-MachinePathContainsInstallDirectory -InstallDirectory $InstallDirectory
+    if (@(Get-Process -Name "agent-workspace" -ErrorAction SilentlyContinue).Count -ne 0) {
+        throw "卸载前仍有 AgentWorkspace 进程，拒绝强行终止用户进程"
+    }
+
+    foreach ($Sentinel in @($InstallResult.sentinels.project, $InstallResult.sentinels.userData)) {
+        if (-not (Test-Path -LiteralPath $Sentinel.path -PathType Leaf)) {
+            throw "卸载前哨兵缺失：$($Sentinel.path)"
+        }
+        $ActualHash = (Get-FileHash -LiteralPath $Sentinel.path -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($ActualHash -ne $Sentinel.sha256) {
+            throw "卸载前哨兵已变化：$($Sentinel.path)"
+        }
+    }
+
+    $RunRoot = [string]$InstallResult.runRoot
+    if (-not (Test-Path -LiteralPath $RunRoot -PathType Container)) {
+        throw "安装升级运行目录不存在：$RunRoot"
+    }
+    $UninstallLog = Join-Path $RunRoot "卸载-0.7.11.log"
+    $UninstallExitCode = Invoke-MsiTransaction `
+        -Action Uninstall `
+        -PackageOrProductCode $Installed[0].PSChildName `
+        -LogPath $UninstallLog
+
+    if ((Get-InstalledAgentWorkspace).Count -ne 0) {
+        throw "卸载后注册表仍存在 AgentWorkspace 产品"
+    }
+    if (Test-Path -LiteralPath $InstallDirectory) {
+        throw "卸载后安装目录仍存在：$InstallDirectory"
+    }
+    if (Test-Path -LiteralPath $StartMenuDirectory) {
+        throw "卸载后开始菜单目录仍存在：$StartMenuDirectory"
+    }
+    Assert-MachinePathDoesNotContainInstallDirectory -InstallDirectory $InstallDirectory
+    if (@(Get-Process -Name "agent-workspace" -ErrorAction SilentlyContinue).Count -ne 0) {
+        throw "卸载后出现 AgentWorkspace 进程残留"
+    }
+
+    $PreservedSentinels = @()
+    foreach ($Sentinel in @($InstallResult.sentinels.project, $InstallResult.sentinels.userData)) {
+        if (-not (Test-Path -LiteralPath $Sentinel.path -PathType Leaf)) {
+            throw "卸载误删哨兵：$($Sentinel.path)"
+        }
+        $ActualHash = (Get-FileHash -LiteralPath $Sentinel.path -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($ActualHash -ne $Sentinel.sha256) {
+            throw "卸载修改了哨兵：$($Sentinel.path)"
+        }
+        $PreservedSentinels += [ordered]@{
+            path = [string]$Sentinel.path
+            sha256 = $ActualHash
+            preserved = $true
+        }
+    }
+
+    $UninstallResult = [ordered]@{
+        schemaVersion = 1
+        executedAt = (Get-Date).ToString("o")
+        productCode = [string]$Installed[0].PSChildName
+        productVersion = [string]$Installed[0].DisplayVersion
+        exitCode = $UninstallExitCode
+        log = $UninstallLog
+        installDirectoryRemoved = $true
+        startMenuRemoved = $true
+        machinePathRemoved = $true
+        uninstallRegistryRemoved = $true
+        processResidueCount = 0
+        sentinels = $PreservedSentinels
+    }
+    $UninstallResultPath = Join-Path $OutputDirectory "卸载结果.json"
+    $UninstallResult | ConvertTo-Json -Depth 7 | Set-Content -LiteralPath $UninstallResultPath -Encoding utf8
+    Write-Output "MSI 卸载边界验收通过"
+    Write-Output "已卸载 ProductCode：$($Installed[0].PSChildName)"
+    Write-Output "用户项目与用户数据哨兵均保留"
     exit 0
 }
 
