@@ -93,7 +93,7 @@ CLI binary.
 | `terminal.integrated_glyphs` | boolean or null | `true` | Draws built-in block-element glyphs as filled quads. |
 | `terminal.color_emoji` | boolean or null | `true` | Uses the platform color-emoji path. |
 | `terminal.cursor_color` | string or null | theme cursor color | `#RRGGBB` or `#RGB`. |
-| `terminal.scrollback_lines` | integer or null | `10000` | Range `100` to `100000`. Applies to newly created terminals. |
+| `terminal.scrollback_lines` | integer or null | `4000` | Range `100` to `100000`. Applies to newly created terminals. |
 | `terminal.cursor_shape` | string or null | `block` | `vintage`, `block`, `beam`, `underline`, `double_underline`, or `hollow`. |
 | `terminal.cursor_blink` | string or null | `terminal_controlled` | `on`, `off`, or `terminal_controlled`. |
 | `terminal.env` | object or null | none | Environment variables injected into new terminals. Protected keys are filtered at PTY spawn. |
@@ -107,7 +107,7 @@ CLI binary.
     "color_emoji": true,
     "cursor_shape": "block",
     "cursor_blink": "terminal_controlled",
-    "scrollback_lines": 10000
+    "scrollback_lines": 4000
   }
 }
 ```
@@ -273,7 +273,7 @@ unconditionally.
     "integrated_glyphs": true,
     "color_emoji": true,
     "cursor_color": null,
-    "scrollback_lines": 10000,
+    "scrollback_lines": 4000,
     "cursor_shape": "block",
     "cursor_blink": "terminal_controlled",
     "env": {},

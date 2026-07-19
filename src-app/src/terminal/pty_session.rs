@@ -32,11 +32,10 @@ use super::types::{SharedTerm, ShellQuoting, TerminalWindowSize};
 use crate::limits::{MAX_CHARS, MAX_OSC52_BYTES};
 use paneflow_config::schema::{TerminalConfig, TerminalSurfaceProfile};
 
-/// Default scrollback history length, in lines. Paneflow keeps this standard
-/// for predictable terminal memory use. `TermConfig::default()` is `0`, which
-/// disables scrollback entirely. Overridable via
-/// `terminal.scrollback_lines` in `paneflow.json` - see
-/// [`paneflow_config::TerminalConfig::resolved_scrollback_lines`].
+/// 默认终端回滚历史行数。该值与会话保存和 IPC 读取的 4000 行窗口保持一致，
+/// 从而给 16GB 设备提供可预测的内存上限。`TermConfig::default()` 为 `0`，会完全
+/// 禁用回滚，因此这里必须显式赋值。用户可通过 `paneflow.json` 中的
+/// `terminal.scrollback_lines` 提高新终端预算。
 const DEFAULT_SCROLLBACK_LINES: usize = TerminalConfig::DEFAULT_SCROLLBACK_LINES;
 const PTY_DRAIN_ON_EXIT: bool = true;
 const CLAUDECODE_ENV: &str = "CLAUDECODE";
@@ -1750,12 +1749,9 @@ impl TerminalState {
         let bottom = term.bottommost_line();
         let cols = term.last_column();
 
-        // US-012: window to the most-recent MAX_LINES *before* the loop so the
-        // lock is never held while materializing the full history (scrollback
-        // can be very large - see DEFAULT_SCROLLBACK_LINES). Walk oldest→newest
-        // from `bottom - MAX_LINES`, clamped to the topmost line. The drain
-        // below stays as a defensive trim (trailing-empty removal can leave at
-        // most MAX_LINES + 1 rows).
+        // 在持锁遍历前先限制到最近 MAX_LINES 行，避免用户显式扩大实时历史后，
+        // 会话保存仍物化完整缓冲。遍历从窗口最旧行到最新行；末尾保留防御性裁剪，
+        // 因为包含可见屏幕时最多可能得到 MAX_LINES + 1 行。
         let start = bottom.0.saturating_sub(MAX_LINES as i32).max(top.0);
         let mut lines: Vec<String> = Vec::with_capacity((bottom.0 - start + 1).max(0) as usize);
         let mut row = start;

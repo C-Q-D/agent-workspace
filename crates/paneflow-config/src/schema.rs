@@ -621,12 +621,11 @@ impl<'de> Deserialize<'de> for CursorBlinkConfig {
     }
 }
 
-/// Memory budget profile for a terminal surface.
+/// 终端 Surface 的内存预算类型。
 ///
-/// Normal and Agent terminals keep the standard interactive scrollback default so
-/// long-lived CLI transcripts retain commands, diffs and tool output. Review
-/// and Cached remain reserved for fresh cold surfaces; live cached PTYs are not
-/// rebuilt just to shrink history because dropping them would kill processes.
+/// 普通终端默认保留与会话恢复一致的历史窗口；显式配置仍可扩大普通终端历史。
+/// Agent、Review 与 Cached 类型提供额外上限。已经运行的 PTY 不会为了缩减历史
+/// 而重建，因为重建会终止其中正在运行的进程。
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum TerminalSurfaceProfile {
     #[default]
@@ -673,14 +672,11 @@ pub struct TerminalConfig {
     /// the active color scheme cursor color.
     #[serde(default, deserialize_with = "lenient_opt_string")]
     pub cursor_color: Option<String>,
-    /// Maximum scrollback history in lines (`max_scroll_history_lines`).
-    /// `None` resolves to
-    /// [`TerminalConfig::DEFAULT_SCROLLBACK_LINES`]; values are clamped
-    /// to `[100, 100_000]`. Alacritty exposes a line-count limit rather
-    /// than Ghostty's byte-count `scrollback-limit`, so the default stays
-    /// conservative while advanced users can opt into a larger line budget.
-    /// Read once at PTY spawn time; changing this value takes effect on
-    /// the next new terminal.
+    /// 终端回滚历史的最大行数（`max_scroll_history_lines`）。
+    /// `None` 使用 [`TerminalConfig::DEFAULT_SCROLLBACK_LINES`]，显式值限制在
+    /// `[100, 100_000]`。Alacritty 使用行数而不是字节数作为上限，因此默认值与
+    /// 会话恢复窗口保持一致，高级用户仍可主动增加预算。该值只在 PTY 创建时读取，
+    /// 修改配置只影响之后新建的终端。
     #[serde(default, deserialize_with = "lenient_opt_usize")]
     pub scrollback_lines: Option<usize>,
     /// US-007: default cursor shape before any app-driven DECSCUSR escape.
@@ -720,9 +716,9 @@ pub struct TerminalConfig {
 }
 
 impl TerminalConfig {
-    /// Default scrollback length for interactive CLI sessions.
-    pub const DEFAULT_SCROLLBACK_LINES: usize = 10_000;
-    /// Agent terminal profile target. Applied as a cap over the user setting.
+    /// 交互式 CLI 的默认历史长度；与会话保存和 IPC 读取的 4000 行窗口一致。
+    pub const DEFAULT_SCROLLBACK_LINES: usize = 4_000;
+    /// Agent 类型的硬上限；用户显式提高全局预算时仍限制为 10000 行。
     pub const AGENT_SCROLLBACK_LINES: usize = 10_000;
     /// Review terminal profile target. Applied as a cap over the user setting.
     pub const REVIEW_SCROLLBACK_LINES: usize = 2_000;
@@ -1805,11 +1801,11 @@ mod tests {
         let cfg = TerminalConfig::default();
         assert_eq!(
             cfg.resolved_scrollback_lines_for_profile(TerminalSurfaceProfile::Normal),
-            10_000
+            4_000
         );
         assert_eq!(
             cfg.resolved_scrollback_lines_for_profile(TerminalSurfaceProfile::Agent),
-            10_000
+            4_000
         );
         assert_eq!(
             cfg.resolved_scrollback_lines_for_profile(TerminalSurfaceProfile::Review),
