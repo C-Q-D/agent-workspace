@@ -1,17 +1,21 @@
-//! Shared Windows identity used by the installer, taskbar, and notifications.
+//! AgentWorkspace 安装器、任务栏和系统通知共享的 Windows 应用身份。
 
 #[cfg(any(target_os = "windows", test))]
-pub(crate) const PANEFLOW_WINDOWS_AUMID: &str = "Strivex.PaneFlow";
+pub(crate) const AGENT_WORKSPACE_WINDOWS_AUMID: &str = "CQD.AgentWorkspace";
 
+/// 在窗口创建前设置进程级 AUMID，使任务栏分组、快捷方式与通知归属一致。
+///
+/// Windows API 返回失败 HRESULT 时保留十六进制错误码，便于诊断安装器或
+/// Shell 身份不一致；函数不负责回退到 Paneflow 的旧身份。
 #[cfg(target_os = "windows")]
 pub(crate) fn ensure_process_app_user_model_id() -> Result<(), String> {
-    let app_id = windows_wide_null(PANEFLOW_WINDOWS_AUMID);
+    let app_id = windows_wide_null(AGENT_WORKSPACE_WINDOWS_AUMID);
     let result = unsafe {
         windows_sys::Win32::UI::Shell::SetCurrentProcessExplicitAppUserModelID(app_id.as_ptr())
     };
     if result < 0 {
         Err(format!(
-            "SetCurrentProcessExplicitAppUserModelID({PANEFLOW_WINDOWS_AUMID}) returned HRESULT 0x{:08X}",
+            "SetCurrentProcessExplicitAppUserModelID({AGENT_WORKSPACE_WINDOWS_AUMID}) returned HRESULT 0x{:08X}",
             result as u32
         ))
     } else {
@@ -32,7 +36,7 @@ mod tests {
     fn windows_aumid_matches_wix_shortcut_identity() {
         let wix = include_str!("../../packaging/wix/main.wxs");
         let shortcut_identity =
-            format!("Key='System.AppUserModel.ID' Value='{PANEFLOW_WINDOWS_AUMID}'");
+            format!("Key='System.AppUserModel.ID' Value='{AGENT_WORKSPACE_WINDOWS_AUMID}'");
 
         assert!(
             wix.contains(&shortcut_identity),
@@ -50,8 +54,12 @@ mod tests {
             .expect("ApplicationStartMenuShortcut block should exist");
 
         assert!(
-            shortcut.contains("Target='[APPLICATIONFOLDER]paneflow.exe'"),
+            shortcut.contains("Target='[APPLICATIONFOLDER]agent-workspace.exe'"),
             "Start Menu shortcut should target the installed exe"
+        );
+        assert!(
+            !shortcut.contains("Target='[APPLICATIONFOLDER]paneflow.exe'"),
+            "Start Menu shortcut must not target the upstream executable"
         );
         assert!(
             !shortcut.contains("Icon='"),
@@ -59,10 +67,33 @@ mod tests {
         );
     }
 
+    #[test]
+    fn wix_uses_independent_agent_workspace_product_line() {
+        let wix = include_str!("../../packaging/wix/main.wxs");
+        let manifest = include_str!("../Cargo.toml");
+        let workspace_manifest = include_str!("../../Cargo.toml");
+
+        // 安装器、Cargo 打包元数据与公开仓库必须属于同一独立产品线；内部
+        // helper 文件名可以暂时保留，但不能复用 Paneflow 的主程序身份。
+        for expected in [
+            "Name='AgentWorkspace'",
+            "Manufacturer='C-Q-D'",
+            "UpgradeCode='7D0C2220-1B4E-4E86-9D5E-AC3479C95B23'",
+            "Key='Software\\C-Q-D\\AgentWorkspace'",
+        ] {
+            assert!(wix.contains(expected), "WIX missing identity: {expected}");
+        }
+        assert!(!wix.contains("Name='PaneFlow'"));
+        assert!(!wix.contains("Manufacturer='Strivex'"));
+        assert!(manifest.contains("name = \"agent-workspace\""));
+        assert!(manifest.contains("upgrade-guid = \"7D0C2220-1B4E-4E86-9D5E-AC3479C95B23\""));
+        assert!(workspace_manifest.contains("https://github.com/C-Q-D/agent-workspace"));
+    }
+
     #[cfg(target_os = "windows")]
     #[test]
     fn windows_wide_null_is_null_terminated() {
-        let wide = windows_wide_null(PANEFLOW_WINDOWS_AUMID);
+        let wide = windows_wide_null(AGENT_WORKSPACE_WINDOWS_AUMID);
 
         assert_eq!(wide.last(), Some(&0));
         assert_eq!(

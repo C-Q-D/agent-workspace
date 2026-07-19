@@ -499,7 +499,7 @@ fn installed_binaries_contains(binary: &'static str) -> bool {
         Ok(cache) => cache,
         Err(poisoned) => {
             tracing::warn!(
-                target: "paneflow_app::agent_launcher",
+                target: "agent_workspace::agent_launcher",
                 "installed binary cache mutex poisoned; refreshing recovered state"
             );
             poisoned.into_inner()

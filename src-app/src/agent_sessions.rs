@@ -233,7 +233,7 @@ pub mod cache {
             // `lock_with_poison_log` in agent_terminal.rs).
             Err(p) => {
                 tracing::warn!(
-                    target: "paneflow_app::agent_sessions",
+                    target: "agent_workspace::agent_sessions",
                     "session cache mutex poisoned on lookup; using potentially stale data \
                      (a previous thread panicked while holding the lock)"
                 );
@@ -291,7 +291,7 @@ pub mod cache {
             // breadcrumb.
             Err(p) => {
                 tracing::warn!(
-                    target: "paneflow_app::agent_sessions",
+                    target: "agent_workspace::agent_sessions",
                     "session cache mutex poisoned on store_result; overwriting entry \
                      (a previous thread panicked while holding the lock)"
                 );
@@ -312,7 +312,7 @@ pub mod cache {
                 .min_by_key(|(_, seq)| *seq)
         {
             tracing::debug!(
-                target: "paneflow_app::agent_sessions",
+                target: "agent_workspace::agent_sessions",
                 "session cache LRU eviction: (agent={:?}, cwd={}) seq={}",
                 victim_key.0, victim_key.1, victim_seq,
             );

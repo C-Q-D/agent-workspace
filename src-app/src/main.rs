@@ -1,9 +1,5 @@
-// Test-only allow for the CLAUDE.md-mandated clippy restrictions. These
-// lints are also demoted to `allow` at crate level in `src-app/Cargo.toml`
-// for pre-existing GPUI UI-code unwraps (US-007 "or equivalent" escape),
-// so today this belt is effectively redundant - but it stays in place so
-// that when the eventual cleanup story re-promotes the Cargo.toml lints
-// to `warn`, tests continue to pass without another edit here.
+// 测试代码保留这些 Clippy 豁免，以兼容现有 GPUI 测试中的 unwrap；即使后续
+// Cargo.toml 重新提高 lint 等级，测试构建也不会因此被无关历史代码阻塞。
 #![cfg_attr(
     test,
     allow(
@@ -13,15 +9,13 @@
         clippy::panic
     )
 )]
-// Windows deliberately stays a console-subsystem binary. PowerShell/cmd do not
-// wait for GUI-subsystem executables, so `paneflow ls` would otherwise return
-// immediately with no stdout/stderr and a misleading success code. GUI launches
-// still shed the auto-created one-process console at startup; see
-// `detach_lonely_windows_console_for_gui_launch`.
-//! PaneFlow - native terminal workspace for coding agents.
+// Windows 主程序继续使用控制台子系统，因为 PowerShell/cmd 不会等待 GUI
+// 子系统程序；否则 `agent-workspace ls` 会提前返回且丢失输出。GUI 启动时
+// 仍会通过 `detach_lonely_windows_console_for_gui_launch` 释放孤立控制台。
+//! AgentWorkspace：面向编码 Agent 的原生多终端工作区。
 //!
-//! App shell with sidebar workspace list, terminal panes, agent surfaces, and
-//! diff/review workflows.
+//! 应用外壳负责左侧工作区列表、终端窗格、聚焦上下文和 Diff/Review 流程；
+//! 内部上游类型名暂时保留，不代表公开产品身份。
 
 mod agent_launcher;
 mod agent_sessions;
@@ -2957,7 +2951,9 @@ fn main() {
                     window_background: crate::app::constants::window_background_appearance(
                         config.window_backdrop.as_deref(),
                     ),
-                    app_id: Some("paneflow".into()),
+                    // GPUI 的窗口分组键与 Windows AUMID 使用同一产品语义，
+                    // 避免 AgentWorkspace 窗口继续归入 Paneflow 任务栏组。
+                    app_id: Some("agent-workspace".into()),
                     ..Default::default()
                 },
                 |window, cx| {

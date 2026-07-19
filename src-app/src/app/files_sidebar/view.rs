@@ -34,7 +34,7 @@ impl Drop for FilesSidebarRenderTimeCanary {
         let elapsed = self.start.elapsed();
         if elapsed > std::time::Duration::from_millis(16) {
             tracing::debug!(
-                target: "paneflow_app::files_sidebar",
+                target: "agent_workspace::files_sidebar",
                 "render_files_sidebar exceeded 16ms frame budget: {:.2}ms across {} visible rows",
                 elapsed.as_secs_f64() * 1000.0,
                 self.row_count.get()

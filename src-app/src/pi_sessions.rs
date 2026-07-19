@@ -178,7 +178,7 @@ fn read_capped_line<R: BufRead>(reader: &mut R, path: &Path) -> Option<CappedLin
         };
         if more_follows {
             log::debug!(
-                target: "paneflow_app::pi_sessions",
+                target: "agent_workspace::pi_sessions",
                 "skipped an oversized (>{} B) line in {}; continuing scan for the session header",
                 MAX_LINE_BYTES,
                 path.display(),

@@ -128,7 +128,7 @@ impl PaneFlowApp {
         use notify::Watcher;
         if let Err(e) = watcher.unwatch(dir) {
             tracing::debug!(
-                target: "paneflow_app::files_sidebar",
+                target: "agent_workspace::files_sidebar",
                 "files watcher: unwatch {} failed: {e}",
                 dir.display()
             );

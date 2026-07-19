@@ -18,7 +18,7 @@ readme = "../README.md"
 terminal-perf-metrics = []
 
 [[bin]]
-name = "paneflow"
+name = "agent-workspace"
 path = "src/main.rs"
 
 [dependencies]
@@ -417,30 +417,20 @@ unwrap_in_result = "allow"
 # is macOS-only) while keeping the lint live for our own code.
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("cargo-clippy"))'] }
 
-# Windows MSI packaging (US-013 - prd-windows-port.md). Source WXS +
-# License.rtf + paneflow.ico live under `packaging/wix/` (kept alongside
-# `packaging/{apt,rpm,homebrew,debian}/` per project convention).
+# Windows MSI 打包元数据。WXS、许可证与当前临时图标放在 `packaging/wix/`；
+# 图标文件会在 UNIT-27 替换，内部 crate 名暂时保持上游命名。
 # Build: cargo wix --package paneflow-app --target x86_64-pc-windows-msvc --include packaging/wix/main.wxs
 #
-# GUIDs below were generated once by `cargo wix init` and MUST remain
-# stable for the lifetime of this product line:
-#   * upgrade-guid - the MSI `UpgradeCode` used by `MajorUpgrade` to
-#     detect and replace previous installs. Changing it makes new MSIs
-#     install alongside the old one instead of upgrading in-place,
-#     breaking every existing user's update flow.
-#   * path-guid    - the `Path` component GUID controlling the PATH
-#     environment-variable entry. Changing it orphans the old entry
-#     (it's keyed off the GUID, not the name).
-# Both values are also mirrored in packaging/wix/main.wxs - edit in pairs
-# if they ever must change (only with a v2.0 product-line cut).
+# 下列 GUID 是 AgentWorkspace 独立产品线的稳定标识，禁止复用 Paneflow 的
+# UpgradeCode 或 PATH 组件 GUID。两个值也镜像在 `packaging/wix/main.wxs`，
+# 后续修改必须成对进行，否则会破坏 AgentWorkspace 自身的覆盖升级与卸载。
 [package.metadata.wix]
 wxs = "../packaging/wix/main.wxs"
-upgrade-guid = "177D8F43-1642-4212-9CB0-FD14B299058D"
-path-guid = "49700ADE-7E1B-466E-A25E-A138A2FC96F3"
-# MSI filename root: `paneflow-<version>-<arch>.msi`. Matches the
-# `AssetFormat::Msi` matcher suffix from US-011
-# (`-x86_64-pc-windows-msvc.msi`).
-name = "paneflow"
+upgrade-guid = "7D0C2220-1B4E-4E86-9D5E-AC3479C95B23"
+path-guid = "C77DA741-90B0-40F0-9AB3-A01C59E9978B"
+# MSI 文件名使用 `agent-workspace-<version>-<arch>.msi`；正式更新匹配与
+# 覆盖安装流程在 P2-03/P2-13 中单独验收。
+name = "agent-workspace"
 
 # Debian packaging (US-003) - explicit deps, never `$auto` (cargo-deb issue #170).
 # Build: cargo deb -p paneflow-app --target x86_64-unknown-linux-gnu

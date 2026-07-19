@@ -261,7 +261,7 @@ fn read_session_meta_inner(path: &Path, scan_usage: bool) -> Option<SessionMeta>
     }
     if n as u64 == MAX_LINE_BYTES && !buf.ends_with('\n') {
         log::warn!(
-            target: "paneflow_app::codex_sessions",
+            target: "agent_workspace::codex_sessions",
             "session JSONL line truncated at {} bytes for {} -- skipping file",
             MAX_LINE_BYTES,
             path.display(),

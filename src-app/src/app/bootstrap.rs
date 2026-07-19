@@ -485,7 +485,7 @@ impl PaneFlowApp {
                                 }
                                 if drained_events == FILES_EVENT_DRAIN_MAX_PER_TICK {
                                     tracing::debug!(
-                                        target: "paneflow_app::files_sidebar",
+                                        target: "agent_workspace::files_sidebar",
                                         "files watcher drain capped at {FILES_EVENT_DRAIN_MAX_PER_TICK} events for this tick"
                                     );
                                 }

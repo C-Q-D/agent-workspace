@@ -313,7 +313,7 @@ fn read_session_meta_inner(path: &Path, scan_usage: bool) -> Option<SessionMeta>
                 // and keep scanning: the envelope lands on a later,
                 // normal-sized line.
                 log::debug!(
-                    target: "paneflow_app::claude_sessions",
+                    target: "agent_workspace::claude_sessions",
                     "skipped an oversized (>{} B) line in {}; continuing scan for the envelope",
                     MAX_LINE_BYTES,
                     path.display(),

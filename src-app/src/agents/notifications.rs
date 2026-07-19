@@ -1,8 +1,8 @@
-//! Desktop notification routing for agent lifecycle events.
+//! Agent 生命周期事件的桌面通知路由。
 //!
-//! This module owns both sides of the notification gate:
-//! - the process-wide focus flag updated by the GPUI app;
-//! - a single cross-platform `notify-rust` firing path used by `ai.*` handlers.
+//! 本模块同时负责由 GPUI 更新的进程级窗口焦点状态，以及 `ai.*` 处理器共用
+//! 的跨平台 `notify-rust` 通知发送入口。Windows 通知必须复用主程序 AUMID，
+//! 避免通知继续归入 Paneflow 的旧 Shell 身份。
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -11,7 +11,7 @@ use paneflow_config::schema::{AgentPanelConfig, NotifyWhenAgentWaiting, PaneFlow
 
 use crate::agent_launcher::TerminalAgent;
 #[cfg(target_os = "windows")]
-use crate::windows_app_identity::PANEFLOW_WINDOWS_AUMID;
+use crate::windows_app_identity::AGENT_WORKSPACE_WINDOWS_AUMID;
 
 const NOTIFICATION_DETAIL_CAP_CHARS: usize = 512;
 
@@ -190,7 +190,7 @@ fn show_desktop_notification(notification: DesktopNotification) -> Result<(), St
     {
         let _ = crate::windows_app_identity::ensure_process_app_user_model_id();
         let _ = ensure_windows_app_user_model_id_registered();
-        builder.app_id(PANEFLOW_WINDOWS_AUMID);
+        builder.app_id(AGENT_WORKSPACE_WINDOWS_AUMID);
     }
 
     builder.show().map(|_| ()).map_err(|err| err.to_string())
@@ -216,7 +216,7 @@ fn notification_urgency_for_platform(urgency: DesktopNotificationUrgency) -> not
 
 #[cfg(target_os = "windows")]
 fn ensure_windows_app_user_model_id_registered() -> Result<(), String> {
-    let key_path = format!(r"SOFTWARE\Classes\AppUserModelId\{PANEFLOW_WINDOWS_AUMID}");
+    let key_path = format!(r"SOFTWARE\Classes\AppUserModelId\{AGENT_WORKSPACE_WINDOWS_AUMID}");
     let key = windows_registry::CURRENT_USER
         .create(&key_path)
         .map_err(|err| format!("create HKCU\\{key_path}: {err}"))?;

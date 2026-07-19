@@ -130,7 +130,7 @@ impl Drop for SidebarRenderTimeCanary {
         let elapsed = self.start.elapsed();
         if elapsed > std::time::Duration::from_millis(16) {
             tracing::debug!(
-                target: "paneflow_app::sidebar",
+                target: "agent_workspace::sidebar",
                 "render_sidebar exceeded 16ms frame budget: {:.2}ms across {} workspaces",
                 elapsed.as_secs_f64() * 1000.0,
                 self.workspace_count

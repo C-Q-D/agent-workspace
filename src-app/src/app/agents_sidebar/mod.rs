@@ -51,8 +51,8 @@ use super::agents_view_actions::AGENTS_SIDEBAR_WIDTH;
 /// the user see a dropped frame. Level is `debug!` instead of
 /// `warn!` so the line stays out of `paneflow-debug.log` at
 /// `info` level (which is the user-facing default per
-/// `main.rs::env_logger`) -- enable `RUST_LOG=paneflow_app::
-/// agents_sidebar=debug` to surface it on demand.
+/// `main.rs::env_logger`）——需要诊断时可设置
+/// `RUST_LOG=agent_workspace::agents_sidebar=debug`，无需增加常驻日志噪声。
 struct RenderTimeCanary {
     start: std::time::Instant,
     project_count: usize,
@@ -72,7 +72,7 @@ impl Drop for RenderTimeCanary {
         let elapsed = self.start.elapsed();
         if elapsed > std::time::Duration::from_millis(16) {
             tracing::debug!(
-                target: "paneflow_app::agents_sidebar",
+                target: "agent_workspace::agents_sidebar",
                 "render_agents_sidebar exceeded 16ms frame budget: {:.2}ms across {} projects -- US-010 chose no-debounce on the bet that the work stays sub-frame. If this fires repeatedly, profile and consider a 50ms input debounce.",
                 elapsed.as_secs_f64() * 1000.0,
                 self.project_count,

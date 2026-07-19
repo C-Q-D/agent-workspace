@@ -1,18 +1,10 @@
 <?xml version='1.0' encoding='utf-8'?>
 <!--
-  PaneFlow Windows installer (US-013 - prd-windows-port.md).
-  Seeded from `cargo wix init` on the paneflow-app crate (cargo-wix 0.3.9),
-  then customized for US-013 AC-2:
-    - Install dir: %ProgramFiles%\PaneFlow\
-    - paneflow.exe at the install root (no `bin` subdirectory - matches
-      the PRD `%ProgramFiles%\PaneFlow\paneflow.exe` detection rule
-      used by `InstallMethod::WindowsMsi` in US-010).
-    - Start Menu shortcut under "PaneFlow", using the target exe icon so
-      taskbar pins keep a stable icon path across major upgrades.
-    - ARP (Add or Remove Programs) entry with publisher "Strivex" and
-      the multi-resolution icon at `packaging/wix/paneflow.ico`.
-    - User config at %APPDATA%\paneflow\ is preserved on uninstall
-      (AC-6); WiX only removes the files it installed.
+  AgentWorkspace Windows 安装器身份定义。
+  主程序直接安装到 %ProgramFiles%\AgentWorkspace\agent-workspace.exe，
+  开始菜单快捷方式、任务栏 AUMID、卸载项和 PATH 均使用独立产品命名空间。
+  UNIT-27 前暂时复用 `packaging/wix/paneflow.ico`，不复用 Paneflow 的
+  UpgradeCode、组件 GUID、安装目录或注册表键。
 
   GUIDs baked in here MUST match `[package.metadata.wix]` in
   src-app/Cargo.toml:
@@ -35,17 +27,17 @@
 
     <Product
         Id='*'
-        Name='PaneFlow'
-        UpgradeCode='177D8F43-1642-4212-9CB0-FD14B299058D'
-        Manufacturer='Strivex'
+        Name='AgentWorkspace'
+        UpgradeCode='7D0C2220-1B4E-4E86-9D5E-AC3479C95B23'
+        Manufacturer='C-Q-D'
         Language='1033'
         Codepage='1252'
         Version='$(var.Version)'>
 
         <Package Id='*'
             Keywords='Installer'
-            Description='PaneFlow - native terminal workspace for running coding agents in parallel.'
-            Manufacturer='Strivex'
+            Description='AgentWorkspace - native Windows terminal workspace for running coding agents in parallel.'
+            Manufacturer='C-Q-D'
             InstallerVersion='500'
             Languages='1033'
             Compressed='yes'
@@ -58,12 +50,12 @@
             DowngradeErrorMessage='A newer version of [ProductName] is already installed. Setup will now exit.'/>
 
         <Media Id='1' Cabinet='media1.cab' EmbedCab='yes' DiskPrompt='CD-ROM #1'/>
-        <Property Id='DiskPrompt' Value='PaneFlow Installation'/>
+        <Property Id='DiskPrompt' Value='AgentWorkspace Installation'/>
 
         <Directory Id='TARGETDIR' Name='SourceDir'>
-            <!-- Install root: %ProgramFiles%\PaneFlow\ -->
+            <!-- 安装根目录：%ProgramFiles%\AgentWorkspace\。 -->
             <Directory Id='$(var.PlatformProgramFilesFolder)' Name='PFiles'>
-                <Directory Id='APPLICATIONFOLDER' Name='PaneFlow'>
+                <Directory Id='APPLICATIONFOLDER' Name='AgentWorkspace'>
 
                     <!-- License sidecar. -->
                     <Component Id='License' Guid='*'>
@@ -73,15 +65,13 @@
                             KeyPath='yes'/>
                     </Component>
 
-                    <!-- paneflow.exe lives directly under %ProgramFiles%\PaneFlow\
-                         (no `bin\` subdir), matching the canonical MSI layout
-                         assumed by `InstallMethod::WindowsMsi` (US-010). -->
+                    <!-- 主程序直接位于安装根目录，确保 PATH 与快捷方式目标一致。 -->
                     <Component Id='binary0' Guid='*'>
                         <File
                             Id='exe0'
-                            Name='paneflow.exe'
+                            Name='agent-workspace.exe'
                             DiskId='1'
-                            Source='$(var.CargoTargetBinDir)\paneflow.exe'
+                            Source='$(var.CargoTargetBinDir)\agent-workspace.exe'
                             KeyPath='yes'/>
                     </Component>
 
@@ -114,7 +104,7 @@
                     <!-- PATH environment variable: add the install dir so
                          `paneflow` is discoverable in cmd.exe, PowerShell,
                          and Windows Terminal without the full path. -->
-                    <Component Id='Path' Guid='49700ADE-7E1B-466E-A25E-A138A2FC96F3' KeyPath='yes'>
+                    <Component Id='Path' Guid='C77DA741-90B0-40F0-9AB3-A01C59E9978B' KeyPath='yes'>
                         <Environment
                             Id='PATH'
                             Name='PATH'
@@ -127,22 +117,22 @@
                 </Directory>
             </Directory>
 
-            <!-- Start Menu → PaneFlow\PaneFlow shortcut (AC-2b). -->
+            <!-- 开始菜单中的 AgentWorkspace 快捷方式。 -->
             <Directory Id='ProgramMenuFolder'>
-                <Directory Id='ApplicationProgramsFolder' Name='PaneFlow'>
-                    <Component Id='ApplicationShortcut' Guid='E369E12B-8CFA-4A4E-BDBF-5EA5BD50DA28'>
+                <Directory Id='ApplicationProgramsFolder' Name='AgentWorkspace'>
+                    <Component Id='ApplicationShortcut' Guid='B7BE2A69-0CB6-4F4C-8A9E-7D67B0D91BE2'>
                         <!-- Do not set Shortcut/@Icon here. WiX Icon table
                              paths resolve through C:\Windows\Installer and
                              include the ProductCode, so taskbar pins copied
                              from this shortcut can keep a stale icon after a
-                             major upgrade. Let Explorer use paneflow.exe's
+                             major upgrade. Let Explorer use agent-workspace.exe's
                              embedded icon instead. -->
                         <Shortcut Id='ApplicationStartMenuShortcut'
-                                  Name='PaneFlow'
+                                  Name='AgentWorkspace'
                                   Description='Run coding agents in parallel'
-                                  Target='[APPLICATIONFOLDER]paneflow.exe'
+                                  Target='[APPLICATIONFOLDER]agent-workspace.exe'
                                   WorkingDirectory='APPLICATIONFOLDER'>
-                            <ShortcutProperty Key='System.AppUserModel.ID' Value='Strivex.PaneFlow'/>
+                            <ShortcutProperty Key='System.AppUserModel.ID' Value='CQD.AgentWorkspace'/>
                         </Shortcut>
                         <!-- RemoveFolder keeps the uninstall clean; the
                              ApplicationProgramsFolder is dropped when
@@ -154,7 +144,7 @@
                              for non-advertised Start Menu shortcuts. The
                              binaries and PATH component stay machine-wide. -->
                         <RegistryValue Root='HKCU'
-                                       Key='Software\Strivex\PaneFlow'
+                                       Key='Software\C-Q-D\AgentWorkspace'
                                        Name='installed'
                                        Type='integer'
                                        Value='1'
@@ -166,8 +156,8 @@
 
         <Feature
             Id='Binaries'
-            Title='PaneFlow'
-            Description='Installs PaneFlow, its license, Start Menu shortcut, and an entry on PATH.'
+            Title='AgentWorkspace'
+            Description='Installs AgentWorkspace, its license, Start Menu shortcut, and an entry on PATH.'
             Level='1'
             ConfigurableDirectory='APPLICATIONFOLDER'
             AllowAdvertise='no'
@@ -181,7 +171,7 @@
             <Feature
                 Id='Environment'
                 Title='PATH Environment Variable'
-                Description='Adds the install location of the [ProductName] executable to the PATH system environment variable so `paneflow` can be called from any shell.'
+                Description='Adds the install location of the [ProductName] executable to PATH so `agent-workspace` can be called from any shell.'
                 Level='1'
                 Absent='allow'>
                 <ComponentRef Id='Path'/>
@@ -197,8 +187,8 @@
         <Icon Id='PaneflowICO' SourceFile='packaging/wix/paneflow.ico'/>
         <Property Id='ARPPRODUCTICON' Value='PaneflowICO'/>
 
-        <Property Id='ARPHELPLINK' Value='https://github.com/ArthurDEV44/paneflow'/>
-        <Property Id='ARPURLINFOABOUT' Value='https://paneflow.dev'/>
+        <Property Id='ARPHELPLINK' Value='https://github.com/C-Q-D/agent-workspace'/>
+        <Property Id='ARPURLINFOABOUT' Value='https://github.com/C-Q-D/agent-workspace'/>
 
         <UI>
             <UIRef Id='WixUI_FeatureTree'/>
