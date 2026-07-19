@@ -8,6 +8,7 @@ use gpui::{
     AnyElement, ClickEvent, Context, CursorStyle, InteractiveElement, IntoElement, MouseButton,
     ParentElement, SharedString, Styled, div, prelude::*, px,
 };
+use paneflow_config::schema::WorkspaceGridDensity;
 use serde_json::Value;
 
 use crate::GeneralDropdown;
@@ -156,6 +157,21 @@ impl PaneFlowApp {
             .child(hairline(ui))
             .child(git_auto_init_row);
 
+        // 密度切换只修改布局阈值；内存配置更新后下一帧直接重排现有终端。
+        let grid_density = config.resolved_workspace_grid_density();
+        let grid_density_row = self.general_select_row(
+            GeneralDropdown::GridDensity,
+            "Workspace grid density",
+            "Control terminal card size and pagination. Existing workspaces rearrange without restarting their terminals.",
+            grid_density_label(grid_density).to_string(),
+            None,
+            grid_density_options(grid_density),
+            "workspace_grid_density",
+            ui,
+            cx,
+        );
+        let layout_card = setting_card(ui).child(grid_density_row);
+
         div()
             .flex()
             .flex_col()
@@ -164,6 +180,9 @@ impl PaneFlowApp {
             .child(div().h(px(20.)).flex_none())
             .child(section_header(ui, "New workspace defaults"))
             .child(workspace_card)
+            .child(div().h(px(20.)).flex_none())
+            .child(section_header(ui, "Workspace layout"))
+            .child(layout_card)
             .child(div().h(px(120.)).flex_none())
     }
 
@@ -336,6 +355,34 @@ fn reference_format_setting_options(current: ReferenceFormat) -> Vec<SelectOptio
         .collect()
 }
 
+/// 返回矩阵密度设置使用的简短、稳定标签。
+fn grid_density_label(density: WorkspaceGridDensity) -> &'static str {
+    match density {
+        WorkspaceGridDensity::Auto => "Auto",
+        WorkspaceGridDensity::Comfortable => "Comfortable",
+        WorkspaceGridDensity::Compact => "Compact",
+    }
+}
+
+/// 生成密度下拉选项，并携带公开配置使用的规范小写值。
+fn grid_density_options(current: WorkspaceGridDensity) -> Vec<SelectOption> {
+    [
+        WorkspaceGridDensity::Auto,
+        WorkspaceGridDensity::Comfortable,
+        WorkspaceGridDensity::Compact,
+    ]
+    .into_iter()
+    .map(|density| {
+        (
+            grid_density_label(density).to_string(),
+            None,
+            Value::String(density.as_config_str().to_string()),
+            density == current,
+        )
+    })
+    .collect()
+}
+
 /// Per-editor leading logo for the Default-editor select. Brand-color logos
 /// (Zed / VS Code / Visual Studio) are PNGs rendered in full color; Cursor and
 /// Windsurf ship as monochrome `currentColor` SVGs that follow the theme.
@@ -394,6 +441,8 @@ fn shell_preset_eq(stored: &str, chip: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use paneflow_config::schema::WorkspaceGridDensity;
+
     use crate::reference_formatter::ReferenceFormat;
 
     #[test]
@@ -435,6 +484,28 @@ mod tests {
                     serde_json::json!("powershell"),
                     false
                 ),
+            ]
+        );
+    }
+
+    #[test]
+    fn grid_density_options_keep_labels_values_and_selection_stable() {
+        let options = super::grid_density_options(WorkspaceGridDensity::Compact);
+        let simplified: Vec<_> = options
+            .into_iter()
+            .map(|(label, _icon, value, selected)| (label, value, selected))
+            .collect();
+
+        assert_eq!(
+            simplified,
+            vec![
+                ("Auto".to_string(), serde_json::json!("auto"), false),
+                (
+                    "Comfortable".to_string(),
+                    serde_json::json!("comfortable"),
+                    false
+                ),
+                ("Compact".to_string(), serde_json::json!("compact"), true),
             ]
         );
     }

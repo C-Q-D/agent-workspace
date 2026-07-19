@@ -20,7 +20,7 @@ workspace templates, agent launchers, AI access, and MCP setup.
 
 | Page               | What it controls                                                                                                                                     | Writes to                                                                                                                                                                                                   | Applies                                                                     |
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| General            | Default external editor, terminal shell, file-reference format, and Git initialization for new workspaces.                                           | `external_editor`, `default_shell`, `default_reference_format`, `git_auto_init`                                                                                                                             | New launches/workspaces. Existing workspaces retain their reference format. |
+| General            | Default editor, terminal shell, new-workspace reference/Git behavior, and workspace grid density.                                                    | `external_editor`, `default_shell`, `default_reference_format`, `git_auto_init`, `workspace_grid_density`                                                                                                  | Launch defaults affect new workspaces; grid density rearranges the current matrix immediately. |
 | Themes             | Light, Dark, System, plus Windows chrome material when available.                                                                                    | `theme`, `windows_chrome_material`                                                                                                                                                                          | Theme changes hot-reload.                                                   |
 | Keyboard Shortcuts | Action bindings and reset to defaults.                                                                                                               | `shortcuts`                                                                                                                                                                                                 | Reloaded after the config save.                                             |
 | Notifications      | Native OS notifications for waiting agents and Rosetta visibility.                                                                                   | `agent_panel.notify_when_agent_waiting`, `rosetta_enabled`, `rosetta_show_passive`                                                                                                                          | Hot-reloads.                                                                |
@@ -33,6 +33,10 @@ General 页的“New workspace defaults”只决定之后创建或恢复工作�
 引用格式不会覆盖已有工作区保存在会话中的选择；关闭 Git 自动初始化后，非 Git 目录保持
 原样，已有 Git 仓库仍可显示分支和 Diff。两个控件都只在用户操作时写入配置，不会增加
 后台轮询或常驻进程。
+
+“Workspace layout”中的矩阵密度只改变终端卡片最小尺寸与分页：Auto 保持历史布局，
+Comfortable 使用更大卡片，Compact 在可读下限内增加小视口单页容量。切换会立即重排
+现有工作区，但不会创建、重启、暂停或终止 PowerShell/Agent 进程。
 
 ## AI access vs MCP [#ai-access-vs-mcp]
 

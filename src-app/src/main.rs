@@ -200,6 +200,8 @@ pub(crate) enum GeneralDropdown {
     Shell,
     /// 新工作区默认文件引用格式。
     ReferenceFormat,
+    /// 动态工作区矩阵密度。
+    GridDensity,
 }
 
 /// Which Workspaces-page dropdown is currently open.

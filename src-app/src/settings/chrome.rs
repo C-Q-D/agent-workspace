@@ -82,6 +82,12 @@ const NAV_GROUPS: &[NavGroup] = &[
                     "git",
                     "git init",
                     "repository",
+                    "grid",
+                    "matrix",
+                    "density",
+                    "compact",
+                    "comfortable",
+                    "pagination",
                 ],
             },
             NavItem {
@@ -648,7 +654,18 @@ mod tests {
             .find(|item| item.section == SettingsSection::General)
             .expect("General 导航项应当存在");
 
-        for query in ["workspace", "reference", "claude", "git init", "repository"] {
+        for query in [
+            "workspace",
+            "reference",
+            "claude",
+            "git init",
+            "repository",
+            "grid",
+            "matrix",
+            "density",
+            "compact",
+            "comfortable",
+        ] {
             assert!(
                 nav_item_matches(item, query),
                 "查询词 {query} 应匹配 General 页面"
