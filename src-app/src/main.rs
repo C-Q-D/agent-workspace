@@ -76,7 +76,7 @@ use gpui::{
     Animation, AnimationExt, App, Bounds, Context, CursorStyle, Decorations, Entity, FocusHandle,
     Focusable, HitboxBehavior, InteractiveElement, IntoElement, MouseButton, PathBuilder, Pixels,
     Point, Render, ResizeEdge, SharedString, Styled, Window, WindowBounds, WindowDecorations,
-    WindowOptions, canvas, div, point, prelude::*, px, size,
+    WindowOptions, canvas, div, point, prelude::*, px, size, svg,
 };
 use gpui_platform::application;
 use notify::Watcher;
@@ -1611,6 +1611,8 @@ impl Render for PaneFlowApp {
                 self.render_workspace_grid(window, available_width, available_height, ui, cx)
             }
         } else {
+            // 零工作区是首启和关闭最后一个工作区后的稳定产品状态。主操作复用
+            // 侧栏既有目录选择入口，不引入新的创建协议或隐式默认目录。
             div()
                 .flex()
                 .items_center()
@@ -1630,24 +1632,47 @@ impl Render for PaneFlowApp {
                                 .text_color(ui.text)
                                 .text_size(px(20.))
                                 .font_weight(gpui::FontWeight::SEMIBOLD)
-                                .child("Welcome to PaneFlow"),
+                                .child("Open your first workspace"),
                         )
                         .child(
                             div()
                                 .text_color(ui.muted)
                                 .text_size(px(13.))
-                                .child(
-                                    "The next-generation IDE for the AI era - \
-                                     a GPU-native terminal with workspace-aware panes, \
-                                     live git status, and first-class support for Claude Code and Codex.",
-                                ),
+                                .child("Choose a project folder to start a terminal with a stable workspace root."),
                         )
                         .child(
                             div()
-                                .mt(px(6.))
-                                .text_color(ui.muted)
+                                .id("empty-workspace-open-folder")
+                                .mt(px(8.))
+                                .h(px(34.))
+                                .px(px(14.))
+                                .rounded(px(6.))
+                                .flex()
+                                .flex_row()
+                                .items_center()
+                                .gap(px(7.))
+                                .cursor_pointer()
+                                .bg(ui.subtle)
+                                .text_color(ui.text)
                                 .text_size(px(12.))
-                                .child("Click + in the sidebar to create your first workspace."),
+                                .font_weight(gpui::FontWeight::MEDIUM)
+                                .hover(|s| {
+                                    let ui = crate::theme::ui_colors();
+                                    s.bg(ui.surface)
+                                })
+                                .on_click(cx.listener(
+                                    |this, _: &gpui::ClickEvent, window, cx| {
+                                        this.create_workspace_with_picker(window, cx);
+                                    },
+                                ))
+                                .child(
+                                    svg()
+                                        .size(px(14.))
+                                        .flex_none()
+                                        .path("icons/folder_open.svg")
+                                        .text_color(ui.muted),
+                                )
+                                .child("Choose folder"),
                         ),
                 )
                 .into_any_element()

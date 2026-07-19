@@ -2,22 +2,20 @@
 //!
 //! Wires the title bar, IPC server, config watcher, git-dir watcher, update
 //! checker, and all background tickers (50 ms IPC poll, 30 s git fallback,
-//! 30 s stale-PID sweep). Restores a saved session or creates a fresh
-//! single-workspace state.
+//! 30 s stale-PID sweep). Restores a saved session or starts in an explicit
+//! zero-workspace state until the user chooses a project folder.
 //!
-//! Extracted from `main.rs` per US-027 of the src-app refactor PRD - pure
-//! code-motion, behaviour unchanged.
+//! Originally extracted from `main.rs` per US-027 of the src-app refactor PRD.
+//! It now also owns the explicit startup rule that an unbound app stays empty
+//! instead of manufacturing a terminal from the process working directory.
 
 use gpui::{AppContext, Context};
 use notify::Watcher;
 
-use crate::launch_cwd;
-use crate::pane::Pane;
 use crate::telemetry;
-use crate::terminal::TerminalView;
 use crate::terminal::blink::{BlinkPhase, BlinkPhaseGlobal, CURSOR_BLINK_INTERVAL};
 use crate::window_chrome::title_bar;
-use crate::workspace::{MAX_WORKSPACES, Workspace, next_workspace_id};
+use crate::workspace::MAX_WORKSPACES;
 use crate::{PaneFlowApp, ipc, keybindings, update};
 
 /// 将可选的持久化矩阵页码限制在工作区硬上限内。
@@ -47,21 +45,6 @@ fn restored_public_mode(
 }
 
 impl PaneFlowApp {
-    fn default_workspace(cx: &mut Context<Self>) -> Workspace {
-        let ws_id = next_workspace_id();
-        let cwd = launch_cwd::implicit_launch_cwd();
-        let terminal_cwd = cwd.clone();
-        let terminal = cx.new(|cx| TerminalView::with_cwd(ws_id, Some(terminal_cwd), None, cx));
-        cx.subscribe(&terminal, Self::handle_terminal_event)
-            .detach();
-        let pane = cx.new(|cx| Pane::new(terminal, ws_id, cx));
-        cx.subscribe(&pane, Self::handle_pane_event).detach();
-        let dir_name = launch_cwd::title_for_cwd_or(&cwd, "Terminal 1");
-        let ws = Workspace::with_cwd_and_id(ws_id, dir_name, cwd, pane);
-        Self::spawn_initial_git_stats(ws_id, ws.cwd.clone(), cx);
-        ws
-    }
-
     pub(crate) fn spawn_telemetry_flusher(
         telemetry: std::sync::Arc<telemetry::client::TelemetryClient>,
         cx: &mut Context<Self>,
@@ -292,15 +275,19 @@ impl PaneFlowApp {
                 );
                 let (workspaces, active_idx) = Self::restore_workspaces(&session, cx);
                 if workspaces.is_empty() {
-                    log::warn!(
-                        "session restore: session contained no restorable workspaces; creating default workspace"
+                    // 首次启动、空会话或全部条目失效时必须保持零工作区，不能把
+                    // GUI 进程偶然继承的当前目录伪装成用户主动选择的 workspaceRoot。
+                    log::info!(
+                        "session restore: no restorable workspaces; waiting for folder selection"
                     );
-                    (vec![Self::default_workspace(cx)], 0)
+                    (Vec::new(), 0)
                 } else {
                     (workspaces, active_idx)
                 }
             }
-            None => (vec![Self::default_workspace(cx)], 0),
+            // 没有会话时不构造 Terminal/Pane，因此首帧不会产生 PowerShell 或
+            // conhost 后代；目录选择完成后再走既有显式创建入口。
+            None => (Vec::new(), 0),
         };
 
         // Setup notify file watcher for .git directories
