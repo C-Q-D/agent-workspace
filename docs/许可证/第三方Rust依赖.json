@@ -2,12 +2,9 @@
   "schema_version": 1,
   "cargo_lock_sha256": "42f468d90daa9e91a9576f23d563c217c05c461af9614ea162579a84107bffdb",
   "package_count": 1109,
-  "unresolved_metadata_count": 3,
-  "unresolved_metadata": [
-    "gpui_shared_string 0.1.0",
-    "gpui_util 0.1.0",
-    "language_core 0.1.0"
-  ],
+  "upstream_missing_metadata_count": 3,
+  "clarified_metadata_count": 3,
+  "unresolved_metadata_count": 0,
   "packages": [
     {
       "name": "accesskit",
@@ -2647,7 +2644,14 @@
       "source": "git+https://github.com/arthjean/zed?rev=3aaba57b95c22f4d21bbbf9f4b10b513173209db#3aaba57b95c22f4d21bbbf9f4b10b513173209db",
       "repository": null,
       "license": null,
-      "license_file": null
+      "license_file": null,
+      "clarification": {
+        "license": "Apache-2.0",
+        "evidence": "crates/gpui_shared_string/LICENSE-APACHE → ../../LICENSE-APACHE",
+        "source_license_file": "LICENSE-APACHE",
+        "source_license_target": "../../LICENSE-APACHE",
+        "note": "固定 Zed 源码目录提供 crate 级 Apache 许可证指针。"
+      }
     },
     {
       "name": "gpui_util",
@@ -2655,7 +2659,14 @@
       "source": "git+https://github.com/arthjean/zed?rev=3aaba57b95c22f4d21bbbf9f4b10b513173209db#3aaba57b95c22f4d21bbbf9f4b10b513173209db",
       "repository": null,
       "license": null,
-      "license_file": null
+      "license_file": null,
+      "clarification": {
+        "license": "Apache-2.0",
+        "evidence": "crates/gpui_util/LICENSE-APACHE → ../../LICENSE-APACHE",
+        "source_license_file": "LICENSE-APACHE",
+        "source_license_target": "../../LICENSE-APACHE",
+        "note": "固定 Zed 源码目录提供 crate 级 Apache 许可证指针。"
+      }
     },
     {
       "name": "gpui_web",
@@ -3343,7 +3354,14 @@
       "source": "git+https://github.com/arthjean/zed?rev=3aaba57b95c22f4d21bbbf9f4b10b513173209db#3aaba57b95c22f4d21bbbf9f4b10b513173209db",
       "repository": null,
       "license": null,
-      "license_file": null
+      "license_file": null,
+      "clarification": {
+        "license": "GPL-3.0-or-later",
+        "evidence": "crates/language_core/LICENSE-GPL → ../../LICENSE-GPL",
+        "source_license_file": "LICENSE-GPL",
+        "source_license_target": "../../LICENSE-GPL",
+        "note": "固定 Zed 源码目录提供 crate 级 GPL 许可证指针；Zed 官方许可说明标注 GPL-3.0-or-later。"
+      }
     },
     {
       "name": "language_model_core",

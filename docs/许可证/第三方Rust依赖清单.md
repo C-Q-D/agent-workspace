@@ -4,13 +4,15 @@
 
 - Cargo.lock SHA-256：`42f468d90daa9e91a9576f23d563c217c05c461af9614ea162579a84107bffdb`
 - 第三方包数量：1109
-- 缺少上游许可证元数据：3
+- 上游缺少许可证元数据：3
+- 已精确人工澄清：3
+- 尚未澄清：0
 
-缺少元数据的包会在后续人工澄清表中精确登记；本清单不猜测 SPDX 表达式：
+以下包的 Cargo 元数据缺少许可证字段，已按固定源码 revision 中的 crate 级许可证文件澄清：
 
-- `gpui_shared_string 0.1.0`
-- `gpui_util 0.1.0`
-- `language_core 0.1.0`
+- `gpui_shared_string 0.1.0`：`Apache-2.0`；crates/gpui_shared_string/LICENSE-APACHE → ../../LICENSE-APACHE
+- `gpui_util 0.1.0`：`Apache-2.0`；crates/gpui_util/LICENSE-APACHE → ../../LICENSE-APACHE
+- `language_core 0.1.0`：`GPL-3.0-or-later`；crates/language_core/LICENSE-GPL → ../../LICENSE-GPL
 
 | 包 | 版本 | 许可证 | 许可证文件 | 来源 | 仓库 |
 | --- | --- | --- | --- | --- | --- |
@@ -343,8 +345,8 @@
 | gpui_macos | 0.1.0 | Apache-2.0 | — | git+https://github.com/arthjean/zed?rev=3aaba57b95c22f4d21bbbf9f4b10b513173209db#3aaba57b95c22f4d21bbbf9f4b10b513173209db | — |
 | gpui_macros | 0.1.0 | Apache-2.0 | — | git+https://github.com/arthjean/zed?rev=3aaba57b95c22f4d21bbbf9f4b10b513173209db#3aaba57b95c22f4d21bbbf9f4b10b513173209db | — |
 | gpui_platform | 0.1.0 | Apache-2.0 | — | git+https://github.com/arthjean/zed?rev=3aaba57b95c22f4d21bbbf9f4b10b513173209db#3aaba57b95c22f4d21bbbf9f4b10b513173209db | — |
-| gpui_shared_string | 0.1.0 | — | — | git+https://github.com/arthjean/zed?rev=3aaba57b95c22f4d21bbbf9f4b10b513173209db#3aaba57b95c22f4d21bbbf9f4b10b513173209db | — |
-| gpui_util | 0.1.0 | — | — | git+https://github.com/arthjean/zed?rev=3aaba57b95c22f4d21bbbf9f4b10b513173209db#3aaba57b95c22f4d21bbbf9f4b10b513173209db | — |
+| gpui_shared_string | 0.1.0 | Apache-2.0（人工澄清） | crates/gpui_shared_string/LICENSE-APACHE → ../../LICENSE-APACHE | git+https://github.com/arthjean/zed?rev=3aaba57b95c22f4d21bbbf9f4b10b513173209db#3aaba57b95c22f4d21bbbf9f4b10b513173209db | — |
+| gpui_util | 0.1.0 | Apache-2.0（人工澄清） | crates/gpui_util/LICENSE-APACHE → ../../LICENSE-APACHE | git+https://github.com/arthjean/zed?rev=3aaba57b95c22f4d21bbbf9f4b10b513173209db#3aaba57b95c22f4d21bbbf9f4b10b513173209db | — |
 | gpui_web | 0.1.0 | Apache-2.0 | — | git+https://github.com/arthjean/zed?rev=3aaba57b95c22f4d21bbbf9f4b10b513173209db#3aaba57b95c22f4d21bbbf9f4b10b513173209db | — |
 | gpui_wgpu | 0.1.0 | Apache-2.0 | — | git+https://github.com/arthjean/zed?rev=3aaba57b95c22f4d21bbbf9f4b10b513173209db#3aaba57b95c22f4d21bbbf9f4b10b513173209db | — |
 | gpui_windows | 0.1.0 | Apache-2.0 | — | git+https://github.com/arthjean/zed?rev=3aaba57b95c22f4d21bbbf9f4b10b513173209db#3aaba57b95c22f4d21bbbf9f4b10b513173209db | — |
@@ -430,7 +432,7 @@
 | lalrpop | 0.20.2 | Apache-2.0 OR MIT | — | registry+https://github.com/rust-lang/crates.io-index | https://github.com/lalrpop/lalrpop |
 | lalrpop-util | 0.20.2 | Apache-2.0 OR MIT | — | registry+https://github.com/rust-lang/crates.io-index | https://github.com/lalrpop/lalrpop |
 | language | 0.1.0 | GPL-3.0-or-later | — | git+https://github.com/arthjean/zed?rev=3aaba57b95c22f4d21bbbf9f4b10b513173209db#3aaba57b95c22f4d21bbbf9f4b10b513173209db | — |
-| language_core | 0.1.0 | — | — | git+https://github.com/arthjean/zed?rev=3aaba57b95c22f4d21bbbf9f4b10b513173209db#3aaba57b95c22f4d21bbbf9f4b10b513173209db | — |
+| language_core | 0.1.0 | GPL-3.0-or-later（人工澄清） | crates/language_core/LICENSE-GPL → ../../LICENSE-GPL | git+https://github.com/arthjean/zed?rev=3aaba57b95c22f4d21bbbf9f4b10b513173209db#3aaba57b95c22f4d21bbbf9f4b10b513173209db | — |
 | language_model_core | 0.1.0 | GPL-3.0-or-later | — | git+https://github.com/arthjean/zed?rev=3aaba57b95c22f4d21bbbf9f4b10b513173209db#3aaba57b95c22f4d21bbbf9f4b10b513173209db | — |
 | lazy_static | 1.5.0 | MIT OR Apache-2.0 | — | registry+https://github.com/rust-lang/crates.io-index | https://github.com/rust-lang-nursery/lazy-static.rs |
 | leak | 0.1.2 | Apache-2.0 OR MIT | — | registry+https://github.com/rust-lang/crates.io-index | https://github.com/jmesmon/leak.git |

@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "assets": [
+    {
+      "id": "font-geist",
+      "name": "Geist / Geist Mono",
+      "license": "OFL-1.1",
+      "license_file": "src-app/assets/fonts/Geist-OFL.txt",
+      "source": "https://github.com/vercel/geist-font",
+      "files": [
+        "src-app/assets/fonts/Geist-*.ttf",
+        "src-app/assets/fonts/GeistMono-*.ttf"
+      ]
+    },
+    {
+      "id": "font-lilex",
+      "name": "Lilex",
+      "license": "OFL-1.1",
+      "license_file": "src-app/assets/fonts/Lilex-OFL.txt",
+      "source": "https://github.com/mishamyrt/Lilex",
+      "files": [
+        "src-app/assets/fonts/Lilex-*.ttf"
+      ]
+    },
+    {
+      "id": "font-jetbrains-mono-nerd-font",
+      "name": "JetBrains Mono Nerd Font",
+      "license": "OFL-1.1",
+      "license_file": "src-app/assets/fonts/JetBrainsMonoNerdFont-OFL.txt",
+      "source": "https://github.com/ryanoasis/nerd-fonts",
+      "files": [
+        "src-app/assets/fonts/JetBrainsMonoNerdFontMono-*.ttf"
+      ]
+    },
+    {
+      "id": "font-ibm-plex-sans",
+      "name": "IBM Plex Sans",
+      "license": "OFL-1.1",
+      "license_file": "src-app/assets/fonts/IBMPlexSans-license.txt",
+      "source": "https://github.com/IBM/plex",
+      "files": [
+        "src-app/assets/fonts/IBMPlexSans-*.ttf"
+      ]
+    },
+    {
+      "id": "font-ibm-plex-mono",
+      "name": "IBM Plex Mono",
+      "license": "OFL-1.1",
+      "license_file": "src-app/assets/fonts/IBMPlexMono-license.txt",
+      "source": "https://github.com/IBM/plex",
+      "files": [
+        "src-app/assets/fonts/IBMPlexMono-*.ttf"
+      ]
+    }
+  ]
+}
