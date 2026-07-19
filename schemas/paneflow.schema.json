@@ -19,6 +19,17 @@
       "type": ["string", "null"],
       "description": "Shell binary path. When null or omitted, Unix falls back to $SHELL then /bin/sh. Windows falls back to PowerShell 7 (pwsh.exe), Windows PowerShell 5.1 (powershell.exe), %ComSpec%, C:\\Windows\\System32\\cmd.exe, then bare cmd.exe."
     },
+    "default_reference_format": {
+      "type": ["string", "null"],
+      "description": "Default file-reference syntax for newly created workspaces. Existing restored workspaces keep their session-persisted format. Unknown values fall back to common without rewriting the stored value.",
+      "enum": ["common", "codex", "claude", "powershell", null],
+      "default": "common"
+    },
+    "git_auto_init": {
+      "type": ["boolean", "null"],
+      "description": "Whether AgentWorkspace may initialize a local Git repository when a workspace root is not already inside one. Existing repositories remain available when disabled.",
+      "default": true
+    },
     "theme": {
       "type": ["string", "null"],
       "description": "Bundled theme name.",

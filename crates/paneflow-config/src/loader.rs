@@ -279,6 +279,8 @@ pub fn try_parse_and_validate(json: &str) -> Result<PaneFlowConfig, serde_json::
 
     set_field!(shortcuts);
     set_field!(default_shell);
+    set_field!(default_reference_format);
+    set_field!(git_auto_init);
     set_field!(theme);
     set_field!(theme_mode);
     set_field!(window_decorations);
@@ -1150,6 +1152,8 @@ mod tests {
                 m
             },
             default_shell: Some("/bin/fish".to_string()),
+            default_reference_format: Some("claude".to_string()),
+            git_auto_init: Some(false),
             theme: Some("One Dark".to_string()),
             theme_mode: Some("dark".to_string()),
             commands: vec![CommandDefinition {
@@ -1232,6 +1236,33 @@ mod tests {
         assert_eq!(reparsed.claude_code_command, config.claude_code_command);
         assert_eq!(reparsed.codex_command, config.codex_command);
         assert_eq!(reparsed.theme, config.theme);
+    }
+
+    #[test]
+    fn test_workspace_defaults_parse_leniently_without_dropping_siblings() {
+        let config = parse_and_validate(
+            r#"{
+                "default_reference_format": " Claude ",
+                "git_auto_init": false,
+                "theme": "One Dark",
+                "future_setting": {"preserved": true}
+            }"#,
+        );
+        assert_eq!(config.resolved_default_reference_format(), "claude");
+        assert!(!config.git_auto_init_enabled());
+        assert_eq!(config.theme.as_deref(), Some("One Dark"));
+
+        // 单个字段类型错误只回退该字段，其他合法兄弟设置继续加载。
+        let invalid = parse_and_validate(
+            r#"{
+                "default_reference_format": 42,
+                "git_auto_init": "false",
+                "theme": "Claude"
+            }"#,
+        );
+        assert_eq!(invalid.resolved_default_reference_format(), "common");
+        assert!(invalid.git_auto_init_enabled());
+        assert_eq!(invalid.theme.as_deref(), Some("Claude"));
     }
 
     #[test]

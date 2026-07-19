@@ -39,6 +39,13 @@ pub struct PaneFlowConfig {
     pub shortcuts: HashMap<String, String>,
     /// Default shell binary path. `None` uses the system default.
     pub default_shell: Option<String>,
+    /// 新建工作区采用的默认引用格式。允许值由只读解析器规范化，已有会话仍保存
+    /// 并恢复自己的引用格式，不受该全局默认覆盖。
+    #[serde(default, deserialize_with = "lenient_opt_string")]
+    pub default_reference_format: Option<String>,
+    /// 非 Git 工作区是否自动执行本地 `git init`。缺失或错误类型保持历史默认开启。
+    #[serde(default, deserialize_with = "lenient_opt_bool")]
+    pub git_auto_init: Option<bool>,
     /// Terminal color theme name (e.g. "One Dark", "PaneFlow Light", "Vercel", "Claude", "Cursor").
     pub theme: Option<String>,
     /// Theme selection mode: `"light"`, `"dark"`, or `"system"`. `theme`
@@ -276,12 +283,33 @@ pub struct PaneFlowConfig {
 }
 
 impl PaneFlowConfig {
+    /// 新工作区缺省引用格式；公共格式不会假装某个 CLI 支持专属附件协议。
+    pub const DEFAULT_REFERENCE_FORMAT: &'static str = "common";
     /// Claude Code 缺省启动命令；仅在用户未提供可用自定义命令时使用。
     pub const DEFAULT_CLAUDE_CODE_COMMAND: &'static str = "claude";
     /// Codex 缺省启动命令；仅在用户未提供可用自定义命令时使用。
     pub const DEFAULT_CODEX_COMMAND: &'static str = "codex";
     /// Agent 启动命令的最大 UTF-8 字节数，避免异常配置形成过大的命令行。
     pub const MAX_AGENT_COMMAND_BYTES: usize = 4096;
+
+    /// 返回新工作区使用的稳定小写引用格式名称。
+    ///
+    /// 读取器接受用户手写配置中的大小写与首尾空白；未知值只在内存中回退，
+    /// 不改写磁盘，以便未来版本重新识别新增格式。
+    pub fn resolved_default_reference_format(&self) -> &'static str {
+        match self.default_reference_format.as_deref().map(str::trim) {
+            Some(value) if value.eq_ignore_ascii_case("codex") => "codex",
+            Some(value) if value.eq_ignore_ascii_case("claude") => "claude",
+            Some(value) if value.eq_ignore_ascii_case("powershell") => "powershell",
+            Some(value) if value.eq_ignore_ascii_case("common") => "common",
+            _ => Self::DEFAULT_REFERENCE_FORMAT,
+        }
+    }
+
+    /// 返回非 Git 目录自动初始化开关；缺失或无效值保持历史行为开启。
+    pub fn git_auto_init_enabled(&self) -> bool {
+        self.git_auto_init.unwrap_or(true)
+    }
 
     /// EP-004 US-011 (cli-cockpit) + US-013 (agent-control-plane): default
     /// Stalled silence threshold. Tightened from 300 s to 60 s so a likely-lost
@@ -1623,6 +1651,8 @@ mod tests {
         let config = PaneFlowConfig {
             shortcuts: HashMap::new(),
             default_shell: Some("sh".to_string()),
+            default_reference_format: Some("claude".to_string()),
+            git_auto_init: Some(false),
             theme: Some("One Dark".to_string()),
             theme_mode: Some("dark".to_string()),
             commands: Vec::new(),
@@ -1958,6 +1988,39 @@ mod tests {
         );
         assert_eq!(config.custom_codex_command(), Some("codex --model gpt-5"));
         assert_eq!(config.resolved_codex_command(), "codex --model gpt-5");
+    }
+
+    /// 新工作区默认值必须兼容旧配置，并把用户手写文本规范化为稳定值。
+    #[test]
+    fn workspace_defaults_resolve_reference_format_and_git_policy() {
+        let defaults = PaneFlowConfig::default();
+        assert_eq!(defaults.resolved_default_reference_format(), "common");
+        assert!(defaults.git_auto_init_enabled());
+
+        for (raw, expected) in [
+            (" common ", "common"),
+            ("CODEX", "codex"),
+            ("Claude", "claude"),
+            (" PowerShell ", "powershell"),
+            ("future-agent", "common"),
+        ] {
+            let config = PaneFlowConfig {
+                default_reference_format: Some(raw.to_string()),
+                ..Default::default()
+            };
+            assert_eq!(config.resolved_default_reference_format(), expected);
+        }
+
+        assert!(PaneFlowConfig {
+            git_auto_init: Some(true),
+            ..Default::default()
+        }
+        .git_auto_init_enabled());
+        assert!(!PaneFlowConfig {
+            git_auto_init: Some(false),
+            ..Default::default()
+        }
+        .git_auto_init_enabled());
     }
 
     #[test]
