@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "executedAt": "2026-07-19T19:21:27.8890029+08:00",
+  "environment": {
+    "os": "Microsoft Windows 11 专业版",
+    "version": "10.0.26200.0",
+    "architecture": "AMD64",
+    "rust": "rustc 1.96.1 (31fca3adb 2026-06-26)"
+  },
+  "roots": {
+    "release": "%USERPROFILE%\\.agent-workspace",
+    "debug": "%USERPROFILE%\\.agent-workspace-dev",
+    "distinct": true,
+    "legacyPaneflowOutsideBoundary": true
+  },
+  "classification": {
+    "durable": [
+      "config",
+      "sessions",
+      "state",
+      "bin"
+    ],
+    "rebuildable": [
+      "cache"
+    ],
+    "diagnostic": [
+      "logs"
+    ],
+    "topLevelDirectoryCount": 6,
+    "complete": true,
+    "unique": true
+  },
+  "realFilesystemBoundary": {
+    "cacheRemoved": true,
+    "durableFilesPreservedByteForByte": true,
+    "diagnosticLogPreservedByteForByte": true,
+    "legacyPaneflowSentinelPreservedByteForByte": true
+  },
+  "regression": {
+    "formatCheck": true,
+    "configTests": 105,
+    "applicationTests": 1426,
+    "layoutIntegrationTests": 5,
+    "allExitCodes": 0,
+    "remainingProcessCount": 0
+  }
+}

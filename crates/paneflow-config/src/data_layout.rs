@@ -149,12 +149,35 @@ impl UserDataLayout {
     pub fn update_logs_dir(&self) -> PathBuf {
         self.logs_dir().join("update")
     }
+
+    /// 返回备份、升级和卸载边界必须保留的 durable 目录。
+    ///
+    /// `bin/` 虽然内容可由应用重新释放，但外部 CLI 配置会稳定引用其中路径，
+    /// 因而不能与普通缓存一起清理。
+    pub fn durable_directories(&self) -> [PathBuf; 4] {
+        [
+            self.config_dir(),
+            self.sessions_dir(),
+            self.state_dir(),
+            self.bin_dir(),
+        ]
+    }
+
+    /// 返回可安全删除并由应用按需重建的目录。
+    pub fn rebuildable_directories(&self) -> [PathBuf; 1] {
+        [self.cache_dir()]
+    }
+
+    /// 返回用于诊断导出和独立清理策略的日志目录。
+    pub fn diagnostic_directories(&self) -> [PathBuf; 1] {
+        [self.logs_dir()]
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashSet;
+    use std::collections::{HashMap, HashSet};
 
     #[test]
     fn release_and_debug_roots_are_explicit_and_distinct() {
@@ -230,6 +253,88 @@ mod tests {
             assert!(rendered.contains("agent-workspace"));
             assert!(!rendered.contains("paneflow"));
         }
+    }
+
+    #[test]
+    fn lifecycle_classification_covers_each_top_level_directory_once() {
+        let layout = UserDataLayout::from_home(Path::new("C:/Users/TestUser"));
+        let durable = layout.durable_directories();
+        let rebuildable = layout.rebuildable_directories();
+        let diagnostic = layout.diagnostic_directories();
+        let classified: Vec<_> = durable
+            .iter()
+            .chain(rebuildable.iter())
+            .chain(diagnostic.iter())
+            .collect();
+        let unique: HashSet<_> = classified.iter().copied().collect();
+
+        assert_eq!(classified.len(), 6);
+        assert_eq!(unique.len(), classified.len());
+        assert!(durable.contains(&layout.bin_dir()));
+        assert!(!rebuildable.contains(&layout.bin_dir()));
+        assert_eq!(rebuildable, [layout.cache_dir()]);
+        assert_eq!(diagnostic, [layout.logs_dir()]);
+    }
+
+    #[test]
+    fn real_cache_cleanup_preserves_durable_logs_and_legacy_data() {
+        // 使用真实文件系统创建完整分类树；缓存清理只删除布局明确标记的
+        // rebuildable 目录，不通过内存替身模拟文件生命周期。
+        let sandbox = tempfile::TempDir::new().expect("应能创建真实临时用户目录");
+        let home = sandbox.path().join("用户主目录");
+        let layout = UserDataLayout::from_home_with_root_name(&home, RELEASE_USER_DATA_DIRNAME);
+        let legacy_root = home.join("AppData/Local/paneflow");
+        let legacy_sentinel = legacy_root.join("旧数据不得修改.txt");
+        std::fs::create_dir_all(&legacy_root).expect("应能创建旧数据哨兵目录");
+        std::fs::write(&legacy_sentinel, b"legacy-paneflow-bytes").expect("应能写入旧数据哨兵");
+
+        let classified_files = [
+            (layout.settings_path(), b"settings".as_slice()),
+            (layout.workspaces_path(), b"workspaces".as_slice()),
+            (layout.telemetry_id_path(), b"telemetry-id".as_slice()),
+            (
+                layout.bin_dir().join("paneflow-mcp.exe"),
+                b"stable-bin".as_slice(),
+            ),
+            (layout.markdown_state_path(), b"markdown-cache".as_slice()),
+            (
+                layout.update_logs_dir().join("update.log"),
+                b"diagnostic-log".as_slice(),
+            ),
+        ];
+        for (path, bytes) in &classified_files {
+            std::fs::create_dir_all(path.parent().expect("分类文件必须有父目录"))
+                .expect("应能创建分类目录");
+            std::fs::write(path, bytes).expect("应能写入分类文件");
+        }
+        let preserved_before: HashMap<_, _> = classified_files
+            .iter()
+            .filter(|(path, _)| !path.starts_with(layout.cache_dir()))
+            .map(|(path, _)| {
+                (
+                    path.clone(),
+                    std::fs::read(path).expect("应能读取清理前文件"),
+                )
+            })
+            .collect();
+
+        for cache_dir in layout.rebuildable_directories() {
+            std::fs::remove_dir_all(cache_dir).expect("应能只删除可重建缓存目录");
+        }
+
+        assert!(!layout.cache_dir().exists());
+        for (path, expected) in preserved_before {
+            assert_eq!(
+                std::fs::read(&path).expect("缓存清理后 durable/log 文件必须存在"),
+                expected,
+                "缓存清理不应修改 {}",
+                path.display()
+            );
+        }
+        assert_eq!(
+            std::fs::read(&legacy_sentinel).expect("旧数据哨兵必须存在"),
+            b"legacy-paneflow-bytes"
+        );
     }
 
     #[cfg(windows)]
