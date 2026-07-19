@@ -90,6 +90,9 @@ function Test-CommonRunGate {
         ([uint64]$hidden.hidden_suppressed_redraw_requests -gt 0) -and
         ([uint64]$hidden.immediate_redraw_requests -eq 0)
     }
+    $expectedSpan = [Math]::Max(0.0, [double]$Result.DurationSeconds - 1.0)
+    $sampleCadencePassed = ([Math]::Abs([double]$Result.SampleElapsedSeconds - [double]$Result.DurationSeconds) -le 10.0) -and
+        ([Math]::Abs([double]$Result.SampleTimestampSpanSeconds - $expectedSpan) -le 10.0)
 
     return [ordered]@{
         CpuWithinOnePercent = ([double]$Result.AppCpuAveragePercent -le 1.0)
@@ -101,6 +104,7 @@ function Test-CommonRunGate {
         AllFinalMarkersObserved = [bool]$Result.AllFinalMarkersObserved
         FocusedRenderActive = $focusedRenderPassed
         HiddenRenderSuppressed = $hiddenRenderPassed
+        SampleCadenceContinuous = $sampleCadencePassed
         NoAgentsSpecificProcess = ($agentProcesses.Count -eq 0)
         ZeroRemainingProcesses = (@($Result.RemainingProcessIds).Count -eq 0)
     }

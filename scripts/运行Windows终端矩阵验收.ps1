@@ -197,6 +197,7 @@ public static class AgentWorkspacePerfInput {
     [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
     [DllImport("user32.dll")] public static extern void mouse_event(uint f, uint x, uint y, uint d, UIntPtr e);
     [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr h, IntPtr a, int x, int y, int cx, int cy, uint f);
+    [DllImport("kernel32.dll")] public static extern uint SetThreadExecutionState(uint flags);
 }
 '@
 }
@@ -278,6 +279,10 @@ function Measure-ProcessTree {
         # 进程树枚举本身需要约 100～200 ms；若每轮固定再睡一秒，1800 个样本会
         # 漂移到 30 分钟以后并让有界负载正常退出。这里等待绝对目标时刻来消除累计漂移。
         $remainingMilliseconds = ($sample * 1000.0) - $sampleClock.Elapsed.TotalMilliseconds
+        # 系统待机或宿主长时间挂起后，不能通过高速补采样伪造连续长稳窗口。
+        if ($remainingMilliseconds -lt -10000) {
+            throw "连续采样时钟已落后 $([Math]::Round(-$remainingMilliseconds / 1000.0, 3)) 秒，可能发生系统待机或进程挂起，本轮证据无效。"
+        }
         if ($remainingMilliseconds -gt 0) {
             Start-Sleep -Milliseconds ([Math]::Ceiling($remainingMilliseconds))
         }
@@ -310,7 +315,17 @@ function Measure-ProcessTree {
             ConhostPrivateMiB = [Math]::Round((($conhost | Measure-Object PrivateMemorySize64 -Sum).Sum) / 1MB, 3)
         })
     }
-    return [pscustomobject]@{ Rows = @($rows); Stable = ($signatures.Count -eq 1); Signatures = @($signatures) }
+    $timestampSpan = if ($rows.Count -gt 1) {
+        ([DateTimeOffset]::Parse($rows[-1].TimestampUtc) - [DateTimeOffset]::Parse($rows[0].TimestampUtc)).TotalSeconds
+    }
+    else { 0.0 }
+    return [pscustomobject]@{
+        Rows = @($rows)
+        Stable = ($signatures.Count -eq 1)
+        Signatures = @($signatures)
+        ElapsedSeconds = $sampleClock.Elapsed.TotalSeconds
+        TimestampSpanSeconds = $timestampSpan
+    }
 }
 
 function Close-PaneflowAndCheck {
@@ -342,9 +357,14 @@ $process = $null
 $script:statePrepared = $false
 $script:hadConfig = $false
 $script:hadSession = $false
+$script:executionStateHeld = $false
 Initialize-WindowAutomation
 
 try {
+    # 长稳期间阻止 Windows 因空闲进入系统待机；屏幕仍允许按用户策略关闭。
+    $executionState = [AgentWorkspacePerfInput]::SetThreadExecutionState([uint32]2147483649)
+    if ($executionState -eq 0) { throw '无法建立 Windows 连续采样防休眠请求。' }
+    $script:executionStateHeld = $true
     Initialize-IsolatedState
     $env:PANEFLOW_NO_TELEMETRY = '1'
     $env:PANEFLOW_IPC_SCRIPTING = '1'
@@ -477,6 +497,8 @@ try {
         ConhostPrivatePeakMiB = [Math]::Round((($rows | Measure-Object ConhostPrivateMiB -Maximum).Maximum), 3)
         ProcessTreeStableDuringSample = [bool]$samples.Stable
         ProcessIdsStableDuringSample = (($processIdsBefore -join ',') -eq ($processIdsAfter -join ','))
+        SampleElapsedSeconds = [Math]::Round([double]$samples.ElapsedSeconds, 3)
+        SampleTimestampSpanSeconds = [Math]::Round([double]$samples.TimestampSpanSeconds, 3)
         ProcessTreeSnapshot = $processTreeSnapshot
         FirstSurfaceRenderDelta = Get-MetricDelta -Before $firstBefore -After $firstAfter
         LastSurfaceRenderDelta = Get-MetricDelta -Before $lastBefore -After $lastAfter
@@ -502,6 +524,14 @@ finally {
         }
     }
     finally {
-        Restore-IsolatedState
+        try {
+            Restore-IsolatedState
+        }
+        finally {
+            if ($script:executionStateHeld) {
+                [AgentWorkspacePerfInput]::SetThreadExecutionState([uint32]2147483648) | Out-Null
+                $script:executionStateHeld = $false
+            }
+        }
     }
 }
