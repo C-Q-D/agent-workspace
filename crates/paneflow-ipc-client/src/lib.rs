@@ -7,42 +7,36 @@
         clippy::panic
     )
 )]
-//! paneflow-ipc-client - blocking JSON-RPC client for Paneflow's local IPC socket.
+//! Paneflow 本地 IPC 的共享阻塞传输层。
 //!
-//! Mirrors the server wire protocol at `src-app/src/ipc.rs`: newline-delimited
-//! JSON-RPC 2.0 over an `interprocess` local socket (Unix domain socket /
-//! Windows named pipe). Unlike `paneflow-ai-hook` (fire-and-forget), this
-//! client is request/response - it reads back the one-line response the
-//! server writes on the same connection.
+//! 本模块实现 `src-app/src/ipc.rs` 约定的换行分隔 JSON-RPC 2.0 协议，底层使用
+//! `interprocess` 本地 socket（Unix domain socket 或 Windows named pipe）。既支持
+//! CLI/MCP 所需的请求响应，也支持 AI hook 所需的单向 frame。
 //!
-//! One connection per request: simple and robust (a stale connection can't
-//! wedge the caller). The server's peer-UID check passes because the client
-//! runs as the same user that launched Paneflow.
+//! 每次调用只建立一个连接，避免陈旧长连接拖住调用方。连接、写入与读取共享同一个
+//! 绝对 deadline；Windows 使用可取消的重叠 I/O，禁止重新启用会触发 fast-fail 的
+//! `PIPE_NOWAIT` 轮询组合。
 //!
-//! Shared crate (no GPUI / `src-app` dependency): consumed both by the MCP
-//! bridge (`paneflow-mcp`) and the `paneflow` CLI subcommands.
+//! 该 crate 不依赖 GPUI 或 `src-app`，供 MCP bridge、CLI 和 AI hook 共同复用。
 
 use std::io::{self, BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::Duration;
-#[cfg(windows)]
-use std::time::Instant;
+use std::time::{Duration, Instant};
 #[cfg(windows)]
 use std::{
     os::windows::io::{AsHandle, AsRawHandle},
     ptr,
 };
 
-#[cfg(windows)]
-use interprocess::local_socket::ConnectOptions;
-use interprocess::local_socket::{prelude::*, GenericFilePath, Stream};
+use interprocess::local_socket::{prelude::*, ConnectOptions, GenericFilePath, Stream};
+use interprocess::ConnectWaitMode;
 use serde_json::{json, Value};
 #[cfg(windows)]
 use windows_sys::Win32::{
     Foundation::{
-        CloseHandle, ERROR_IO_PENDING, ERROR_NOT_FOUND, HANDLE, WAIT_FAILED, WAIT_OBJECT_0,
-        WAIT_TIMEOUT,
+        CloseHandle, ERROR_IO_PENDING, ERROR_NOT_FOUND, ERROR_OPERATION_ABORTED, HANDLE,
+        WAIT_FAILED, WAIT_OBJECT_0, WAIT_TIMEOUT,
     },
     Storage::FileSystem::{ReadFile, WriteFile},
     System::{
@@ -51,34 +45,33 @@ use windows_sys::Win32::{
     },
 };
 
-/// Wire timeout for a single request/response round-trip. The server always
-/// writes a response (it can synthesize a `-32002` dispatch timeout
-/// envelope), so a stall this long means the process is wedged.
+/// 单次请求响应的总时限。服务端总会返回结果或合成 `-32002` 超时响应，因此超过
+/// 该时限可判定 IPC 链路已经失去响应。
 const IPC_TIMEOUT: Duration = Duration::from_secs(10);
 
-/// U-029: per-reply read cap on the untrusted IPC socket. Mirrors the server's
-/// `MAX_REQUEST_LEN` (`src-app/src/ipc.rs`). The recv timeout bounds wall-clock
-/// time but not memory - a same-UID peer can deliver many GB before the
-/// deadline - so the read is also byte-bounded and a reply that hits the cap
-/// without a terminating newline is a framing error, not a partial parse.
+/// 单条响应的读取上限，与服务端 `MAX_REQUEST_LEN` 保持一致。deadline 只能约束时间，
+/// 不能约束同 UID 对端持续发送造成的内存增长，因此还必须限制字节数；达到上限仍无
+/// 换行符时按 framing 错误处理，禁止解析截断 JSON。
 const MAX_RESPONSE_LEN: u64 = 256 * 1024;
 
-/// Abstraction over "send a JSON-RPC request to Paneflow, get the `result`".
-/// Lets callers (MCP layer, CLI) be unit-tested against a fake transport with
-/// no live socket.
+/// “发送 JSON-RPC 请求并取得 `result`”的传输抽象，便于 MCP 与 CLI 隔离真实 socket
+/// 进行单元测试。
 pub trait IpcTransport {
-    /// Call a Paneflow IPC method. Returns the `result` value on success, or
-    /// `Err(message)` on transport failure or a JSON-RPC `error` envelope.
+    /// 调用 Paneflow IPC 方法。成功时返回 `result`；传输失败或收到 JSON-RPC
+    /// `error` envelope 时返回面向调用方的错误文本。
     fn call(&self, method: &str, params: Value) -> Result<Value, String>;
 }
 
-/// Live client bound to a resolved socket path.
+/// 绑定到已解析 socket 路径的真实 IPC 客户端。
 pub struct IpcClient {
+    /// 当前 Paneflow 实例的本地 socket 或命名管道路径。
     socket: PathBuf,
+    /// 单调递增的 JSON-RPC 请求编号，可供多线程调用方安全共享。
     next_id: AtomicU64,
 }
 
 impl IpcClient {
+    /// 创建绑定到指定本地 IPC 路径的客户端，不会立即建立连接。
     pub fn new(socket: PathBuf) -> Self {
         Self {
             socket,
@@ -101,7 +94,7 @@ impl IpcTransport for IpcClient {
     }
 }
 
-/// Build a JSON-RPC 2.0 request frame.
+/// 构造 JSON-RPC 2.0 请求 frame。
 pub(crate) fn build_request(id: u64, method: &str, params: Value) -> Value {
     json!({
         "jsonrpc": "2.0",
@@ -111,8 +104,7 @@ pub(crate) fn build_request(id: u64, method: &str, params: Value) -> Value {
     })
 }
 
-/// Extract the `result` from a JSON-RPC response line, or translate an
-/// `error` envelope / malformed line into `Err(message)`.
+/// 从单行 JSON-RPC 响应中提取 `result`，并将错误 envelope 或畸形响应转成错误文本。
 pub(crate) fn parse_response(line: &str) -> Result<Value, String> {
     let value: Value = serde_json::from_str(line.trim())
         .map_err(|e| format!("invalid JSON-RPC response from paneflow: {e}"))?;
@@ -140,20 +132,13 @@ fn jsonrpc_error_message_from_value(value: &Value) -> Option<String> {
     Some(format!("paneflow error {code}: {message}"))
 }
 
-/// Open a connection, write the newline-terminated request, and read back one
-/// newline-delimited response line.
+/// 建立连接、写入以换行结尾的请求，并读取一行响应。
 ///
-/// US-023: the read deadline is enforced at the OS level on Unix and through
-/// cancellable overlapped named-pipe I/O on Windows.
-/// The previous scratch-thread + `recv_timeout` pattern leaked one OS thread
-/// and one socket FD on every timeout - the spawned reader owned `stream` and
-/// stayed blocked in `read_line` forever (no deadline ever reached it), so an
-/// agent retrying `read_pane` against a wedged Paneflow exhausted the
-/// long-lived bridge's threads/FDs. With an OS deadline, `read_line` returns
-/// the error itself, the owning `BufReader` drops, and the FD is released.
-/// Collapse an `ErrorKind::Unsupported` result to `Ok(())` - used only for
-/// optional Unix socket-deadline setters. Any other error is forwarded
-/// unchanged.
+/// Unix 依赖 OS socket deadline；Windows 依赖可取消的重叠命名管道 I/O。旧的临时
+/// 线程加 `recv_timeout` 方案会在每次超时时遗留一个永久阻塞线程和 socket 句柄；
+/// 当前实现让读取本身返回超时，使拥有 stream 的栈帧可以正常释放资源。
+/// `ErrorKind::Unsupported` 只用于兼容可选的 Unix socket timeout setter，其他错误
+/// 必须原样上抛。
 #[cfg(any(not(windows), test))]
 fn tolerate_unsupported(r: io::Result<()>) -> io::Result<()> {
     match r {
@@ -166,78 +151,119 @@ fn send_and_receive(socket: &Path, request: &Value) -> io::Result<String> {
     send_and_receive_with_timeout(socket, request, IPC_TIMEOUT)
 }
 
-/// 使用指定截止时间完成一次请求，单独保留该入口以便用短时限验证 Windows 取消语义。
+/// 使用指定总时限完成一次请求，连接、写入和读取共享同一个绝对 deadline。
 fn send_and_receive_with_timeout(
     socket: &Path,
     request: &Value,
     timeout: Duration,
 ) -> io::Result<String> {
-    let stream = connect_request_stream(socket)?;
-    // 分别约束读写方向：对端不消费请求或不返回响应时，都不能永久卡住客户端。
+    let deadline = deadline_after(timeout)?;
+    let stream = connect_frame_stream(socket, deadline)?;
+    let payload = serialize_frame(request)?;
+
     #[cfg(not(windows))]
     {
         let mut stream = stream;
-        tolerate_unsupported(stream.set_recv_timeout(Some(timeout)))?;
-        tolerate_unsupported(stream.set_send_timeout(Some(timeout)))?;
-    }
+        tolerate_unsupported(stream.set_send_timeout(Some(remaining(deadline)?)))?;
+        stream.write_all(&payload)?;
+        stream.flush()?;
+        tolerate_unsupported(stream.set_recv_timeout(Some(remaining(deadline)?)))?;
 
-    let mut payload =
-        serde_json::to_vec(request).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-    payload.push(b'\n');
+        let mut reader = BufReader::new(stream);
+        return read_capped_response_line(&mut reader);
+    }
 
     #[cfg(windows)]
     {
-        write_all_with_deadline(&stream, &payload, timeout)?;
-        read_line_with_deadline(&stream, timeout)
-    }
-
-    #[cfg(not(windows))]
-    {
-        stream.write_all(&payload)?;
-        stream.flush()?;
-
-        let mut reader = BufReader::new(stream);
-        let mut line = String::new();
-        // U-029: cap the reply read at MAX_RESPONSE_LEN (Take rebuilt per call, so
-        // the limit is per-reply) and treat hitting the cap without a terminating
-        // newline as a framing error rather than feeding a truncated line to the
-        // parser.
-        match reader.by_ref().take(MAX_RESPONSE_LEN).read_line(&mut line) {
-            Ok(n) if n as u64 >= MAX_RESPONSE_LEN && !line.ends_with('\n') => Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "paneflow response exceeded the size cap",
-            )),
-            Ok(_) => Ok(line),
-            // SO_RCVTIMEO surfaces as EAGAIN/`WouldBlock` on Unix and `TimedOut`
-            // on Windows - normalize both to a friendly timeout message.
-            Err(e)
-                if matches!(
-                    e.kind(),
-                    io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut
-                ) =>
-            {
-                Err(io::Error::new(
-                    io::ErrorKind::TimedOut,
-                    "paneflow did not respond within 10s",
-                ))
-            }
-            Err(e) => Err(e),
-        }
+        write_all_with_deadline(&stream, &payload, deadline)?;
+        read_line_with_deadline(&stream, deadline)
     }
 }
 
-fn connect_request_stream(socket: &Path) -> io::Result<Stream> {
-    let name = socket.to_fs_name::<GenericFilePath>()?;
+/// 向本地 IPC 端点发送一条换行分隔 JSON frame，不等待响应。
+///
+/// 调用方决定时限和失败语义；本函数保证连接与写入共享同一个绝对 deadline。
+/// AI hook 使用该 interface 后无需复制任何 Windows 命名管道 implementation。
+pub fn send_frame_with_timeout(socket: &Path, frame: &Value, timeout: Duration) -> io::Result<()> {
+    let deadline = deadline_after(timeout)?;
+    let stream = connect_frame_stream(socket, deadline)?;
+    let payload = serialize_frame(frame)?;
+
     #[cfg(windows)]
     {
-        // interprocess 2.4 的同步重叠 I/O 不能与 PIPE_NOWAIT 安全组合：暂时无数据
-        // 会穿过库的不可展开保护并触发 0xC0000409。保持管道为阻塞模式，实际读写
-        // 则由下方带事件、可取消的重叠 I/O 执行，因而不会牺牲 10 秒截止时间。
-        ConnectOptions::new().name(name).connect_sync()
+        write_all_with_deadline(&stream, &payload, deadline)
     }
     #[cfg(not(windows))]
     {
-        Stream::connect(name)
+        let mut stream = stream;
+        tolerate_unsupported(stream.set_send_timeout(Some(remaining(deadline)?)))?;
+        stream.write_all(&payload)?;
+        stream.flush()
+    }
+}
+
+/// 将 JSON 值编码为服务端约定的单行 frame。
+fn serialize_frame(frame: &Value) -> io::Result<Vec<u8>> {
+    let mut payload =
+        serde_json::to_vec(frame).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+    payload.push(b'\n');
+    Ok(payload)
+}
+
+/// 建立不会溢出的绝对 deadline。
+fn deadline_after(timeout: Duration) -> io::Result<Instant> {
+    Instant::now()
+        .checked_add(timeout)
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "IPC timeout is too large"))
+}
+
+/// 返回绝对 deadline 的剩余时长；已经耗尽时统一返回 TimedOut。
+fn remaining(deadline: Instant) -> io::Result<Duration> {
+    let remaining = deadline.saturating_duration_since(Instant::now());
+    if remaining.is_zero() {
+        Err(io::Error::new(
+            io::ErrorKind::TimedOut,
+            "paneflow IPC deadline elapsed",
+        ))
+    } else {
+        Ok(remaining)
+    }
+}
+
+/// 用有界等待连接本地 IPC；Windows 连接保持阻塞 I/O 模式，避免 PIPE_NOWAIT。
+fn connect_frame_stream(socket: &Path, deadline: Instant) -> io::Result<Stream> {
+    let name = socket.to_fs_name::<GenericFilePath>()?;
+    // interprocess 2.4 的同步重叠 I/O 不能与 PIPE_NOWAIT 安全组合：暂时无数据
+    // 会穿过库的不可展开保护并触发 0xC0000409。保持 stream 为阻塞模式；Windows
+    // 实际读写仍由下方可取消的重叠 I/O 执行。
+    ConnectOptions::new()
+        .name(name)
+        .wait_mode(ConnectWaitMode::Timeout(remaining(deadline)?))
+        .connect_sync()
+}
+
+/// 从带 BufRead interface 的 stream 读取一条有大小上限的响应。
+#[cfg(not(windows))]
+fn read_capped_response_line(reader: &mut impl BufRead) -> io::Result<String> {
+    let mut line = String::new();
+    match reader.by_ref().take(MAX_RESPONSE_LEN).read_line(&mut line) {
+        Ok(n) if n as u64 >= MAX_RESPONSE_LEN && !line.ends_with('\n') => Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "paneflow response exceeded the size cap",
+        )),
+        Ok(_) => Ok(line),
+        Err(e)
+            if matches!(
+                e.kind(),
+                io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut
+            ) =>
+        {
+            Err(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "paneflow IPC deadline elapsed",
+            ))
+        }
+        Err(e) => Err(e),
     }
 }
 
@@ -283,11 +309,22 @@ fn cancel_and_drain_windows_io(handle: HANDLE, overlapped: &mut OVERLAPPED) -> i
 
     let mut transferred = 0u32;
     // SAFETY: 等待直到操作完成或取消完成，确保返回后内核不再引用栈上状态。
-    unsafe { GetOverlappedResult(handle, overlapped, &mut transferred, 1) };
+    let drain_result =
+        if unsafe { GetOverlappedResult(handle, overlapped, &mut transferred, 1) } != 0 {
+            Ok(())
+        } else {
+            let drain_error = io::Error::last_os_error();
+            if drain_error.raw_os_error() == Some(ERROR_OPERATION_ABORTED as i32) {
+                Ok(())
+            } else {
+                Err(drain_error)
+            }
+        };
     if let Some(error) = cancel_error {
-        return Err(error);
+        Err(error)
+    } else {
+        drain_result
     }
-    Ok(())
 }
 
 /// 在一个 Windows 命名管道句柄上执行有截止时间的重叠读或写。
@@ -361,7 +398,7 @@ fn windows_pipe_io(
             cancel_and_drain_windows_io(handle, &mut overlapped)?;
             Err(io::Error::new(
                 io::ErrorKind::TimedOut,
-                "paneflow did not respond within 10s",
+                "paneflow IPC deadline elapsed",
             ))
         }
         WAIT_FAILED => {
@@ -382,9 +419,8 @@ fn windows_pipe_io(
 fn write_all_with_deadline(
     stream: &Stream,
     mut payload: &[u8],
-    timeout: Duration,
+    deadline: Instant,
 ) -> io::Result<()> {
-    let deadline = Instant::now() + timeout;
     while !payload.is_empty() {
         match windows_pipe_io(stream, WindowsPipeOperation::Write(payload), deadline) {
             Ok(0) => {
@@ -402,8 +438,7 @@ fn write_all_with_deadline(
 }
 
 #[cfg(windows)]
-fn read_line_with_deadline(stream: &Stream, timeout: Duration) -> io::Result<String> {
-    let deadline = Instant::now() + timeout;
+fn read_line_with_deadline(stream: &Stream, deadline: Instant) -> io::Result<String> {
     let mut out = Vec::new();
     let mut chunk = [0u8; 4096];
     loop {
@@ -833,31 +868,30 @@ mod tests {
     fn windows_ipc_client_round_trips_against_a_live_pipe() {
         use interprocess::local_socket::{Listener, ListenerOptions};
 
+        let _guard = windows_ipc_test_lock();
         let path = unique_windows_test_pipe("roundtrip");
         let name = path.as_path().to_fs_name::<GenericFilePath>().unwrap();
         let listener: Listener = ListenerOptions::new().name(name).create_sync().unwrap();
-        let server = std::thread::spawn(move || {
-            let mut stream = listener.accept().expect("accept");
-            let mut line = String::new();
-            {
-                let mut reader = BufReader::new(&mut stream);
-                reader.read_line(&mut line).expect("read request");
-            }
-            let request: Value = serde_json::from_str(line.trim()).expect("parse request");
-            let response = json!({
-                "jsonrpc": "2.0",
-                "id": request["id"].clone(),
-                "result": {"workspaces": []},
-            });
-            let mut serialized = serde_json::to_vec(&response).unwrap();
-            serialized.push(b'\n');
-            stream.write_all(&serialized).expect("write response");
-        });
+        let client =
+            std::thread::spawn(move || IpcClient::new(path).call("workspace.list", json!({})));
 
-        let client = IpcClient::new(path);
-        let result = client.call("workspace.list", json!({})).expect("call ok");
+        let mut stream = listener.accept().expect("accept");
+        let mut line = String::new();
+        {
+            let mut reader = BufReader::new(&mut stream);
+            reader.read_line(&mut line).expect("read request");
+        }
+        let request: Value = serde_json::from_str(line.trim()).expect("parse request");
+        let response = json!({
+            "jsonrpc": "2.0",
+            "id": request["id"].clone(),
+            "result": {"workspaces": []},
+        });
+        let mut serialized = serde_json::to_vec(&response).unwrap();
+        serialized.push(b'\n');
+        stream.write_all(&serialized).expect("write response");
+        let result = client.join().expect("client thread").expect("call ok");
         assert_eq!(result, json!({"workspaces": []}));
-        server.join().expect("server thread");
     }
 
     /// Windows 回归：服务端保持连接但不响应时，重叠读取必须在短截止时间后取消，
@@ -867,28 +901,174 @@ mod tests {
     fn windows_ipc_read_deadline_cancels_pending_io() {
         use interprocess::local_socket::{Listener, ListenerOptions};
 
+        let _guard = windows_ipc_test_lock();
         let path = unique_windows_test_pipe("timeout");
         let name = path.as_path().to_fs_name::<GenericFilePath>().unwrap();
         let listener: Listener = ListenerOptions::new().name(name).create_sync().unwrap();
-        let server = std::thread::spawn(move || {
-            let mut stream = listener.accept().expect("accept");
-            let mut line = String::new();
-            BufReader::new(&mut stream)
-                .read_line(&mut line)
-                .expect("read request");
-            std::thread::sleep(Duration::from_millis(300));
+        let request = build_request(1, "workspace.list", json!({}));
+        let client = std::thread::spawn(move || {
+            let started = Instant::now();
+            let error = send_and_receive_with_timeout(&path, &request, Duration::from_millis(100))
+                .expect_err("muted server must time out");
+            (error, started.elapsed())
         });
 
-        let request = build_request(1, "workspace.list", json!({}));
-        let started = Instant::now();
-        let error = send_and_receive_with_timeout(&path, &request, Duration::from_millis(100))
-            .expect_err("muted server must time out");
+        let mut stream = listener.accept().expect("accept");
+        let mut line = String::new();
+        BufReader::new(&mut stream)
+            .read_line(&mut line)
+            .expect("read request");
+        let (error, elapsed) = client.join().expect("client thread");
         assert_eq!(error.kind(), io::ErrorKind::TimedOut);
         assert!(
-            started.elapsed() < Duration::from_secs(2),
+            elapsed < Duration::from_secs(2),
             "deadline cancellation took too long"
         );
-        server.join().expect("server thread");
+    }
+
+    /// Windows 回归：连接、背压写入和响应读取必须共用一个总 deadline，不能在每个
+    /// 阶段重新获得完整时限。服务端分两段消耗时间，旧的分段 deadline 会错误成功。
+    #[cfg(windows)]
+    #[test]
+    fn windows_round_trip_uses_one_absolute_deadline() {
+        use interprocess::local_socket::{Listener, ListenerOptions};
+
+        let _guard = windows_ipc_test_lock();
+        let path = unique_windows_test_pipe("absolute-deadline");
+        let name = path.as_path().to_fs_name::<GenericFilePath>().unwrap();
+        let listener: Listener = ListenerOptions::new().name(name).create_sync().unwrap();
+        let request = build_request(
+            1,
+            "workspace.list",
+            json!({"payload": "x".repeat(240 * 1024)}),
+        );
+        let client = std::thread::spawn(move || {
+            let started = Instant::now();
+            let error = send_and_receive_with_timeout(&path, &request, Duration::from_millis(120))
+                .expect_err("combined write and read delays must exhaust the total deadline");
+            (error, started.elapsed())
+        });
+
+        let mut stream = listener.accept().expect("accept");
+        std::thread::sleep(Duration::from_millis(80));
+        let mut line = String::new();
+        BufReader::new(&mut stream)
+            .read_line(&mut line)
+            .expect("read request after write backpressure");
+        std::thread::sleep(Duration::from_millis(80));
+        let response = b"{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}\n";
+        // interprocess 的同步 Write 在对端已关闭时会触发同类 fast-fail；测试服务端也用
+        // 共享重叠 I/O primitive 发送迟到响应，确保失败只来自总 deadline 语义。
+        let _ = windows_pipe_io(
+            &stream,
+            WindowsPipeOperation::Write(response),
+            Instant::now() + Duration::from_secs(1),
+        );
+
+        let (error, elapsed) = client.join().expect("client thread");
+        assert_eq!(error.kind(), io::ErrorKind::TimedOut);
+        assert!(elapsed < Duration::from_millis(220));
+    }
+
+    /// Windows 回归：one-way frame 也必须经过共享 transport seam，并保持换行 framing。
+    #[cfg(windows)]
+    #[test]
+    fn windows_one_way_frame_round_trips_on_shared_transport() {
+        use interprocess::local_socket::{Listener, ListenerOptions};
+
+        let _guard = windows_ipc_test_lock();
+        let path = unique_windows_test_pipe("one-way");
+        let name = path.as_path().to_fs_name::<GenericFilePath>().unwrap();
+        let listener: Listener = ListenerOptions::new().name(name).create_sync().unwrap();
+        let frame = json!({"jsonrpc": "2.0", "method": "ai.stop", "id": 7});
+        let frame_for_client = frame.clone();
+        let client = std::thread::spawn(move || {
+            send_frame_with_timeout(&path, &frame_for_client, Duration::from_secs(1))
+                .expect("send frame");
+        });
+        let stream = listener.accept().expect("accept");
+        let mut line = String::new();
+        BufReader::new(stream)
+            .read_line(&mut line)
+            .expect("read frame");
+        client.join().expect("client thread");
+        assert!(line.ends_with('\n'));
+        assert_eq!(serde_json::from_str::<Value>(line.trim()).unwrap(), frame);
+    }
+
+    /// Windows 回归：对端接受但完全不读取时，大 frame 必须按绝对 deadline 取消。
+    /// 连续超时后的句柄数不得持续增长，且同一 transport 仍能完成下一次成功发送。
+    #[cfg(windows)]
+    #[test]
+    fn windows_one_way_write_timeout_releases_handles_and_recovers() {
+        use interprocess::local_socket::{Listener, ListenerOptions};
+
+        let _guard = windows_ipc_test_lock();
+        let before = current_process_handle_count();
+        let large_frame = json!({"payload": "x".repeat(240 * 1024)});
+        for iteration in 0..4 {
+            let path = unique_windows_test_pipe(&format!("write-timeout-{iteration}"));
+            let name = path.as_path().to_fs_name::<GenericFilePath>().unwrap();
+            let listener: Listener = ListenerOptions::new().name(name).create_sync().unwrap();
+            let frame = large_frame.clone();
+            let client = std::thread::spawn(move || {
+                let started = Instant::now();
+                let error = send_frame_with_timeout(&path, &frame, Duration::from_millis(30))
+                    .expect_err("peer that never drains must time out");
+                (error, started.elapsed())
+            });
+
+            // 由当前线程立即进入 accept，避免客户端在服务端线程尚未调度时完成连接并关闭，
+            // 导致测试夹具错过该连接后永久阻塞；接受后故意不读取以制造真实背压。
+            let _stream = listener.accept().expect("accept");
+            let (error, elapsed) = client.join().expect("client thread");
+            assert_eq!(error.kind(), io::ErrorKind::TimedOut);
+            assert!(elapsed < Duration::from_secs(1));
+        }
+        let after = current_process_handle_count();
+        assert!(
+            after <= before + 1,
+            "repeated timeouts leaked handles: before={before}, after={after}"
+        );
+
+        let path = unique_windows_test_pipe("write-recovery");
+        let name = path.as_path().to_fs_name::<GenericFilePath>().unwrap();
+        let listener: Listener = ListenerOptions::new().name(name).create_sync().unwrap();
+        let recovery = json!({"type": "recovered"});
+        let recovery_for_client = recovery.clone();
+        let client = std::thread::spawn(move || {
+            send_frame_with_timeout(&path, &recovery_for_client, Duration::from_secs(1))
+                .expect("transport must recover after timeouts");
+        });
+        let stream = listener.accept().expect("accept");
+        let mut line = String::new();
+        BufReader::new(stream)
+            .read_line(&mut line)
+            .expect("read recovery frame");
+        client.join().expect("client thread");
+        assert_eq!(
+            serde_json::from_str::<Value>(line.trim()).unwrap(),
+            recovery
+        );
+    }
+
+    /// 串行化会操作真实命名管道和进程句柄计数的 Windows 回归测试。
+    #[cfg(windows)]
+    fn windows_ipc_test_lock() -> std::sync::MutexGuard<'static, ()> {
+        static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        LOCK.lock().unwrap()
+    }
+
+    /// 读取当前进程句柄数，用于确认连续取消不会泄漏事件或管道句柄。
+    #[cfg(windows)]
+    fn current_process_handle_count() -> u32 {
+        use windows_sys::Win32::System::Threading::{GetCurrentProcess, GetProcessHandleCount};
+
+        let mut count = 0u32;
+        // SAFETY: GetCurrentProcess 返回伪句柄，count 指向可写 u32。
+        let ok = unsafe { GetProcessHandleCount(GetCurrentProcess(), &mut count) };
+        assert_ne!(ok, 0, "GetProcessHandleCount failed");
+        count
     }
 
     /// 生成进程内唯一的命名管道，避免并行测试之间争用固定名称。

@@ -7,19 +7,15 @@
         clippy::panic
     )
 )]
-//! PaneFlow AI-hook callback binary.
+//! PaneFlow AI hook 回调进程。
 //!
-//! Invoked by Claude Code / Codex CLI hooks from inside a PaneFlow PTY. Reads
-//! the hook JSON from stdin, builds a JSON-RPC 2.0 frame, and writes it to
-//! PaneFlow's IPC socket/pipe. Exits 0 on every path (silent fail) so a
-//! PaneFlow outage never breaks the user's AI CLI session.
+//! Claude Code 或 Codex CLI 在 PaneFlow PTY 内触发本进程。本进程从 stdin 读取 hook
+//! JSON，构造 JSON-RPC 2.0 frame，并写入 PaneFlow 本地 socket 或命名管道。所有路径
+//! 都以 0 退出并保持 fail-silent，确保 PaneFlow 暂时不可用时不会破坏用户的 CLI 会话。
 //!
-//! US-001 scope: crate scaffolding + blocking JSON-RPC client `send_frame`.
-//! US-002 scope: Claude Code hook event → `ai.*` mapping + env/stdin plumbing.
-//! US-003 scope: Codex hook event mapping (`SessionStart`, `PermissionRequest`),
-//! tool-identity lookup via `$PANEFLOW_AI_TOOL`, and session-start PID capture
-//! via `$PANEFLOW_AI_PID` (set by the shim in US-004) with `hook_payload.pid`
-//! fallback.
+//! 本文件还负责 Claude Code/Codex hook 到 `ai.*` 事件的映射、环境变量与 stdin
+//! 解析、工具身份识别，以及 session-start PID 捕获；传输细节统一下沉到
+//! `paneflow-ipc-client`。
 
 use std::env;
 use std::fs::OpenOptions;
@@ -27,20 +23,12 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::time::Duration;
-#[cfg(windows)]
-use std::time::Instant;
 
-#[cfg(windows)]
-use interprocess::local_socket::ConnectOptions;
-use interprocess::local_socket::{prelude::*, GenericFilePath, Stream};
-
-/// U-027: write deadline for the one-shot hook frame. The hook is invoked
-/// synchronously by the shim, so a stalled same-UID socket peer must not block
-/// it indefinitely. 500 ms is ample for a local socket write.
+/// 单次 hook frame 的连接加写入总时限。shim 会同步等待 hook，因此同 UID 对端卡住
+/// 时也不能无限阻塞；本地 IPC 正常发送远低于 500ms。
 const HOOK_IPC_TIMEOUT: Duration = Duration::from_millis(500);
 
-/// Mirrors the server's single-frame read cap. Stdin may be larger because the
-/// hook compacts payloads before emitting IPC.
+/// 与服务端单 frame 上限一致；stdin 可以更大，因为发送前会先压缩 hook payload。
 const MAX_HOOK_FRAME_BYTES: usize = 256 * 1024;
 const MAX_HOOK_TEXT_BYTES: usize = 4096;
 
@@ -105,18 +93,15 @@ fn send_frame_with_retry(socket_path: &Path, frame: &serde_json::Value) -> std::
     result
 }
 
-/// Open a blocking local-socket connection to `socket_path`, write `frame`
-/// serialized as JSON + a single `\n` terminator, then close the stream.
+/// 通过共享本地 IPC transport 发送单条 JSON frame，然后关闭连接。
 ///
-/// Mirrors the server framing at `src-app/src/ipc.rs` (newline-delimited
-/// JSON-RPC 2.0 read via `BufReader::lines`). Uses `GenericFilePath` on both
-/// Unix (domain socket path) and Windows (`\\.\pipe\<name>` pipe path);
-/// `interprocess` dispatches to the correct platform primitive internally.
+/// frame 大小仍由 hook 在调用前约束；连接与写入的绝对 deadline、Windows
+/// 重叠 I/O、取消和同步回收全部由 `paneflow-ipc-client` 的深 module 负责，
+/// 避免再次复制已经触发过 `0xC0000409` 的 `PIPE_NOWAIT` implementation。
 ///
 /// # Errors
 ///
-/// Returns any `std::io::Error` from name resolution, `Stream::connect`, or
-/// the write/flush calls. `dispatch` translates these into a silent exit 0
+/// 返回名称解析、连接或写入产生的 `std::io::Error`。`dispatch` 将错误转为静默退出 0，
 /// so a missing or stale socket never aborts the user's Claude Code / Codex
 /// session (PRD constraint C4).
 pub fn send_frame(socket_path: &Path, frame: &serde_json::Value) -> std::io::Result<()> {
@@ -130,91 +115,7 @@ pub fn send_frame(socket_path: &Path, frame: &serde_json::Value) -> std::io::Res
         ));
     }
 
-    let mut stream = connect_frame_stream(socket_path)?;
-    // U-027: bound the write. The shim invokes this hook synchronously on
-    // post-exit cleanup and the SIGINT path, blocking on its exit; a same-UID
-    // squatter that accepts the connection but never drains would otherwise
-    // wedge `write_all`/`flush` forever. 500 ms is ample for a local socket
-    // write - beyond it `dispatch` turns the error into a silent exit 0, which
-    // is the PRD's "fail silent, never break the session" contract (a bounded
-    // failure is strictly better than an unbounded hang).
-    //
-    // Windows named pipes reject set_send_timeout in interprocess, so Windows
-    // uses a nonblocking stream and an explicit deadline below.
-    #[cfg(not(windows))]
-    {
-        if let Err(e) = stream.set_send_timeout(Some(HOOK_IPC_TIMEOUT)) {
-            if e.kind() != std::io::ErrorKind::Unsupported {
-                return Err(e);
-            }
-        }
-    }
-
-    #[cfg(windows)]
-    {
-        write_all_with_deadline(&mut stream, &payload, HOOK_IPC_TIMEOUT)?;
-        stream.flush()?;
-        Ok(())
-    }
-
-    #[cfg(not(windows))]
-    {
-        stream.write_all(&payload)?;
-        stream.flush()?;
-        Ok(())
-    }
-}
-
-fn connect_frame_stream(socket_path: &Path) -> std::io::Result<Stream> {
-    let name = socket_path.to_fs_name::<GenericFilePath>()?;
-    #[cfg(windows)]
-    {
-        ConnectOptions::new()
-            .name(name)
-            .nonblocking_stream(true)
-            .connect_sync()
-    }
-    #[cfg(not(windows))]
-    {
-        Stream::connect(name)
-    }
-}
-
-#[cfg(windows)]
-fn wait_for_io(deadline: Instant) -> std::io::Result<()> {
-    let now = Instant::now();
-    if now >= deadline {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::TimedOut,
-            "paneflow hook IPC write timed out",
-        ));
-    }
-    std::thread::sleep((deadline - now).min(Duration::from_millis(5)));
-    Ok(())
-}
-
-#[cfg(windows)]
-fn write_all_with_deadline(
-    stream: &mut Stream,
-    mut payload: &[u8],
-    timeout: Duration,
-) -> std::io::Result<()> {
-    let deadline = Instant::now() + timeout;
-    while !payload.is_empty() {
-        match stream.write(payload) {
-            Ok(0) => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::WriteZero,
-                    "paneflow hook IPC write made no progress",
-                ));
-            }
-            Ok(n) => payload = &payload[n..],
-            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => {}
-            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => wait_for_io(deadline)?,
-            Err(e) => return Err(e),
-        }
-    }
-    Ok(())
+    paneflow_ipc_client::send_frame_with_timeout(socket_path, frame, HOOK_IPC_TIMEOUT)
 }
 
 // ---------------------------------------------------------------------------
@@ -774,7 +675,7 @@ mod unix_tests {
 
     use std::io::{BufRead, BufReader};
 
-    use interprocess::local_socket::{Listener, ListenerOptions};
+    use interprocess::local_socket::{prelude::*, GenericFilePath, Listener, ListenerOptions};
     use serde_json::json;
     use tempfile::TempDir;
 
