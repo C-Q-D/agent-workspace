@@ -1,40 +1,62 @@
-//! Desktop shim around `paneflow_telemetry::id` (US-003).
+//! 把桌面应用的统一用户数据布局接入遥测安装标识。
 //!
-//! Resolves the platform-specific data directory via `runtime_paths` and
-//! delegates persistence to the workspace crate. Public surface is
-//! identical to the pre-extraction module: callers continue to use
-//! `crate::telemetry::id::telemetry_id()` and
-//! `crate::telemetry::id::telemetry_id_with_first_run()` unchanged.
+//! 对外函数保持不变；本模块只解析 `UserDataLayout` 并把完整
+//! `state/telemetry_id` 路径交给遥测 crate。无法解析用户主目录时继续使用
+//! 仅当前进程有效的临时 UUID，不回退到数据根旧文件或 Paneflow 旧目录。
+
+use paneflow_config::data_layout::UserDataLayout;
 
 use crate::runtime_paths;
 
-/// Returns the stable anonymous telemetry UUID for this installation.
+/// 返回当前安装稳定的匿名遥测 UUID。
 ///
-/// On first call for a given installation, generates a fresh UUID v4 and
-/// writes it to `data_dir()/telemetry_id`. On subsequent calls, reads and
-/// returns the persisted value. If anything goes wrong (no data dir, file
-/// unwritable, file contents invalid), returns an ephemeral UUID for this
-/// session and logs at DEBUG - the caller treats the subsystem as "running
-/// in session-scoped mode" and carries on.
+/// 首次调用会按需创建 `state/` 并写入 `state/telemetry_id`；读取或写入失败
+/// 时返回临时 UUID，应用其余功能继续运行。
 pub fn telemetry_id() -> String {
     telemetry_id_with_first_run().0
 }
 
-/// Sibling of [`telemetry_id`] that also reports whether the persistence
-/// file was freshly created during this call (i.e. "first run for this
-/// installation"). US-013 uses the flag to stamp `is_first_run` on the
-/// `app_started` event without probing the filesystem a second time.
+/// 返回遥测 UUID 及其是否由本次调用首次成功持久化。
 ///
-/// Ephemeral fallbacks (no `data_local_dir`, unwritable dir, corrupt
-/// file) report `is_first_run = false` - we only claim first-run when
-/// we actually persisted a new UUID, matching the PRD wording
-/// "telemetry_id file was just created this launch".
+/// 只有文件确实新建成功时第二项才为 `true`，降级路径不会重复上报首次运行。
 pub fn telemetry_id_with_first_run() -> (String, bool) {
-    match runtime_paths::data_dir() {
-        Some(dir) => paneflow_telemetry::id::telemetry_id_at(&dir),
+    match runtime_paths::user_data_layout() {
+        Some(layout) => telemetry_id_for_layout(&layout),
         None => (
-            paneflow_telemetry::id::ephemeral_id("no data_local_dir resolved"),
+            paneflow_telemetry::id::ephemeral_id("无法解析 AgentWorkspace 用户数据布局"),
             false,
         ),
+    }
+}
+
+/// 使用明确布局生成遥测 ID，供生产入口与真实文件系统边界测试共享。
+fn telemetry_id_for_layout(layout: &UserDataLayout) -> (String, bool) {
+    paneflow_telemetry::id::telemetry_id_at_path(&layout.telemetry_id_path())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn layout_writes_only_state_and_preserves_legacy_sentinels() {
+        let sandbox = tempfile::TempDir::new().expect("应能创建真实临时用户目录");
+        let home = sandbox.path().join("用户目录");
+        let layout = UserDataLayout::from_home(&home);
+        let root_legacy = layout.root().join("telemetry_id");
+        let paneflow_legacy = home.join("AppData/Local/paneflow/telemetry_id");
+        for sentinel in [&root_legacy, &paneflow_legacy] {
+            fs::create_dir_all(sentinel.parent().expect("哨兵必须有父目录")).unwrap();
+            fs::write(sentinel, b"legacy-sentinel").unwrap();
+        }
+
+        let (id, first_run) = telemetry_id_for_layout(&layout);
+
+        assert!(uuid::Uuid::parse_str(&id).is_ok());
+        assert!(first_run);
+        assert_eq!(fs::read_to_string(layout.telemetry_id_path()).unwrap(), id);
+        assert_eq!(fs::read(&root_legacy).unwrap(), b"legacy-sentinel");
+        assert_eq!(fs::read(&paneflow_legacy).unwrap(), b"legacy-sentinel");
     }
 }

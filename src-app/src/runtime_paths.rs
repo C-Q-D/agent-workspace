@@ -268,13 +268,22 @@ pub fn augment_path_for_gui_launch() {
     }
 }
 
+/// 返回当前用户的 AgentWorkspace 数据布局，不创建任何目录。
+///
+/// 无法解析用户主目录时返回 `None`；调用方必须使用内存降级，禁止回退到
+/// Paneflow 旧目录、当前工作目录或系统临时目录。
+pub fn user_data_layout() -> Option<paneflow_config::data_layout::UserDataLayout> {
+    dirs::home_dir().map(|home| paneflow_config::data_layout::UserDataLayout::from_home(&home))
+}
+
 /// 返回并按需创建 AgentWorkspace 当前用户数据根目录。
 ///
 /// 发布版为 `~/.agent-workspace`，调试版为 `~/.agent-workspace-dev`。无法
 /// 解析主目录或创建失败时返回 `None`；调用方必须使用内存降级，禁止回退到
 /// `%LOCALAPPDATA%\paneflow` 等上游旧路径。
 pub fn data_dir() -> Option<PathBuf> {
-    let dir = paneflow_config::loader::user_data_root()?;
+    let layout = user_data_layout()?;
+    let dir = layout.root().to_path_buf();
     if let Err(e) = std::fs::create_dir_all(&dir) {
         log::debug!(
             "agent-workspace: data_dir {} is unwritable ({e}); callers will use ephemeral state",
@@ -287,7 +296,9 @@ pub fn data_dir() -> Option<PathBuf> {
 
 #[cfg(test)]
 fn data_dir_from(home: &Path) -> PathBuf {
-    paneflow_config::loader::user_data_root_from(home)
+    paneflow_config::data_layout::UserDataLayout::from_home(home)
+        .root()
+        .to_path_buf()
 }
 
 #[cfg(test)]
