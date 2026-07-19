@@ -2717,7 +2717,7 @@ fn main() {
             match ai_hooks::extract::ensure_bridge_extracted() {
                 Ok(p) => Some(p),
                 Err(e) => {
-                    log::warn!("paneflow mcp: bridge extraction failed ({e:#})");
+                    log::warn!("agent-workspace mcp: bridge extraction failed ({e:#})");
                     // Fall back to the resolved-but-maybe-missing path so the
                     // engine can emit the precise "binary missing at <path>"
                     // refusal rather than a vaguer "data dir unresolved".
@@ -2740,7 +2740,7 @@ fn main() {
         let hook_path = match ai_hooks::extract::ensure_ai_hook_extracted() {
             Ok(p) => Some(p),
             Err(e) => {
-                log::warn!("paneflow hooks: ai-hook extraction failed ({e:#})");
+                log::warn!("agent-workspace hooks: ai-hook extraction failed ({e:#})");
                 runtime_paths::ai_hook_binary_path()
             }
         };
@@ -2781,9 +2781,9 @@ fn main() {
     // must still open if data_dir is unwritable; `paneflow mcp install`
     // (EP-002) refuses cleanly later rather than write a dangling path.
     match ai_hooks::extract::ensure_bridge_extracted() {
-        Ok(path) => log::info!("paneflow: MCP bridge ready at {}", path.display()),
+        Ok(path) => log::info!("agent-workspace: MCP bridge ready at {}", path.display()),
         Err(e) => log::warn!(
-            "paneflow: MCP bridge extraction failed ({e:#}); `paneflow mcp install` will be unavailable until resolved"
+            "agent-workspace: MCP bridge extraction failed ({e:#}); `agent-workspace mcp install` will be unavailable until resolved"
         ),
     }
 

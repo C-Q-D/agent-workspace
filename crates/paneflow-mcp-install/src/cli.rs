@@ -1,4 +1,4 @@
-//! `paneflow mcp <subcommand>` CLI front-end (EP-002 US-005).
+//! `agent-workspace mcp <subcommand>` 的公开命令行入口。
 //!
 //! [`run_cli`] is the single entry point `main.rs` calls before the GUI
 //! starts. It parses the subcommand, delegates orchestration to
@@ -20,12 +20,12 @@ use crate::agents::{self, AgentConfigWriter};
 use crate::api::{self, InstallKind, StatusKind, UninstallKind};
 
 const USAGE: &str = "\
-paneflow mcp - register the Paneflow MCP bridge with your CLI agents
+agent-workspace mcp - register the AgentWorkspace MCP bridge with your CLI agents
 
 Usage:
-  paneflow mcp install      Register the bridge with every detected agent
-  paneflow mcp uninstall    Remove the Paneflow entry from every agent
-  paneflow mcp status       Report the bridge registration state per agent";
+  agent-workspace mcp install      Register the bridge with every detected agent
+  agent-workspace mcp uninstall    Remove the AgentWorkspace entry from every agent
+  agent-workspace mcp status       Report the bridge registration state per agent";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Command {
@@ -45,10 +45,9 @@ impl Command {
     }
 }
 
-/// Entry point. `args` is everything *after* `paneflow mcp` (i.e. the
-/// subcommand and its flags). `bridge_path` is the stable bridge location
-/// resolved by the caller (`runtime_paths::bridge_binary_path()`), or
-/// `None` when `data_dir()` is unresolvable.
+/// 公开入口；`args` 是 `agent-workspace mcp` 之后的参数。
+///
+/// `bridge_path` 是调用方解析出的稳定辅助程序路径；数据目录不可用时为 `None`。
 #[must_use]
 pub fn run_cli(args: &[String], bridge_path: Option<PathBuf>) -> i32 {
     let writers = agents::default_writers();
@@ -158,7 +157,7 @@ fn run_uninstall(writers: &[Box<dyn AgentConfigWriter>], out: &mut dyn Write) ->
                 let _ = writeln!(out, "{}: removed", r.id);
             }
             UninstallKind::NothingToRemove => {
-                let _ = writeln!(out, "{}: no Paneflow entry (nothing to remove)", r.id);
+                let _ = writeln!(out, "{}: no AgentWorkspace entry (nothing to remove)", r.id);
             }
             UninstallKind::NotDetected => {
                 let _ = writeln!(out, "{}: not detected (nothing to remove)", r.id);
@@ -194,7 +193,7 @@ fn run_status(
             StatusKind::Stale { found, expected } => {
                 let _ = writeln!(
                     out,
-                    "{}: stale path (config points at {found}, expected {expected}) - re-run `paneflow mcp install`",
+                    "{}: stale path (config points at {found}, expected {expected}) - re-run `agent-workspace mcp install`",
                     r.id
                 );
             }
@@ -205,7 +204,7 @@ fn run_status(
                     .unwrap_or_default();
                 let _ = writeln!(
                     out,
-                    "{}: needs repair{suffix} ({reason}) - re-run `paneflow mcp install`",
+                    "{}: needs repair{suffix} ({reason}) - re-run `agent-workspace mcp install`",
                     r.id
                 );
             }
@@ -252,6 +251,15 @@ mod tests {
         let (code, _out, err) = run(&[], None, &[]);
         assert_eq!(code, 2);
         assert!(err.contains("Usage:"));
+    }
+
+    #[test]
+    fn public_usage_uses_agent_workspace_identity() {
+        let (code, _out, err) = run(&[], None, &[]);
+        assert_eq!(code, 2);
+        assert!(err.contains("agent-workspace mcp"));
+        assert!(err.contains("AgentWorkspace MCP bridge"));
+        assert!(!err.contains("register the Paneflow"));
     }
 
     #[test]

@@ -117,7 +117,7 @@ mod tests {
             InstallOutcome::Installed
         );
         let v: serde_json::Value = serde_json::from_slice(&std::fs::read(&p).unwrap()).unwrap();
-        let entry = &v["mcp"]["paneflow"];
+        let entry = &v["mcp"]["agent-workspace"];
         assert_eq!(entry["type"], json!("local"));
         assert_eq!(
             entry["command"],
@@ -149,7 +149,7 @@ mod tests {
         assert_eq!(v["$schema"], json!("https://opencode.ai/config.json"));
         assert_eq!(v["mcp"]["weather"]["command"], json!(["weather-mcp"]));
         assert_eq!(
-            v["mcp"]["paneflow"]["command"],
+            v["mcp"]["agent-workspace"]["command"],
             json!(["/data/paneflow-mcp"])
         );
     }
@@ -183,7 +183,7 @@ mod tests {
             &p,
             serde_json::to_vec(&json!({
                 "mcp": {
-                    "paneflow": {
+                    "agent-workspace": {
                         "type": "local",
                         "command": ["/data/paneflow-mcp"],
                         "enabled": false
@@ -230,7 +230,7 @@ mod tests {
         assert!(!json.exists());
         let v: serde_json::Value = serde_json::from_slice(&std::fs::read(&jsonc).unwrap()).unwrap();
         assert_eq!(
-            v["mcp"]["paneflow"]["command"],
+            v["mcp"]["agent-workspace"]["command"],
             json!(["/data/paneflow-mcp"])
         );
         assert_eq!(v["mcp"]["weather"]["command"], json!(["weather-mcp"]));

@@ -1,8 +1,8 @@
-//! Codex writer (EP-003 US-008).
+//! Codex 的 AgentWorkspace MCP 服务配置写入器。
 //!
-//! Preferred path: shell out to `codex mcp add paneflow -- <bridge>` when
+//! Preferred path: shell out to `codex mcp add agent-workspace -- <bridge>` when
 //! the `codex` CLI is on PATH. Fallback: format-preserving `toml_edit`
-//! upsert of `[mcp_servers.paneflow]` in `~/.codex/config.toml`, keeping
+//! upsert of `[mcp_servers.agent-workspace]` in `~/.codex/config.toml`, keeping
 //! comments and sibling tables intact.
 //!
 //! **Volatility:** Codex's config schema and `codex mcp` subcommand flags
@@ -83,10 +83,14 @@ impl AgentConfigWriter for Codex {
         if self.allow_cli && support::cli_on_path(CLI) {
             io::backup(path)?;
             if had_prior {
-                let _ = support::shell_out(CLI, &["mcp", "remove", "paneflow"]);
+                let _ = support::shell_out(CLI, &["mcp", "remove", support::ENTRY]);
+                let _ = support::shell_out(CLI, &["mcp", "remove", support::LEGACY_ENTRY]);
             }
-            match support::shell_out(CLI, &["mcp", "add", "paneflow", "--", &bridge_s]) {
+            match support::shell_out(CLI, &["mcp", "add", support::ENTRY, "--", &bridge_s]) {
                 Ok(()) => {
+                    // 外部 CLI 成功不代表旧服务表一定已删除；受锁的幂等收尾会
+                    // 清理残留旧表，同时保留用户的其他 Codex 配置。
+                    support::toml_install(path, &bridge_s)?;
                     return Ok(if had_prior {
                         InstallOutcome::Updated
                     } else {
@@ -95,7 +99,7 @@ impl AgentConfigWriter for Codex {
                 }
                 Err(e) => {
                     log::warn!(
-                        "paneflow mcp: `codex mcp add` failed ({e:#}); falling back to direct ~/.codex/config.toml edit"
+                        "agent-workspace mcp: `codex mcp add` failed ({e:#}); falling back to direct ~/.codex/config.toml edit"
                     );
                 }
             }
@@ -115,12 +119,15 @@ impl AgentConfigWriter for Codex {
         if path.exists() {
             merge::read_toml_or_default(path)?;
         }
-        if !support::toml_entry_present(path)? {
+        let had_prior = support::toml_entry_present(path)?;
+        if !had_prior {
             return Ok(UninstallOutcome::NothingToRemove);
         }
         if self.allow_cli && support::cli_on_path(CLI) {
             io::backup(path)?;
-            if let Ok(()) = support::shell_out(CLI, &["mcp", "remove", "paneflow"]) {
+            let _ = support::shell_out(CLI, &["mcp", "remove", support::ENTRY]);
+            let _ = support::shell_out(CLI, &["mcp", "remove", support::LEGACY_ENTRY]);
+            if !support::toml_entry_present(path)? {
                 return Ok(UninstallOutcome::Removed);
             }
         }
@@ -153,12 +160,12 @@ mod tests {
             InstallOutcome::Installed
         );
         let txt = std::fs::read_to_string(&p).unwrap();
-        assert!(txt.contains("paneflow"));
+        assert!(txt.contains("agent-workspace"));
         assert!(txt.contains("/data/paneflow-mcp"));
         // Re-parse to confirm the table path.
         let doc = txt.parse::<toml_edit::DocumentMut>().unwrap();
         assert_eq!(
-            doc["mcp_servers"]["paneflow"]["command"].as_str(),
+            doc["mcp_servers"]["agent-workspace"]["command"].as_str(),
             Some("/data/paneflow-mcp")
         );
     }
@@ -202,7 +209,7 @@ mod tests {
         let p = dir.path().join("config.toml");
         std::fs::write(
             &p,
-            "[mcp_servers.paneflow]\ncommand = \"/data/paneflow-mcp\"\nargs = []\nenabled = false\n",
+            "[mcp_servers.agent-workspace]\ncommand = \"/data/paneflow-mcp\"\nargs = []\nenabled = false\n",
         )
         .unwrap();
         let w = test_writer(p);

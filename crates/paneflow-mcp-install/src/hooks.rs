@@ -1,8 +1,8 @@
-//! Persistent user-scope agent notification hooks (EP-004, prd-cli-agent-orchestration).
+//! AgentWorkspace 的用户级 Agent 通知 Hook 安装、迁移与状态查询。
 //!
-//! `paneflow hooks setup` writes Paneflow's `paneflow-ai-hook` callback into an
+//! `agent-workspace hooks setup` writes AgentWorkspace's `paneflow-ai-hook` callback into an
 //! agent's **user-scope** config so the agent reports its turn state to the
-//! running Paneflow instance. This is the durable counterpart to the shim's
+//! running AgentWorkspace instance. This is the durable counterpart to the shim's
 //! ephemeral, project-local injection (`paneflow-shim::hooks`): the shim writes
 //! `./.claude/settings.local.json` per launch and removes it on exit; this
 //! writes `~/.claude/settings.json` once and references the binary at its
@@ -402,12 +402,12 @@ fn status(expected_hook_path: &Path) -> Result<StatusOutcome> {
 }
 
 const HOOKS_USAGE: &str = "\
-paneflow hooks - register the Paneflow agent-notification hooks with your agents
+agent-workspace hooks - register the AgentWorkspace agent-notification hooks with your agents
 
 Usage:
-  paneflow hooks setup       Install persistent hooks for every supported agent
-  paneflow hooks uninstall   Remove the Paneflow hooks
-  paneflow hooks status      Report the hook installation state per agent";
+  agent-workspace hooks setup       Install persistent hooks for every supported agent
+  agent-workspace hooks uninstall   Remove the AgentWorkspace hooks
+  agent-workspace hooks status      Report the hook installation state per agent";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum HooksCommand {
@@ -427,11 +427,8 @@ impl HooksCommand {
     }
 }
 
-/// Entry point for `paneflow hooks <subcommand>`. `args` is everything after
-/// `paneflow hooks`. `hook_path` is the stable ai-hook location resolved by the
-/// caller (`runtime_paths::ai_hook_binary_path()`), or `None` when `data_dir()`
-/// is unresolvable. Exit codes mirror `mcp`: 0 success / no agent, 1 error,
-/// 2 usage.
+/// `agent-workspace hooks <subcommand>` 的公开入口。`args` 是子命令后的参数，
+/// `hook_path` 是调用方解析出的稳定 ai-hook 路径；数据目录不可用时为 `None`。
 #[must_use]
 pub fn run_hooks_cli(args: &[String], hook_path: Option<PathBuf>) -> i32 {
     run_hooks_with(
@@ -491,7 +488,7 @@ pub(crate) fn run_hooks_with(
                 0
             }
             Ok(UninstallOutcome::NothingToRemove) => {
-                let _ = writeln!(out, "claude-code: no Paneflow hooks present");
+                let _ = writeln!(out, "claude-code: no AgentWorkspace hooks present");
                 0
             }
             Err(e) => {
@@ -739,6 +736,18 @@ mod tests {
         let code = run_hooks_with(&["bogus".to_string()], None, &mut out, &mut err);
         assert_eq!(code, 2);
         assert!(String::from_utf8_lossy(&err).contains("Usage"));
+    }
+
+    #[test]
+    fn public_hooks_usage_uses_agent_workspace_identity() {
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = run_hooks_with(&[], None, &mut out, &mut err);
+        let err = String::from_utf8(err).unwrap();
+        assert_eq!(code, 2);
+        assert!(err.contains("agent-workspace hooks"));
+        assert!(err.contains("AgentWorkspace agent-notification hooks"));
+        assert!(!err.contains("register the Paneflow"));
     }
 
     #[test]

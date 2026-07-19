@@ -118,7 +118,7 @@ mod tests {
             InstallOutcome::Installed
         );
         let v: serde_json::Value = serde_json::from_slice(&std::fs::read(&p).unwrap()).unwrap();
-        let entry = &v["mcpServers"]["paneflow"];
+        let entry = &v["mcpServers"]["agent-workspace"];
         assert_eq!(entry["command"], json!("/data/paneflow-mcp"));
         assert_eq!(entry["trust"], json!(true));
         assert!(entry.get("env").is_none(), "D5: no env block");
@@ -143,7 +143,7 @@ mod tests {
         let v: serde_json::Value = serde_json::from_slice(&std::fs::read(&p).unwrap()).unwrap();
         assert_eq!(v["theme"], json!("GitHub"));
         assert_eq!(v["mcpServers"]["context7"]["command"], json!("c7"));
-        assert_eq!(v["mcpServers"]["paneflow"]["trust"], json!(true));
+        assert_eq!(v["mcpServers"]["agent-workspace"]["trust"], json!(true));
     }
 
     #[test]
@@ -166,7 +166,7 @@ mod tests {
             &p,
             serde_json::to_vec(&json!({
                 "mcpServers": {
-                    "paneflow": {
+                    "agent-workspace": {
                         "command": "/data/paneflow-mcp",
                         "args": [],
                         "trust": false

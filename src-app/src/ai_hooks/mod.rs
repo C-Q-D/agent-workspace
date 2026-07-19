@@ -50,7 +50,7 @@ pub(crate) fn hook_diag(msg: &str) {
     // a single atomic append keeps lines from interleaving/dropping (a
     // per-argument `writeln!` issues several syscalls and tears under
     // concurrency).
-    let line = format!("paneflow-app[{}]: {msg}\n", std::process::id());
+    let line = format!("agent-workspace[{}]: {msg}\n", std::process::id());
     let _ = std::fs::OpenOptions::new()
         .append(true)
         .create(true)

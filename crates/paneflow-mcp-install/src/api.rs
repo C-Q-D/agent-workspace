@@ -1,6 +1,6 @@
 //! Structured, programmatic API over the agent writers (EP-004 US-012).
 //!
-//! [`crate::cli`] formats human output for `paneflow mcp …`; this module
+//! [`crate::cli`] formats human output for `agent-workspace mcp …`; this module
 //! returns the same orchestration as plain data so a GUI (the Settings
 //! button) can render a per-agent recap and derive a single
 //! [`OverallState`] for its button label - without parsing stdout.
@@ -69,7 +69,7 @@ pub type UninstallReport = AgentResult<UninstallKind>;
 pub enum OverallState {
     /// No supported agent is installed on this machine.
     NoAgents,
-    /// At least one detected agent has no `paneflow` entry yet.
+    /// 至少一个已检测 Agent 尚未注册 `agent-workspace` 服务，或仍使用旧服务键。
     NeedsInstall,
     /// A detected agent points at a stale bridge path (post-update).
     NeedsRepair,
@@ -107,13 +107,13 @@ pub(crate) fn install_with(
             Some(p) if p.exists() => Some(p),
             Some(p) => {
                 return Err(format!(
-                    "MCP bridge binary is missing at {} - launch Paneflow once to extract it, then retry. Nothing was written.",
+                    "MCP bridge binary is missing at {} - launch AgentWorkspace once to extract it, then retry. Nothing was written.",
                     p.display()
                 ));
             }
             None => {
                 return Err(
-                    "could not resolve the Paneflow data directory, so the bridge path is unknown. Nothing was written."
+                    "could not resolve the AgentWorkspace data directory, so the bridge path is unknown. Nothing was written."
                         .to_string(),
                 );
             }
@@ -217,7 +217,7 @@ pub fn overall_state(statuses: &[AgentResult<StatusKind>]) -> OverallState {
 // Uninstall
 // ---------------------------------------------------------------------------
 
-/// Remove the `paneflow` entry from every detected agent.
+/// 从每个已检测 Agent 中移除新旧 AgentWorkspace MCP 服务键。
 pub fn uninstall_all() -> Vec<AgentResult<UninstallKind>> {
     uninstall_with(&agents::default_writers())
 }

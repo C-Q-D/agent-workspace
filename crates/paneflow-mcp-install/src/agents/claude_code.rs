@@ -1,10 +1,10 @@
-//! Claude Code writer (EP-003 US-007).
+//! Claude Code 的 AgentWorkspace MCP 服务配置写入器。
 //!
 //! Preferred path: shell out to `claude mcp add -s user --transport stdio
-//! paneflow -- <bridge>` when the `claude` CLI is on PATH - it owns the
+//! agent-workspace -- <bridge>` when the `claude` CLI is on PATH - it owns the
 //! schema and writes user-scope servers to `~/.claude.json`. Fallback when
 //! `claude` is absent (or the add fails): merge the entry directly into
-//! `~/.claude.json` under `mcpServers.paneflow`.
+//! `~/.claude.json` under `mcpServers.agent-workspace`.
 //!
 //! The entry carries **no `env` block** (PRD D5): the bridge inherits
 //! `PANEFLOW_SOCKET_PATH` from the pane it runs in. Per 2026 verification
@@ -101,7 +101,8 @@ impl AgentConfigWriter for ClaudeCode {
             // A stale entry would make `add` conflict; remove it first
             // (best-effort - a missing entry just no-ops).
             if had_prior {
-                let _ = support::shell_out(CLI, &["mcp", "remove", "paneflow"]);
+                let _ = support::shell_out(CLI, &["mcp", "remove", support::ENTRY]);
+                let _ = support::shell_out(CLI, &["mcp", "remove", support::LEGACY_ENTRY]);
             }
             match support::shell_out(
                 CLI,
@@ -112,12 +113,15 @@ impl AgentConfigWriter for ClaudeCode {
                     "user",
                     "--transport",
                     "stdio",
-                    "paneflow",
+                    support::ENTRY,
                     "--",
                     &bridge_s,
                 ],
             ) {
                 Ok(()) => {
+                    // 外部 CLI 可能成功新增新键、却未能删除旧键；再走一次受锁的
+                    // 幂等写入，确保最终配置只有 AgentWorkspace 服务且结构一致。
+                    support::json_install(path, CONTAINER, Self::entry(&bridge_s))?;
                     return Ok(if had_prior {
                         InstallOutcome::Updated
                     } else {
@@ -126,7 +130,7 @@ impl AgentConfigWriter for ClaudeCode {
                 }
                 Err(e) => {
                     log::warn!(
-                        "paneflow mcp: `claude mcp add` failed ({e:#}); falling back to direct ~/.claude.json merge"
+                        "agent-workspace mcp: `claude mcp add` failed ({e:#}); falling back to direct ~/.claude.json merge"
                     );
                 }
             }
@@ -145,12 +149,15 @@ impl AgentConfigWriter for ClaudeCode {
         if path.exists() {
             merge::read_json_or_default(path)?;
         }
-        if !support::json_entry_present(path, CONTAINER)? {
+        let had_prior = support::json_entry_present(path, CONTAINER)?;
+        if !had_prior {
             return Ok(UninstallOutcome::NothingToRemove);
         }
         if self.allow_cli && support::cli_on_path(CLI) {
             io::backup(path)?;
-            if let Ok(()) = support::shell_out(CLI, &["mcp", "remove", "paneflow"]) {
+            let _ = support::shell_out(CLI, &["mcp", "remove", support::ENTRY]);
+            let _ = support::shell_out(CLI, &["mcp", "remove", support::LEGACY_ENTRY]);
+            if !support::json_entry_present(path, CONTAINER)? {
                 return Ok(UninstallOutcome::Removed);
             }
         }
@@ -184,7 +191,7 @@ mod tests {
             InstallOutcome::Installed
         );
         let v: serde_json::Value = serde_json::from_slice(&std::fs::read(&p).unwrap()).unwrap();
-        let entry = &v["mcpServers"]["paneflow"];
+        let entry = &v["mcpServers"]["agent-workspace"];
         assert_eq!(entry["type"], json!("stdio"));
         assert_eq!(entry["command"], json!("/data/paneflow-mcp"));
         assert_eq!(entry["args"], json!([]));
@@ -213,7 +220,7 @@ mod tests {
             &p,
             serde_json::to_vec(&json!({
                 "mcpServers": {
-                    "paneflow": {
+                    "agent-workspace": {
                         "type": "stdio",
                         "command": "/data/paneflow-mcp",
                         "args": [],
@@ -252,7 +259,7 @@ mod tests {
         assert_eq!(v["numStartups"], json!(42));
         assert_eq!(v["mcpServers"]["github"]["command"], json!("gh-mcp"));
         assert_eq!(
-            v["mcpServers"]["paneflow"]["command"],
+            v["mcpServers"]["agent-workspace"]["command"],
             json!("/data/paneflow-mcp")
         );
     }

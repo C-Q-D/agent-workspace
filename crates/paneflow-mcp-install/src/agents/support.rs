@@ -1,4 +1,4 @@
-//! Shared plumbing for the per-agent writers (EP-003).
+//! MCP Agent 配置写入器共用的路径解析、进程调用与配置迁移能力。
 //!
 //! - Config-path resolution (cross-platform, `dirs`-based).
 //! - `shell_out` - run an agent's own CLI and surface a clean error on
@@ -16,8 +16,11 @@ use anyhow::{anyhow, bail, Result};
 use crate::agents::{InstallOutcome, StatusOutcome, UninstallOutcome};
 use crate::{io, merge};
 
-/// The entry name every writer registers under its container key.
-pub(crate) const ENTRY: &str = "paneflow";
+/// 所有写入器对外注册的新 MCP 服务名。
+pub(crate) const ENTRY: &str = "agent-workspace";
+
+/// 上游版本使用的旧服务名，仅用于迁移、识别和卸载既有配置。
+pub(crate) const LEGACY_ENTRY: &str = "paneflow";
 
 // ---------------------------------------------------------------------------
 // Config paths (resolved against the real home / XDG dirs)
@@ -173,10 +176,10 @@ pub(crate) fn shell_out(program: &str, args: &[&str]) -> Result<()> {
 // JSON install / uninstall / status (Claude Code, Gemini, opencode)
 // ---------------------------------------------------------------------------
 
-/// Upsert `root[container][paneflow] = entry` at `path`, idempotently and
-/// no-clobber. Returns `Installed` (new), `Updated` (entry changed), or
-/// `AlreadyCurrent` (no-op). A present-but-invalid file is an error (never
-/// overwritten).
+/// 写入 `root[container][agent-workspace]`，并在同一次原子写入中移除旧键。
+///
+/// 返回值区分首次安装、已有配置迁移或更新，以及完全无需写盘的当前状态。
+/// 配置结构无效时拒绝覆盖，避免损坏用户的其他 MCP 服务。
 pub(crate) fn json_install(
     path: &Path,
     container: &str,
@@ -184,13 +187,19 @@ pub(crate) fn json_install(
 ) -> Result<InstallOutcome> {
     io::with_config_lock(path, || {
         let mut root = merge::read_json_or_default(path)?;
-        let had_prior = root.get(container).and_then(|c| c.get(ENTRY)).is_some();
-        let changed = merge::merge_json_entry(&mut root, container, ENTRY, entry)?;
+        let had_current = root.get(container).and_then(|c| c.get(ENTRY)).is_some();
+        let had_legacy = root
+            .get(container)
+            .and_then(|c| c.get(LEGACY_ENTRY))
+            .is_some();
+        let entry_changed = merge::merge_json_entry(&mut root, container, ENTRY, entry)?;
+        let legacy_removed = merge::remove_json_entry(&mut root, container, LEGACY_ENTRY);
+        let changed = entry_changed || legacy_removed;
         if !changed {
             return Ok(InstallOutcome::AlreadyCurrent);
         }
         io::write_if_changed_unlocked(path, &merge::json_to_bytes(&root)?)?;
-        Ok(if had_prior {
+        Ok(if had_current || had_legacy {
             InstallOutcome::Updated
         } else {
             InstallOutcome::Installed
@@ -198,8 +207,7 @@ pub(crate) fn json_install(
     })
 }
 
-/// Remove `root[container][paneflow]` at `path`. No-op when the file or
-/// entry is absent.
+/// 同时移除新旧两个受管 MCP 服务键；其他服务与配置保持不变。
 pub(crate) fn json_uninstall(path: &Path, container: &str) -> Result<UninstallOutcome> {
     if !path.exists() {
         return Ok(UninstallOutcome::NothingToRemove);
@@ -209,7 +217,9 @@ pub(crate) fn json_uninstall(path: &Path, container: &str) -> Result<UninstallOu
             return Ok(UninstallOutcome::NothingToRemove);
         }
         let mut root = merge::read_json_or_default(path)?;
-        if !merge::remove_json_entry(&mut root, container, ENTRY) {
+        let removed_current = merge::remove_json_entry(&mut root, container, ENTRY);
+        let removed_legacy = merge::remove_json_entry(&mut root, container, LEGACY_ENTRY);
+        if !removed_current && !removed_legacy {
             return Ok(UninstallOutcome::NothingToRemove);
         }
         io::write_if_changed_unlocked(path, &merge::json_to_bytes(&root)?)?;
@@ -217,10 +227,7 @@ pub(crate) fn json_uninstall(path: &Path, container: &str) -> Result<UninstallOu
     })
 }
 
-/// Read-only state of the `paneflow` JSON entry at `path`. `extract`
-/// pulls the command path out of the entry (string for most agents, first
-/// array element for opencode). `expected` is the current bridge path used
-/// to flag staleness when it is available.
+/// 读取新服务键的状态；若只存在旧键，则返回需要迁移的可操作状态。
 pub(crate) fn json_status(
     path: &Path,
     container: &str,
@@ -237,6 +244,16 @@ pub(crate) fn json_status(
     let Some(container_object) = container_value.as_object() else {
         bail!("config key `{container}` is not an object - refusing to classify it");
     };
+    // 只要旧键仍存在，就必须让安装流程进入迁移分支；即使新键已经正确，
+    // 也不能提前返回 AlreadyCurrent 而把重复服务留在 Agent 配置中。
+    if container_object.contains_key(LEGACY_ENTRY) {
+        return Ok(StatusOutcome::NeedsRepair {
+            path: None,
+            reason: format!(
+                "legacy MCP service key `{LEGACY_ENTRY}` must be migrated to `{ENTRY}`"
+            ),
+        });
+    }
     let Some(entry) = container_object.get(ENTRY) else {
         return Ok(StatusOutcome::NotInstalled);
     };
@@ -253,13 +270,19 @@ pub(crate) const CODEX_TABLE: &str = "mcp_servers";
 pub(crate) fn toml_install(path: &Path, command: &str) -> Result<InstallOutcome> {
     io::with_config_lock(path, || {
         let mut doc = merge::read_toml_or_default(path)?;
-        let had_prior = doc.get(CODEX_TABLE).and_then(|t| t.get(ENTRY)).is_some();
-        let changed = merge::upsert_toml_entry(&mut doc, CODEX_TABLE, ENTRY, command, &[])?;
+        let had_current = doc.get(CODEX_TABLE).and_then(|t| t.get(ENTRY)).is_some();
+        let had_legacy = doc
+            .get(CODEX_TABLE)
+            .and_then(|t| t.get(LEGACY_ENTRY))
+            .is_some();
+        let entry_changed = merge::upsert_toml_entry(&mut doc, CODEX_TABLE, ENTRY, command, &[])?;
+        let legacy_removed = merge::remove_toml_entry(&mut doc, CODEX_TABLE, LEGACY_ENTRY);
+        let changed = entry_changed || legacy_removed;
         if !changed {
             return Ok(InstallOutcome::AlreadyCurrent);
         }
         io::write_if_changed_unlocked(path, &merge::toml_to_bytes(&doc))?;
-        Ok(if had_prior {
+        Ok(if had_current || had_legacy {
             InstallOutcome::Updated
         } else {
             InstallOutcome::Installed
@@ -276,7 +299,9 @@ pub(crate) fn toml_uninstall(path: &Path) -> Result<UninstallOutcome> {
             return Ok(UninstallOutcome::NothingToRemove);
         }
         let mut doc = merge::read_toml_or_default(path)?;
-        if !merge::remove_toml_entry(&mut doc, CODEX_TABLE, ENTRY) {
+        let removed_current = merge::remove_toml_entry(&mut doc, CODEX_TABLE, ENTRY);
+        let removed_legacy = merge::remove_toml_entry(&mut doc, CODEX_TABLE, LEGACY_ENTRY);
+        if !removed_current && !removed_legacy {
             return Ok(UninstallOutcome::NothingToRemove);
         }
         io::write_if_changed_unlocked(path, &merge::toml_to_bytes(&doc))?;
@@ -289,6 +314,19 @@ pub(crate) fn toml_status(path: &Path, expected: Option<&Path>) -> Result<Status
         return Ok(StatusOutcome::NotInstalled);
     }
     let doc = merge::read_toml_or_default(path)?;
+    // TOML 与 JSON 使用同一迁移规则：旧键存在即要求修复，避免新旧服务并存。
+    if doc
+        .get(CODEX_TABLE)
+        .and_then(|t| t.get(LEGACY_ENTRY))
+        .is_some()
+    {
+        return Ok(StatusOutcome::NeedsRepair {
+            path: None,
+            reason: format!(
+                "legacy MCP service key `{LEGACY_ENTRY}` must be migrated to `{ENTRY}`"
+            ),
+        });
+    }
     let Some(entry) = doc.get(CODEX_TABLE).and_then(|t| t.get(ENTRY)) else {
         return Ok(StatusOutcome::NotInstalled);
     };
@@ -343,7 +381,7 @@ pub(crate) fn json_entry_present(path: &Path, container: &str) -> Result<bool> {
     let Some(container_object) = container_value.as_object() else {
         bail!("config key `{container}` is not an object - refusing to overwrite");
     };
-    Ok(container_object.contains_key(ENTRY))
+    Ok(container_object.contains_key(ENTRY) || container_object.contains_key(LEGACY_ENTRY))
 }
 
 pub(crate) fn toml_entry_present(path: &Path) -> Result<bool> {
@@ -357,7 +395,7 @@ pub(crate) fn toml_entry_present(path: &Path) -> Result<bool> {
     let Some(parent) = parent.as_table() else {
         bail!("`{CODEX_TABLE}` is not a TOML table - refusing to overwrite");
     };
-    Ok(parent.contains_key(ENTRY))
+    Ok(parent.contains_key(ENTRY) || parent.contains_key(LEGACY_ENTRY))
 }
 
 // ---------------------------------------------------------------------------
@@ -478,6 +516,32 @@ mod tests {
     }
 
     #[test]
+    fn json_install_migrates_legacy_service_key_without_touching_siblings() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let p = dir.path().join("settings.json");
+        std::fs::write(
+            &p,
+            serde_json::to_vec(&json!({
+                "mcpServers": {
+                    "paneflow": { "command": "/old" },
+                    "other": { "command": "/other" }
+                }
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            json_install(&p, "mcpServers", json!({ "command": "/new" })).unwrap(),
+            InstallOutcome::Updated
+        );
+        let after: serde_json::Value = serde_json::from_slice(&std::fs::read(&p).unwrap()).unwrap();
+        assert!(after["mcpServers"].get(LEGACY_ENTRY).is_none());
+        assert_eq!(after["mcpServers"][ENTRY]["command"], json!("/new"));
+        assert_eq!(after["mcpServers"]["other"]["command"], json!("/other"));
+    }
+
+    #[test]
     fn json_install_preserves_siblings() {
         let dir = tempfile::TempDir::new().unwrap();
         let p = dir.path().join("settings.json");
@@ -495,7 +559,10 @@ mod tests {
         let after: serde_json::Value = serde_json::from_slice(&std::fs::read(&p).unwrap()).unwrap();
         assert_eq!(after["mcpServers"]["other"]["command"], json!("x"));
         assert_eq!(after["theme"], json!("dark"));
-        assert_eq!(after["mcpServers"]["paneflow"]["command"], json!("/p"));
+        assert_eq!(
+            after["mcpServers"]["agent-workspace"]["command"],
+            json!("/p")
+        );
     }
 
     #[test]
@@ -515,7 +582,7 @@ mod tests {
         std::fs::write(
             &p,
             serde_json::to_vec(&json!({
-                "mcpServers": { "paneflow": { "command": "/p" }, "other": { "command": "x" } }
+                "mcpServers": { "agent-workspace": { "command": "/p" }, "other": { "command": "x" } }
             }))
             .unwrap(),
         )
@@ -526,13 +593,34 @@ mod tests {
             UninstallOutcome::Removed
         );
         let after: serde_json::Value = serde_json::from_slice(&std::fs::read(&p).unwrap()).unwrap();
-        assert!(after["mcpServers"].get("paneflow").is_none());
+        assert!(after["mcpServers"].get("agent-workspace").is_none());
         assert_eq!(after["mcpServers"]["other"]["command"], json!("x"));
         // Second uninstall → nothing to remove.
         assert_eq!(
             json_uninstall(&p, "mcpServers").unwrap(),
             UninstallOutcome::NothingToRemove
         );
+    }
+
+    #[test]
+    fn json_uninstall_removes_legacy_service_key() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let p = dir.path().join("settings.json");
+        std::fs::write(
+            &p,
+            serde_json::to_vec(&json!({
+                "mcpServers": { "paneflow": { "command": "/old" } }
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            json_uninstall(&p, "mcpServers").unwrap(),
+            UninstallOutcome::Removed
+        );
+        let after: serde_json::Value = serde_json::from_slice(&std::fs::read(&p).unwrap()).unwrap();
+        assert!(after["mcpServers"].get(LEGACY_ENTRY).is_none());
     }
 
     #[test]
@@ -553,8 +641,10 @@ mod tests {
         let p = dir.path().join("settings.json");
         std::fs::write(
             &p,
-            serde_json::to_vec(&json!({ "mcpServers": { "paneflow": { "command": "/cur" } } }))
-                .unwrap(),
+            serde_json::to_vec(
+                &json!({ "mcpServers": { "agent-workspace": { "command": "/cur" } } }),
+            )
+            .unwrap(),
         )
         .unwrap();
 
@@ -602,12 +692,41 @@ mod tests {
     }
 
     #[test]
+    fn json_status_requires_migration_while_legacy_key_exists() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let p = dir.path().join("settings.json");
+        std::fs::write(
+            &p,
+            serde_json::to_vec(&json!({
+                "mcpServers": {
+                    "agent-workspace": { "command": "/cur" },
+                    "paneflow": { "command": "/cur" }
+                }
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+
+        assert!(matches!(
+            json_status(
+                &p,
+                "mcpServers",
+                Some(Path::new("/cur")),
+                validate_string_entry,
+            )
+            .unwrap(),
+            StatusOutcome::NeedsRepair { reason, .. } if reason.contains("legacy MCP service key")
+        ));
+    }
+
+    #[test]
     fn json_status_without_expected_path_requires_command() {
         let dir = tempfile::TempDir::new().unwrap();
         let p = dir.path().join("settings.json");
         std::fs::write(
             &p,
-            serde_json::to_vec(&json!({ "mcpServers": { "paneflow": { "args": [] } } })).unwrap(),
+            serde_json::to_vec(&json!({ "mcpServers": { "agent-workspace": { "args": [] } } }))
+                .unwrap(),
         )
         .unwrap();
 
@@ -627,7 +746,7 @@ mod tests {
         let txt = std::fs::read_to_string(&p).unwrap();
         assert!(txt.contains("# my codex config"));
         assert!(txt.contains("model = \"gpt-5\""));
-        assert!(txt.contains("paneflow"));
+        assert!(txt.contains("agent-workspace"));
         // Idempotent.
         assert_eq!(
             toml_install(&p, "/p").unwrap(),
@@ -635,6 +754,39 @@ mod tests {
         );
         // Updated path.
         assert_eq!(toml_install(&p, "/q").unwrap(), InstallOutcome::Updated);
+    }
+
+    #[test]
+    fn toml_install_migrates_legacy_service_table() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let p = dir.path().join("config.toml");
+        std::fs::write(
+            &p,
+            "[mcp_servers.paneflow]\ncommand = \"/old\"\nargs = []\n\n[notice]\nseen = true\n",
+        )
+        .unwrap();
+
+        assert_eq!(toml_install(&p, "/new").unwrap(), InstallOutcome::Updated);
+        let doc = merge::read_toml_or_default(&p).unwrap();
+        assert!(doc[CODEX_TABLE].get(LEGACY_ENTRY).is_none());
+        assert_eq!(doc[CODEX_TABLE][ENTRY]["command"].as_str(), Some("/new"));
+        assert_eq!(doc["notice"]["seen"].as_bool(), Some(true));
+    }
+
+    #[test]
+    fn toml_status_requires_migration_while_legacy_table_exists() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let p = dir.path().join("config.toml");
+        std::fs::write(
+            &p,
+            "[mcp_servers.agent-workspace]\ncommand = \"/cur\"\nargs = []\n\n[mcp_servers.paneflow]\ncommand = \"/cur\"\nargs = []\n",
+        )
+        .unwrap();
+
+        assert!(matches!(
+            toml_status(&p, Some(Path::new("/cur"))).unwrap(),
+            StatusOutcome::NeedsRepair { reason, .. } if reason.contains("legacy MCP service key")
+        ));
     }
 
     #[test]
