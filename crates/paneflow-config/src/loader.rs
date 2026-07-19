@@ -598,7 +598,7 @@ mod tests {
     use super::*;
     use crate::schema::*;
     use std::collections::HashMap;
-    use tempfile::NamedTempFile;
+    use tempfile::{NamedTempFile, TempDir};
 
     #[test]
     fn test_default_config() {
@@ -651,6 +651,73 @@ mod tests {
             assert!(rendered.contains("agent-workspace"));
             assert!(!rendered.contains("paneflow"));
         }
+    }
+
+    #[test]
+    fn agent_workspace_storage_writes_real_files_without_touching_paneflow_data() {
+        // 使用真实临时目录执行创建、写入和读取，避免仅靠字符串断言掩盖目录
+        // 创建权限、父目录层级或文件名错误。
+        let sandbox = TempDir::new().expect("应能创建真实验收临时目录");
+        let home = sandbox.path().join("用户主目录");
+        std::fs::create_dir_all(&home).expect("应能创建模拟用户主目录");
+
+        // 同时布置旧发布版和调试版可能使用的 Roaming/Local 哨兵目录；本次
+        // 验收只允许读取其快照，禁止迁移、覆盖或删除其中任何内容。
+        let legacy_roots = [
+            home.join("AppData/Roaming/paneflow"),
+            home.join("AppData/Roaming/paneflow-dev"),
+            home.join("AppData/Local/paneflow"),
+            home.join("AppData/Local/paneflow-dev"),
+        ];
+        let marker = b"legacy-paneflow-data-must-remain-unchanged";
+        for legacy_root in &legacy_roots {
+            std::fs::create_dir_all(legacy_root).expect("应能创建旧数据哨兵目录");
+            std::fs::write(legacy_root.join("sentinel.txt"), marker).expect("应能写入旧数据哨兵");
+        }
+
+        let config = config_path_from(&home);
+        let session = session_path_from(&home);
+        let cache = cache_file_path_from(&home, "验收缓存.bin");
+        for path in [&config, &session, &cache] {
+            std::fs::create_dir_all(path.parent().expect("目标文件必须有父目录"))
+                .expect("应能创建 AgentWorkspace 数据子目录");
+        }
+        std::fs::write(&config, br#"{"theme":"acceptance"}"#).expect("应能真实写入设置文件");
+        std::fs::write(&session, br#"{"workspaces":[]}"#).expect("应能真实写入会话文件");
+        std::fs::write(&cache, b"real-cache-bytes").expect("应能真实写入缓存文件");
+
+        assert_eq!(
+            std::fs::read(&config).expect("应能读回设置文件"),
+            br#"{"theme":"acceptance"}"#
+        );
+        assert_eq!(
+            std::fs::read(&session).expect("应能读回会话文件"),
+            br#"{"workspaces":[]}"#
+        );
+        assert_eq!(
+            std::fs::read(&cache).expect("应能读回缓存文件"),
+            b"real-cache-bytes"
+        );
+        for legacy_root in &legacy_roots {
+            assert_eq!(
+                std::fs::read(legacy_root.join("sentinel.txt")).expect("旧数据哨兵必须仍然存在"),
+                marker
+            );
+            assert_eq!(
+                std::fs::read_dir(legacy_root)
+                    .expect("应能检查旧数据目录")
+                    .count(),
+                1,
+                "旧数据目录不得出现迁移或新增文件"
+            );
+        }
+
+        eprintln!("验收主目录：{}", home.display());
+        eprintln!(
+            "AgentWorkspace 数据根：{}",
+            user_data_root_from(&home).display()
+        );
+        eprintln!("旧 Paneflow 哨兵目录数量：{}", legacy_roots.len());
     }
 
     #[test]

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "executedAt": "2026-07-19T16:29:39.1696069+08:00",
+  "repository": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+  "test": "agent_workspace_storage_writes_real_files_without_touching_paneflow_data",
+  "debug": {
+    "profile": "debug",
+    "passed": true,
+    "log": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\用户数据隔离数据\\真实隔离-20260719-162937\\debug.txt"
+  },
+  "release": {
+    "profile": "release",
+    "passed": true,
+    "log": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\用户数据隔离数据\\真实隔离-20260719-162937\\release.txt"
+  },
+  "legacyPaneflowDataUntouched": true,
+  "result": "passed"
+}
