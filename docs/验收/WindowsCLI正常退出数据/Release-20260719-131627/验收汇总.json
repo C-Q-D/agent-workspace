@@ -1,0 +1,11 @@
+{
+  "EvidencePath": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\WindowsCLI正常退出数据\\Release-20260719-131627",
+  "MissingCwdExit": 2,
+  "MissingCwdError": "error: the following required arguments were not provided:\n  --cwd <CWD>\n\nUsage: paneflow.exe new --cwd <CWD>\n\nFor more information, try '--help'.",
+  "OfflineExit": 1,
+  "OfflineError": "paneflow: paneflow IPC unreachable at \\\\.\\pipe\\paneflow (系统找不到指定的文件。 (os error 2)); is Paneflow running?",
+  "ResidualPaneflowProcesses": 0,
+  "ResidualFixtureDirectories": 1,
+  "ReleaseBinaryBytes": 73209856,
+  "RecordedAt": "2026-07-19T13:17:42.8353248+08:00"
+}

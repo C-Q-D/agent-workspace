@@ -1,0 +1,10 @@
+{
+  "WorkspaceKind": "NonGit",
+  "ClientExitCode": 0,
+  "ClientExitHex": "0x00000000",
+  "ServerWorkspaceCount": 0,
+  "GitRepository": false,
+  "ElapsedMilliseconds": 306.195,
+  "Stdout": "{\n  \"pane_count\": 0,\n  \"workspace\": 0,\n  \"surfaces\": []\n}\n",
+  "Stderr": null
+}

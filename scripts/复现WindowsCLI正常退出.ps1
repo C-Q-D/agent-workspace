@@ -14,7 +14,12 @@ param(
     [string]$BinaryPath,
 
     [ValidateSet('new', 'ls', 'status-missing')]
-    [string]$ClientScenario = 'new'
+    [string]$ClientScenario = 'new',
+
+    [ValidateSet('NonGit', 'ExistingGit')]
+    [string]$WorkspaceKind = 'NonGit',
+
+    [string]$EvidencePath
 )
 
 Set-StrictMode -Version Latest
@@ -82,6 +87,10 @@ function Get-ProcessTreeIds {
 }
 
 New-Item -ItemType Directory -Force -Path $fixtureRoot | Out-Null
+if ($WorkspaceKind -eq 'ExistingGit') {
+    & git -C $fixtureRoot init --quiet
+    if ($LASTEXITCODE -ne 0) { throw '无法建立已有 Git 仓库验收目录。' }
+}
 $server = $null
 $statePrepared = $false
 $hadConfig = $false
@@ -116,19 +125,32 @@ try {
     $exitHex = '0x{0:X8}' -f $unsignedExit
     $stdout = if (Test-Path -LiteralPath $stdoutPath) { Get-Content -LiteralPath $stdoutPath -Raw } else { '' }
     $stderr = if (Test-Path -LiteralPath $stderrPath) { Get-Content -LiteralPath $stderrPath -Raw } else { '' }
+    $gitRepository = Test-Path -LiteralPath (Join-Path $fixtureRoot '.git') -PathType Container
 
-    [pscustomobject]@{
+    $result = [pscustomobject]@{
+        WorkspaceKind = $WorkspaceKind
         ClientExitCode = $client.ExitCode
         ClientExitHex = $exitHex
         ServerWorkspaceCount = $workspaces.Count
+        GitRepository = $gitRepository
         ElapsedMilliseconds = [Math]::Round($watch.Elapsed.TotalMilliseconds, 3)
         Stdout = $stdout
         Stderr = $stderr
-    } | Format-List | Out-Host
+    }
+    $result | Format-List | Out-Host
+    if (-not [string]::IsNullOrWhiteSpace($EvidencePath)) {
+        # 验收证据直接由脚本内的结构化结果产生，避免终端格式化文本丢失字段。
+        $evidenceParent = Split-Path $EvidencePath -Parent
+        if (-not [string]::IsNullOrWhiteSpace($evidenceParent)) {
+            New-Item -ItemType Directory -Force -Path $evidenceParent | Out-Null
+        }
+        $result | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $EvidencePath -Encoding utf8
+    }
 
     $expectedWorkspaceCount = if ($ClientScenario -eq 'new') { 1 } else { 0 }
     $expectedClientExitCode = if ($ClientScenario -eq 'status-missing') { 3 } else { 0 }
     if ($workspaces.Count -ne $expectedWorkspaceCount) { throw "服务端工作区数量应为 $expectedWorkspaceCount，实际为 $($workspaces.Count)。" }
+    if ($ClientScenario -eq 'new' -and -not $gitRepository) { throw '创建后的工作区没有可用 Git 仓库。' }
     if ($client.ExitCode -ne $expectedClientExitCode) {
         throw "服务端状态符合 $ClientScenario 场景预期，但 CLI 应退出 $expectedClientExitCode，实际为 $exitHex。"
     }

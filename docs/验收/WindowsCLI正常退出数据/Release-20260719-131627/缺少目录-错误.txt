@@ -1,0 +1,6 @@
+error: the following required arguments were not provided:
+  --cwd <CWD>
+
+Usage: paneflow.exe new --cwd <CWD>
+
+For more information, try '--help'.
