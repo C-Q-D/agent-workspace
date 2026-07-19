@@ -115,6 +115,21 @@ def validate_clarification_evidence(
         )
 
 
+def validate_clarification_keys(
+    missing_keys: set[tuple[str, str, str | None]],
+) -> None:
+    """要求实际缺失元数据集合与固定人工澄清集合完全一致。"""
+
+    clarification_keys = set(LICENSE_CLARIFICATIONS)
+    if missing_keys != clarification_keys:
+        unknown = sorted(missing_keys - clarification_keys)
+        stale = sorted(clarification_keys - missing_keys)
+        raise ValueError(
+            "许可证元数据澄清集合发生漂移："
+            f"新增未澄清项 {unknown}；失效澄清项 {stale}"
+        )
+
+
 def build_inventory(repo_root: Path) -> dict[str, Any]:
     """构建第三方包清单，并校验当前锁定图没有意外缩减或扩张。"""
 
@@ -150,14 +165,7 @@ def build_inventory(repo_root: Path) -> dict[str, Any]:
         (package["name"], package["version"], package["source"])
         for package in missing_metadata
     }
-    clarification_keys = set(LICENSE_CLARIFICATIONS)
-    if missing_keys != clarification_keys:
-        unknown = sorted(missing_keys - clarification_keys)
-        stale = sorted(clarification_keys - missing_keys)
-        raise ValueError(
-            "许可证元数据澄清集合发生漂移："
-            f"新增未澄清项 {unknown}；失效澄清项 {stale}"
-        )
+    validate_clarification_keys(missing_keys)
 
     for package in missing_metadata:
         key = (package["name"], package["version"], package["source"])
@@ -258,11 +266,9 @@ def render_markdown(inventory: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def load_asset_inventory(repo_root: Path) -> dict[str, Any]:
-    """读取并验证第三方字体登记，确保字体文件不存在遗漏或重复归属。"""
+def validate_asset_inventory(repo_root: Path, assets: dict[str, Any]) -> dict[str, Any]:
+    """验证第三方字体登记，确保字体文件不存在遗漏或重复归属。"""
 
-    asset_path = repo_root / "docs" / "许可证" / "第三方资产.json"
-    assets = json.loads(asset_path.read_text(encoding="utf-8"))
     if assets.get("schema_version") != SCHEMA_VERSION:
         raise ValueError("第三方资产清单 schema_version 不受支持")
 
@@ -292,6 +298,14 @@ def load_asset_inventory(repo_root: Path) -> dict[str, Any]:
         raise ValueError(f"存在未登记的第三方字体：{missing_fonts}")
     assets["font_file_count"] = len(actual_fonts)
     return assets
+
+
+def load_asset_inventory(repo_root: Path) -> dict[str, Any]:
+    """从版本化 JSON 读取资产登记，再执行真实文件完整性验证。"""
+
+    asset_path = repo_root / "docs" / "许可证" / "第三方资产.json"
+    assets = json.loads(asset_path.read_text(encoding="utf-8"))
+    return validate_asset_inventory(repo_root, assets)
 
 
 def render_asset_markdown(assets: dict[str, Any]) -> str:
@@ -356,15 +370,46 @@ def write_inventory(
     return json_path, markdown_path, asset_markdown_path
 
 
+def check_inventory(repo_root: Path, inventory: dict[str, Any], assets: dict[str, Any]) -> None:
+    """只读比较版本化产物；任何锁文件、生成逻辑或人工编辑漂移都会失败。"""
+
+    output_dir = repo_root / "docs" / "许可证"
+    expected_outputs = {
+        output_dir / "第三方Rust依赖.json": json.dumps(
+            inventory, ensure_ascii=False, indent=2
+        )
+        + "\n",
+        output_dir / "第三方Rust依赖清单.md": render_markdown(inventory),
+        output_dir / "第三方资产清单.md": render_asset_markdown(assets),
+    }
+    mismatches = []
+    for path, expected in expected_outputs.items():
+        if not path.is_file() or path.read_text(encoding="utf-8") != expected:
+            mismatches.append(path.relative_to(repo_root).as_posix())
+    if mismatches:
+        raise ValueError(
+            "许可证生成产物已漂移，请审查依赖或资产变化后重新生成："
+            + "，".join(mismatches)
+        )
+
+
 def main() -> int:
-    """生成清单并输出足够精简的校验摘要。"""
+    """生成或只读检查清单，并输出足够精简的校验摘要。"""
 
     repo_root = Path(__file__).resolve().parent.parent
+    arguments = sys.argv[1:]
+    if arguments not in ([], ["--check"]):
+        raise ValueError("仅支持无参数生成，或使用 --check 执行只读门禁")
     inventory = build_inventory(repo_root)
     assets = load_asset_inventory(repo_root)
-    json_path, markdown_path, asset_markdown_path = write_inventory(
-        repo_root, inventory, assets
-    )
+    if arguments == ["--check"]:
+        check_inventory(repo_root, inventory, assets)
+        print("第三方许可证清单只读检查通过")
+        print(f"第三方 Rust 包：{inventory['package_count']} 个")
+        print(f"第三方字体：{assets['font_file_count']} 个文件")
+        return 0
+
+    json_path, markdown_path, asset_markdown_path = write_inventory(repo_root, inventory, assets)
     print(f"已生成第三方 Rust 依赖清单：{inventory['package_count']} 个包")
     print(
         "上游缺少但已精确澄清许可证元数据："
