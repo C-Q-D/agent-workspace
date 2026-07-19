@@ -1,13 +1,13 @@
-//! Per-file markdown scroll-position persistence (US-022 AC).
+//! 负责持久化各 Markdown 文件的滚动位置（US-022 验收条件）。
 //!
-//! On `MarkdownView::open(path)`, the view consults `MarkdownState::load_offset`
-//! to restore the user's last viewing offset. While the user scrolls, the
-//! view debounces writes and calls `MarkdownState::save_offset(path, offset)`.
+//! `MarkdownView::open(path)` 会通过 `MarkdownState::load_offset` 恢复上次
+//! 阅读位置；用户滚动时，视图先进行防抖，再调用
+//! `MarkdownState::save_offset(path, offset)` 保存新位置。
 //!
-//! Storage: `dirs::cache_dir()/paneflow/markdown_state.json`, written
-//! atomically via `write to .tmp + rename` (mirrors `app/session.rs`). The
-//! file maps absolute path → vertical scroll offset in CSS pixels. Schema is
-//! versioned so a future field addition can be additive.
+//! 存储位置为 `~/.agent-workspace/cache/markdown_state.json`，通过临时文件
+//! 加重命名原子写入（与 `app/session.rs` 一致）。调试版由独立根目录隔离。
+//! 文件以绝对路径映射 CSS 像素单位的垂直滚动偏移；数据结构带版本号，便于
+//! 后续以兼容方式增加字段。
 
 use std::collections::HashMap;
 use std::path::{Component, Path, PathBuf};
@@ -136,21 +136,12 @@ pub fn save_offset_for(path: &Path, offset_y: f32) -> std::io::Result<()> {
     save(&guard)
 }
 
-/// Resolve the on-disk JSON path. Returns `None` when `dirs::cache_dir`
-/// can't determine a cache directory (extremely rare; e.g. exotic targets).
-/// Debug builds use a `-dev` suffix so dev/release runs don't share state.
-/// The subdir itself is also `-dev`-suffixed via
-/// [`crate::runtime_paths::APP_SUBDIR`] so dev runs never write into the
-/// installed Paneflow's cache namespace -- belt + suspenders, the file
-/// suffix alone is kept for backward compatibility with already-deployed
-/// release caches.
+/// 返回 Markdown 折叠状态缓存路径。
+///
+/// 调试/发布隔离由用户数据根目录完成，因此文件名无需再携带 `-dev`。无法
+/// 解析用户主目录时返回 `None`，调用方使用空状态继续渲染。
 pub fn state_file_path() -> Option<PathBuf> {
-    let filename = if cfg!(debug_assertions) {
-        "markdown_state-dev.json"
-    } else {
-        "markdown_state.json"
-    };
-    dirs::cache_dir().map(|dir| dir.join(crate::runtime_paths::APP_SUBDIR).join(filename))
+    paneflow_config::loader::cache_file_path("markdown_state.json")
 }
 
 /// Load the state file from disk. A missing or corrupt file returns the

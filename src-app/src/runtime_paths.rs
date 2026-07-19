@@ -1,7 +1,8 @@
-//! Resolve the PaneFlow runtime directory with a macOS-aware fallback chain,
-//! and enforce the `sockaddr_un.sun_path` length limit (macOS: 104 bytes,
-//! Linux: 108 - we use the smaller ceiling so a path built here works on both
-//! platforms without a second guard at bind time).
+//! 解析 AgentWorkspace 的运行时目录、持久数据根目录与本地 IPC 端点。
+//!
+//! 用户持久数据统一归属 `~/.agent-workspace`；调试版使用
+//! `~/.agent-workspace-dev`。Unix IPC 仍遵守 `sun_path` 长度限制，Windows
+//! 使用命名管道；两端默认命名空间必须一致，避免与上游 Paneflow 冲突。
 //!
 //! Public helpers:
 //! - `ipc::start_server` consumes `socket_path()` for the main JSON-RPC socket,
@@ -22,9 +23,8 @@
 //! agree on the exact IPC endpoint. Without this, clients can point at one pipe
 //! while the server keeps binding the default one.
 //!
-//! US-009 (prd-windows-port.md) - on Windows, `socket_path` falls back to the
-//! named pipe path `\\.\pipe\paneflow` (or `paneflow-dev` in debug). The
-//! XDG/TMPDIR chain and sun_path guard remain Unix-only.
+//! Windows 默认端点为 `\\.\pipe\agent-workspace`，调试版追加 `-dev`；
+//! Unix 继续使用 XDG/TMPDIR 回退链和路径长度保护。
 
 use std::path::{Path, PathBuf};
 
@@ -35,24 +35,18 @@ use std::path::{Path, PathBuf};
 #[cfg(unix)]
 pub(crate) const MAX_SOCKET_PATH_BYTES: usize = 104;
 
-/// Application directory namespace. Switches to `paneflow-dev` in debug
-/// builds so `cargo run`-launched instances stop colliding with the
-/// release-installed `/usr/bin/paneflow` on the same machine: distinct
-/// data dir (no shared `threads.db` / `session.json` lock), distinct
-/// config dir, distinct cache dir, distinct shell helper dir, distinct
-/// IPC socket dir. The user can run an installed Paneflow and a
-/// from-source build side by side and each holds its own state. Same
-/// rule applies cross-crate -- see `paneflow_config::APP_SUBDIR` and
-/// `paneflow_threads::APP_SUBDIR` which mirror this const so per-build
-/// isolation reaches every persistence surface.
+/// 运行时与 IPC 使用的公开命名空间，不包含用户目录前导点。
+///
+/// 调试版与发布版保持隔离；该常量也供仍使用平台缓存的非 Windows 更新模块
+/// 复用，但持久数据根目录由 `paneflow_config::loader` 单独解析。
 pub const APP_SUBDIR: &str = if cfg!(debug_assertions) {
-    "paneflow-dev"
+    "agent-workspace-dev"
 } else {
-    "paneflow"
+    "agent-workspace"
 };
 
 #[cfg(unix)]
-const PANEFLOW_SUBDIR: &str = APP_SUBDIR;
+const APP_RUNTIME_SUBDIR: &str = APP_SUBDIR;
 /// Socket filename, namespaced per build profile so a `cargo run` debug
 /// instance and an installed release instance can coexist on the same host
 /// without one silently stealing the other's socket. Each instance binds
@@ -60,9 +54,9 @@ const PANEFLOW_SUBDIR: &str = APP_SUBDIR;
 /// `PANEFLOW_SOCKET_PATH` from the PTY env) route to the right one.
 #[cfg(unix)]
 const SOCKET_FILE: &str = if cfg!(debug_assertions) {
-    "paneflow-dev.sock"
+    "agent-workspace-dev.sock"
 } else {
-    "paneflow.sock"
+    "agent-workspace.sock"
 };
 
 /// IPC endpoint plus ownership metadata for the server-side binder.
@@ -133,7 +127,7 @@ pub(crate) fn socket_path_spec() -> Option<IpcSocketPath> {
             owned_parent: false,
         });
     }
-    let path = runtime_dir()?.join(PANEFLOW_SUBDIR).join(SOCKET_FILE);
+    let path = runtime_dir()?.join(APP_RUNTIME_SUBDIR).join(SOCKET_FILE);
     check_sun_path_fits(&path).then_some(IpcSocketPath {
         path,
         owned_parent: true,
@@ -150,9 +144,9 @@ pub(crate) fn socket_path_spec() -> Option<IpcSocketPath> {
     }
     Some(IpcSocketPath {
         path: PathBuf::from(if cfg!(debug_assertions) {
-            r"\\.\pipe\paneflow-dev"
+            r"\\.\pipe\agent-workspace-dev"
         } else {
-            r"\\.\pipe\paneflow"
+            r"\\.\pipe\agent-workspace"
         }),
         owned_parent: false,
     })
@@ -272,29 +266,44 @@ pub fn augment_path_for_gui_launch() {
     }
 }
 
-/// Resolve the PaneFlow per-user data directory (cross-platform).
+/// 返回并按需创建 AgentWorkspace 当前用户数据根目录。
 ///
-/// - Linux: `$XDG_DATA_HOME/paneflow` (typically `~/.local/share/paneflow`)
-/// - macOS: `~/Library/Application Support/paneflow`
-/// - Windows: `%LOCALAPPDATA%\paneflow` - **non-roaming** on purpose, so a
-///   roamed profile does not carry the per-install telemetry_id to another
-///   machine.
-///
-/// The directory is created if it does not already exist. Returns `None` if
-/// either the platform helper returns `None` (broken environment) or the
-/// `create_dir_all` call fails (read-only FS, permission denied, etc.).
-/// Callers should fall back to an ephemeral in-memory UUID in that case
-/// (see `telemetry::id::telemetry_id`).
+/// 发布版为 `~/.agent-workspace`，调试版为 `~/.agent-workspace-dev`。无法
+/// 解析主目录或创建失败时返回 `None`；调用方必须使用内存降级，禁止回退到
+/// `%LOCALAPPDATA%\paneflow` 等上游旧路径。
 pub fn data_dir() -> Option<PathBuf> {
-    let dir = dirs::data_local_dir()?.join(APP_SUBDIR);
+    let dir = paneflow_config::loader::user_data_root()?;
     if let Err(e) = std::fs::create_dir_all(&dir) {
         log::debug!(
-            "paneflow: data_dir {} is unwritable ({e}); callers will use ephemeral state",
+            "agent-workspace: data_dir {} is unwritable ({e}); callers will use ephemeral state",
             dir.display()
         );
         return None;
     }
     Some(dir)
+}
+
+#[cfg(test)]
+fn data_dir_from(home: &Path) -> PathBuf {
+    paneflow_config::loader::user_data_root_from(home)
+}
+
+#[cfg(test)]
+mod data_path_tests {
+    use super::*;
+
+    #[test]
+    fn data_dir_uses_agent_workspace_home_namespace() {
+        let home = Path::new("C:/Users/TestUser");
+        let path = data_dir_from(home);
+        assert_eq!(path, home.join(paneflow_config::loader::USER_DATA_DIRNAME));
+        assert!(
+            !path
+                .to_string_lossy()
+                .to_ascii_lowercase()
+                .contains("paneflow")
+        );
+    }
 }
 
 /// Stable, **non-versioned** absolute path of the embedded `paneflow-mcp`

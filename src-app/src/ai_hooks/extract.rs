@@ -4,7 +4,7 @@
 //! Layout produced by `ensure_binaries_extracted`:
 //!
 //! ```text
-//! <dirs::cache_dir()>/paneflow/bin/<version>/
+//! ~/.agent-workspace/cache/bin/<version>/
 //!     ├── claude[.exe]            ← copy of paneflow-shim
 //!     ├── codex[.exe]             ← copy of paneflow-shim
 //!     ├── …one per TerminalAgent binary (gemini, cursor-agent, …)
@@ -106,9 +106,8 @@ pub(crate) struct Entry<'a> {
     pub bytes: &'a [u8],
 }
 
-/// Materialize the AI-hook binaries into
-/// `<dirs::cache_dir()>/paneflow/bin/<version>/` and return the
-/// containing directory.
+/// 将可重建的 AI Hook 辅助程序释放到
+/// `~/.agent-workspace/cache/bin/<version>/` 并返回目标目录。
 ///
 /// - Creates parent directories on demand.
 /// - Atomic per-file: writes to a temp file in the same dir, then
@@ -134,12 +133,10 @@ pub fn ensure_binaries_extracted() -> Result<PathBuf> {
 
     #[cfg(any(not(windows), debug_assertions))]
     {
-        let cache_root = dirs::cache_dir()
-            .ok_or_else(|| anyhow!("US-008: dirs::cache_dir() returned None; cannot extract"))?;
-        let target_dir = cache_root
-            .join(crate::runtime_paths::APP_SUBDIR)
-            .join("bin")
-            .join(VERSION);
+        let cache_root = paneflow_config::loader::user_data_root()
+            .ok_or_else(|| anyhow!("US-008: AgentWorkspace user data root is unavailable"))?
+            .join(paneflow_config::loader::CACHE_DIRNAME);
+        let target_dir = cache_root.join("bin").join(VERSION);
 
         let suffix = exe_suffix();
         let plan = extract_plan();

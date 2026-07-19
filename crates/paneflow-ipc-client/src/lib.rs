@@ -663,11 +663,11 @@ pub fn subscribe_stream_timed(
     }
 }
 
-/// Resolve the Paneflow IPC socket path. `PANEFLOW_SOCKET_PATH` (inherited
-/// from the Paneflow PTY through the agent that launched this process) is
-/// authoritative - it carries the exact path the running instance bound.
-/// Falls back to the current build profile's default (`paneflow-dev` in debug,
-/// `paneflow` in release), mirroring `src-app/src/runtime_paths.rs`.
+/// 解析桌面进程的本地 IPC 端点。
+///
+/// 旧的 `PANEFLOW_SOCKET_PATH` 环境变量暂时继续作为显式覆盖，以保持当前
+/// PTY 与 Hook 契约；没有覆盖时使用 AgentWorkspace 独立命名空间，避免默认
+/// 连接到并行运行的 Paneflow 实例。
 pub fn resolve_socket_path() -> Option<PathBuf> {
     if let Some(p) = socket_path_from_env(std::env::var("PANEFLOW_SOCKET_PATH").ok().as_deref()) {
         return Some(p);
@@ -700,14 +700,14 @@ fn default_socket_path() -> Option<PathBuf> {
         // though the server had bound under the cache dir.
         .or_else(cache_run_dir)?;
     let subdir = if cfg!(debug_assertions) {
-        "paneflow-dev"
+        "agent-workspace-dev"
     } else {
-        "paneflow"
+        "agent-workspace"
     };
     let socket_file = if cfg!(debug_assertions) {
-        "paneflow-dev.sock"
+        "agent-workspace-dev.sock"
     } else {
-        "paneflow.sock"
+        "agent-workspace.sock"
     };
     Some(runtime.join(subdir).join(socket_file))
 }
@@ -738,9 +738,9 @@ fn cache_run_dir() -> Option<PathBuf> {
 #[cfg(windows)]
 fn default_socket_path() -> Option<PathBuf> {
     Some(PathBuf::from(if cfg!(debug_assertions) {
-        r"\\.\pipe\paneflow-dev"
+        r"\\.\pipe\agent-workspace-dev"
     } else {
-        r"\\.\pipe\paneflow"
+        r"\\.\pipe\agent-workspace"
     }))
 }
 
@@ -854,9 +854,9 @@ mod tests {
     #[test]
     fn windows_default_socket_path_matches_build_profile() {
         let expected = if cfg!(debug_assertions) {
-            r"\\.\pipe\paneflow-dev"
+            r"\\.\pipe\agent-workspace-dev"
         } else {
-            r"\\.\pipe\paneflow"
+            r"\\.\pipe\agent-workspace"
         };
         assert_eq!(default_socket_path(), Some(PathBuf::from(expected)));
     }
