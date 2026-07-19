@@ -7,17 +7,45 @@ use gpui::{
     AnyElement, App, ClickEvent, Context, FontWeight, InteractiveElement, IntoElement,
     ParentElement, Styled, Window, div, prelude::*, px, svg,
 };
+use paneflow_config::schema::WorkspaceGridDensity;
 
 use crate::PaneFlowApp;
 
-/// 终端卡片保持可读所需的最小宽度。
-const GRID_CELL_MIN_WIDTH: f32 = 320.0;
-/// 终端卡片保持标题和有效输出区所需的最小高度。
-const GRID_CELL_MIN_HEIGHT: f32 = 190.0;
 /// 卡片之间及矩阵外侧的统一间距。
 const GRID_GAP: f32 = 8.0;
 /// 分页控制行占用的高度。
 const GRID_PAGER_HEIGHT: f32 = 34.0;
+
+/// 一次布局规划使用的最小可读卡片尺寸。
+///
+/// 该值只参与纯几何计算，不改变工作区、PTY 或终端 Surface 生命周期。
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct WorkspaceGridMetrics {
+    /// 卡片最小宽度。
+    min_width: f32,
+    /// 卡片最小高度；包含固定 28px 标题栏和终端输出区。
+    min_height: f32,
+}
+
+impl WorkspaceGridMetrics {
+    /// 把稳定产品密度映射为像素阈值；Auto 必须始终保持历史尺寸。
+    const fn for_density(density: WorkspaceGridDensity) -> Self {
+        match density {
+            WorkspaceGridDensity::Auto => Self {
+                min_width: 320.0,
+                min_height: 190.0,
+            },
+            WorkspaceGridDensity::Comfortable => Self {
+                min_width: 400.0,
+                min_height: 240.0,
+            },
+            WorkspaceGridDensity::Compact => Self {
+                min_width: 260.0,
+                min_height: 150.0,
+            },
+        }
+    }
+}
 
 /// 一次渲染帧使用的确定性矩阵计划。
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -43,27 +71,28 @@ impl WorkspaceGridPlan {
         available_width: f32,
         available_height: f32,
         requested_page: usize,
+        metrics: WorkspaceGridMetrics,
     ) -> Self {
         let count = workspace_count.max(1);
         let ideal_columns = integer_ceil_sqrt(count);
-        let max_columns = ((available_width + GRID_GAP) / (GRID_CELL_MIN_WIDTH + GRID_GAP))
+        let max_columns = ((available_width + GRID_GAP) / (metrics.min_width + GRID_GAP))
             .floor()
             .max(1.0) as usize;
         let columns = ideal_columns.min(max_columns).max(1);
 
         let needed_rows = count.div_ceil(columns);
-        let full_height_rows = ((available_height + GRID_GAP) / (GRID_CELL_MIN_HEIGHT + GRID_GAP))
+        let full_height_rows = ((available_height + GRID_GAP) / (metrics.min_height + GRID_GAP))
             .floor()
             .max(1.0) as usize;
         let initial_rows = needed_rows.min(full_height_rows).max(1);
         let initial_page_size = columns.saturating_mul(initial_rows).max(1);
         let needs_pager = count > initial_page_size;
         let grid_height = if needs_pager {
-            (available_height - GRID_PAGER_HEIGHT).max(GRID_CELL_MIN_HEIGHT)
+            (available_height - GRID_PAGER_HEIGHT).max(metrics.min_height)
         } else {
-            available_height.max(GRID_CELL_MIN_HEIGHT)
+            available_height.max(metrics.min_height)
         };
-        let max_rows = ((grid_height + GRID_GAP) / (GRID_CELL_MIN_HEIGHT + GRID_GAP))
+        let max_rows = ((grid_height + GRID_GAP) / (metrics.min_height + GRID_GAP))
             .floor()
             .max(1.0) as usize;
         let rows = needed_rows.min(max_rows).max(1);
@@ -72,7 +101,7 @@ impl WorkspaceGridPlan {
         let page = requested_page.min(page_count.saturating_sub(1));
         let cell_height = ((grid_height - GRID_GAP * (rows.saturating_sub(1) as f32))
             / rows as f32)
-            .max(GRID_CELL_MIN_HEIGHT);
+            .max(metrics.min_height);
 
         Self {
             columns,
@@ -115,11 +144,16 @@ impl PaneFlowApp {
         ui: crate::theme::UiColors,
         cx: &mut Context<Self>,
     ) -> AnyElement {
+        // 配置 watcher 已把最新合法配置放入内存；这里只做常数时间枚举映射，
+        // 不在渲染路径读取磁盘，也不触发终端重建。
+        let metrics =
+            WorkspaceGridMetrics::for_density(self.cached_config.resolved_workspace_grid_density());
         let sizing_plan = WorkspaceGridPlan::calculate(
             self.workspaces.len(),
             available_width,
             available_height,
             self.workspace_grid_page,
+            metrics,
         );
         let requested_page = self
             .workspace_focus
@@ -137,6 +171,7 @@ impl PaneFlowApp {
             available_width,
             available_height,
             requested_page,
+            metrics,
         );
         self.workspace_grid_page = plan.page;
         let start = plan.page.saturating_mul(plan.page_size);
@@ -433,13 +468,25 @@ fn page_button(
 
 #[cfg(test)]
 mod tests {
-    use super::WorkspaceGridPlan;
+    use super::{WorkspaceGridMetrics, WorkspaceGridPlan};
+    use paneflow_config::schema::WorkspaceGridDensity;
+
+    /// 生成指定密度的纯几何阈值，避免测试依赖应用实体或终端。
+    fn metrics(density: WorkspaceGridDensity) -> WorkspaceGridMetrics {
+        WorkspaceGridMetrics::for_density(density)
+    }
 
     #[test]
     fn wide_viewport_reaches_one_two_three_and_four_square_grids() {
         let viewport = (1_700.0, 930.0);
         for (count, expected) in [(1, 1), (4, 2), (9, 3), (16, 4)] {
-            let plan = WorkspaceGridPlan::calculate(count, viewport.0, viewport.1, 0);
+            let plan = WorkspaceGridPlan::calculate(
+                count,
+                viewport.0,
+                viewport.1,
+                0,
+                metrics(WorkspaceGridDensity::Auto),
+            );
             assert_eq!(plan.columns, expected, "{count} 个窗口的列数");
             assert_eq!(plan.rows, expected, "{count} 个窗口的行数");
             assert_eq!(plan.page_count, 1, "{count} 个窗口应在宽屏单页显示");
@@ -448,7 +495,13 @@ mod tests {
 
     #[test]
     fn narrow_viewport_pages_instead_of_compressing_below_readable_size() {
-        let plan = WorkspaceGridPlan::calculate(16, 1_050.0, 720.0, 99);
+        let plan = WorkspaceGridPlan::calculate(
+            16,
+            1_050.0,
+            720.0,
+            99,
+            metrics(WorkspaceGridDensity::Auto),
+        );
 
         assert_eq!(plan.columns, 3);
         assert_eq!(plan.rows, 3);
@@ -463,5 +516,47 @@ mod tests {
         assert_eq!(plan.page_for_workspace(8), 0);
         assert_eq!(plan.page_for_workspace(9), 1);
         assert_eq!(plan.page_for_workspace(15), 1);
+    }
+
+    #[test]
+    fn density_changes_capacity_without_removing_readability_floors() {
+        let viewport = (1_100.0, 720.0);
+        let comfortable = WorkspaceGridPlan::calculate(
+            16,
+            viewport.0,
+            viewport.1,
+            usize::MAX,
+            metrics(WorkspaceGridDensity::Comfortable),
+        );
+        let auto = WorkspaceGridPlan::calculate(
+            16,
+            viewport.0,
+            viewport.1,
+            usize::MAX,
+            metrics(WorkspaceGridDensity::Auto),
+        );
+        let compact = WorkspaceGridPlan::calculate(
+            16,
+            viewport.0,
+            viewport.1,
+            usize::MAX,
+            metrics(WorkspaceGridDensity::Compact),
+        );
+
+        assert_eq!(
+            (comfortable.columns, comfortable.rows, comfortable.page_size),
+            (2, 2, 4)
+        );
+        assert_eq!((auto.columns, auto.rows, auto.page_size), (3, 3, 9));
+        assert_eq!(
+            (compact.columns, compact.rows, compact.page_size),
+            (4, 4, 16)
+        );
+        assert_eq!(comfortable.page, 3);
+        assert_eq!(auto.page, 1);
+        assert_eq!(compact.page, 0);
+        assert!(comfortable.cell_height >= 240.0);
+        assert!(auto.cell_height >= 190.0);
+        assert!(compact.cell_height >= 150.0);
     }
 }
