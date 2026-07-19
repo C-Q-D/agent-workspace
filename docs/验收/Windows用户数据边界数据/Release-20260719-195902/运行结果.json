@@ -1,0 +1,418 @@
+{
+  "schemaVersion": 1,
+  "runId": "Release-20260719-195902",
+  "executedAt": "2026-07-19T19:59:04.1969270+08:00",
+  "baseCommit": "883bc782902e74f4e3db428c4db092a63348d5a2",
+  "binary": {
+    "path": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\target\\x86_64-pc-windows-msvc\\release\\agent-workspace.exe",
+    "length": 73443328,
+    "sha256": "db3a312e9ff96a3045670a1029f4d74136dd5e10874517e46bc4d70ad877457f"
+  },
+  "isolation": {
+    "userProfile": "F:\\AWUserDataBoundary-Release-20260719-195902\\隔离用户",
+    "expectedDataRoot": "F:\\AWUserDataBoundary-Release-20260719-195902\\隔离用户\\.agent-workspace",
+    "onlyExpectedProfileRootsWritten": true,
+    "developerDataFingerprintPreserved": true,
+    "uniquePipe": "\\\\.\\pipe\\agent-workspace-boundary-20260719-195902"
+  },
+  "workspace": {
+    "path": "F:\\AWUserDataBoundary-Release-20260719-195902\\真实工作区",
+    "index": 0,
+    "gitInitialized": true,
+    "manifest": [
+      {
+        "type": "directory",
+        "path": ".git"
+      },
+      {
+        "type": "file",
+        "path": ".git/config",
+        "length": 130,
+        "sha256": "05becdb83bb897f6103c8d91439e2e9092144edf5b3955a746fce4975c12bfdc"
+      },
+      {
+        "type": "file",
+        "path": ".git/description",
+        "length": 73,
+        "sha256": "85ab6c163d43a17ea9cf7788308bca1466f1b0a8d1cc92e26e9bf63da4062aee"
+      },
+      {
+        "type": "file",
+        "path": ".git/HEAD",
+        "length": 23,
+        "sha256": "f6f2b945f6c411b02ba3da9c7ace88dcf71b6af65ba2e0d89aa82900042b5a10"
+      },
+      {
+        "type": "directory",
+        "path": ".git/hooks"
+      },
+      {
+        "type": "file",
+        "path": ".git/hooks/applypatch-msg.sample",
+        "length": 478,
+        "sha256": "0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7"
+      },
+      {
+        "type": "file",
+        "path": ".git/hooks/commit-msg.sample",
+        "length": 1972,
+        "sha256": "efc1401b0e99d1ff51494d154d98b46c1e99059bcd8bf9f73cecde19fd3eb23b"
+      },
+      {
+        "type": "file",
+        "path": ".git/hooks/fsmonitor-watchman.sample",
+        "length": 4611,
+        "sha256": "9159720099ad5595b8e66645cbfd47763c1e920f46e0b50ae75e642bbec57ef0"
+      },
+      {
+        "type": "file",
+        "path": ".git/hooks/post-update.sample",
+        "length": 189,
+        "sha256": "81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5"
+      },
+      {
+        "type": "file",
+        "path": ".git/hooks/pre-applypatch.sample",
+        "length": 424,
+        "sha256": "e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475"
+      },
+      {
+        "type": "file",
+        "path": ".git/hooks/pre-commit.sample",
+        "length": 1649,
+        "sha256": "57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b"
+      },
+      {
+        "type": "file",
+        "path": ".git/hooks/pre-merge-commit.sample",
+        "length": 416,
+        "sha256": "d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53"
+      },
+      {
+        "type": "file",
+        "path": ".git/hooks/pre-push.sample",
+        "length": 1374,
+        "sha256": "ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a"
+      },
+      {
+        "type": "file",
+        "path": ".git/hooks/pre-rebase.sample",
+        "length": 4898,
+        "sha256": "4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3"
+      },
+      {
+        "type": "file",
+        "path": ".git/hooks/pre-receive.sample",
+        "length": 544,
+        "sha256": "a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989"
+      },
+      {
+        "type": "file",
+        "path": ".git/hooks/prepare-commit-msg.sample",
+        "length": 1492,
+        "sha256": "e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619"
+      },
+      {
+        "type": "file",
+        "path": ".git/hooks/push-to-checkout.sample",
+        "length": 2783,
+        "sha256": "a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f"
+      },
+      {
+        "type": "file",
+        "path": ".git/hooks/sendemail-validate.sample",
+        "length": 2308,
+        "sha256": "44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92"
+      },
+      {
+        "type": "file",
+        "path": ".git/hooks/update.sample",
+        "length": 3650,
+        "sha256": "8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106"
+      },
+      {
+        "type": "directory",
+        "path": ".git/info"
+      },
+      {
+        "type": "file",
+        "path": ".git/info/exclude",
+        "length": 240,
+        "sha256": "6671fe83b7a07c8932ee89164d1f2793b2318058eb8b98dc5c06ee0a5a3b0ec1"
+      },
+      {
+        "type": "directory",
+        "path": ".git/objects"
+      },
+      {
+        "type": "directory",
+        "path": ".git/objects/info"
+      },
+      {
+        "type": "directory",
+        "path": ".git/objects/pack"
+      },
+      {
+        "type": "directory",
+        "path": ".git/refs"
+      },
+      {
+        "type": "directory",
+        "path": ".git/refs/heads"
+      },
+      {
+        "type": "directory",
+        "path": ".git/refs/tags"
+      },
+      {
+        "type": "file",
+        "path": "真实项目文件.txt",
+        "length": 41,
+        "sha256": "bc662eb7b44c8dd6f3751f8531dac5ae35b4de8d65726d97ea77dc7176101f26"
+      }
+    ]
+  },
+  "data": {
+    "before": [
+      {
+        "type": "directory",
+        "path": ".agent-workspace"
+      },
+      {
+        "type": "directory",
+        "path": ".agent-workspace/bin"
+      },
+      {
+        "type": "file",
+        "path": ".agent-workspace/bin/durable-bin-sentinel.txt",
+        "length": 13,
+        "sha256": "e45d4b307e2e7cdf2b29c455cffba0c2a71cfa47c1fa0e86d99d3cb45b7554b6"
+      },
+      {
+        "type": "directory",
+        "path": ".agent-workspace/config"
+      },
+      {
+        "type": "file",
+        "path": ".agent-workspace/config/settings.json",
+        "length": 32,
+        "sha256": "889e23d72f6500793b541d7dace3cb13a8e8cddb0d0cba4babc60841f14fdf96"
+      },
+      {
+        "type": "directory",
+        "path": ".agent-workspace/state"
+      },
+      {
+        "type": "file",
+        "path": ".agent-workspace/state/durable-state-sentinel.txt",
+        "length": 15,
+        "sha256": "eafed792137e2562c8e296957942dd6e7075c431d48dfb3ae30e919cde8a6040"
+      }
+    ],
+    "after": [
+      {
+        "type": "directory",
+        "path": ".agent-workspace"
+      },
+      {
+        "type": "directory",
+        "path": ".agent-workspace/bin"
+      },
+      {
+        "type": "file",
+        "path": ".agent-workspace/bin/durable-bin-sentinel.txt",
+        "length": 13,
+        "sha256": "e45d4b307e2e7cdf2b29c455cffba0c2a71cfa47c1fa0e86d99d3cb45b7554b6"
+      },
+      {
+        "type": "file",
+        "path": ".agent-workspace/bin/paneflow-mcp.exe",
+        "length": 248832,
+        "sha256": "7b77890e8869f9f4a0c32ee88643f94e53695a9f0583cf3194c40ca2d91ce64c"
+      },
+      {
+        "type": "directory",
+        "path": ".agent-workspace/cache"
+      },
+      {
+        "type": "directory",
+        "path": ".agent-workspace/cache/shell"
+      },
+      {
+        "type": "directory",
+        "path": ".agent-workspace/cache/shell/pwsh"
+      },
+      {
+        "type": "file",
+        "path": ".agent-workspace/cache/shell/pwsh/osc7.ps1",
+        "length": 2703,
+        "sha256": "6c7fd6c24f200ad1b691291b9244dba9b79cdaa53ac492e29795e353b6c53d59"
+      },
+      {
+        "type": "directory",
+        "path": ".agent-workspace/config"
+      },
+      {
+        "type": "file",
+        "path": ".agent-workspace/config/settings.json",
+        "length": 32,
+        "sha256": "889e23d72f6500793b541d7dace3cb13a8e8cddb0d0cba4babc60841f14fdf96"
+      },
+      {
+        "type": "directory",
+        "path": ".agent-workspace/sessions"
+      },
+      {
+        "type": "file",
+        "path": ".agent-workspace/sessions/workspaces.json",
+        "length": 730,
+        "sha256": "8670e9ee5b7ece989ae7395ef61847bba386dceb70813e46c6debdac36bc609a"
+      },
+      {
+        "type": "directory",
+        "path": ".agent-workspace/state"
+      },
+      {
+        "type": "file",
+        "path": ".agent-workspace/state/durable-state-sentinel.txt",
+        "length": 15,
+        "sha256": "eafed792137e2562c8e296957942dd6e7075c431d48dfb3ae30e919cde8a6040"
+      },
+      {
+        "type": "directory",
+        "path": "AppData"
+      },
+      {
+        "type": "directory",
+        "path": "AppData/Local"
+      },
+      {
+        "type": "directory",
+        "path": "AppData/Local/Microsoft"
+      },
+      {
+        "type": "directory",
+        "path": "AppData/Local/Microsoft/PowerShell"
+      }
+    ],
+    "agentWorkspace": [
+      {
+        "type": "directory",
+        "path": ".agent-workspace"
+      },
+      {
+        "type": "directory",
+        "path": ".agent-workspace/bin"
+      },
+      {
+        "type": "file",
+        "path": ".agent-workspace/bin/durable-bin-sentinel.txt",
+        "length": 13,
+        "sha256": "e45d4b307e2e7cdf2b29c455cffba0c2a71cfa47c1fa0e86d99d3cb45b7554b6"
+      },
+      {
+        "type": "file",
+        "path": ".agent-workspace/bin/paneflow-mcp.exe",
+        "length": 248832,
+        "sha256": "7b77890e8869f9f4a0c32ee88643f94e53695a9f0583cf3194c40ca2d91ce64c"
+      },
+      {
+        "type": "directory",
+        "path": ".agent-workspace/cache"
+      },
+      {
+        "type": "directory",
+        "path": ".agent-workspace/cache/shell"
+      },
+      {
+        "type": "directory",
+        "path": ".agent-workspace/cache/shell/pwsh"
+      },
+      {
+        "type": "file",
+        "path": ".agent-workspace/cache/shell/pwsh/osc7.ps1",
+        "length": 2703,
+        "sha256": "6c7fd6c24f200ad1b691291b9244dba9b79cdaa53ac492e29795e353b6c53d59"
+      },
+      {
+        "type": "directory",
+        "path": ".agent-workspace/config"
+      },
+      {
+        "type": "file",
+        "path": ".agent-workspace/config/settings.json",
+        "length": 32,
+        "sha256": "889e23d72f6500793b541d7dace3cb13a8e8cddb0d0cba4babc60841f14fdf96"
+      },
+      {
+        "type": "directory",
+        "path": ".agent-workspace/sessions"
+      },
+      {
+        "type": "file",
+        "path": ".agent-workspace/sessions/workspaces.json",
+        "length": 730,
+        "sha256": "8670e9ee5b7ece989ae7395ef61847bba386dceb70813e46c6debdac36bc609a"
+      },
+      {
+        "type": "directory",
+        "path": ".agent-workspace/state"
+      },
+      {
+        "type": "file",
+        "path": ".agent-workspace/state/durable-state-sentinel.txt",
+        "length": 15,
+        "sha256": "eafed792137e2562c8e296957942dd6e7075c431d48dfb3ae30e919cde8a6040"
+      }
+    ],
+    "externalPowerShellRuntime": [
+      {
+        "type": "directory",
+        "path": "AppData"
+      },
+      {
+        "type": "directory",
+        "path": "AppData/Local"
+      },
+      {
+        "type": "directory",
+        "path": "AppData/Local/Microsoft"
+      },
+      {
+        "type": "directory",
+        "path": "AppData/Local/Microsoft/PowerShell"
+      }
+    ],
+    "durableSentinelsPreserved": true,
+    "sessionWritten": true
+  },
+  "boundaries": {
+    "legacyPaneflowSentinelPreserved": true,
+    "externalSentinelPreserved": true
+  },
+  "process": {
+    "tracked": [
+      {
+        "id": 30048,
+        "name": "pwsh",
+        "startedUtcTicks": 639200591437361828
+      },
+      {
+        "id": 38636,
+        "name": "conhost",
+        "startedUtcTicks": 639200591437330197
+      },
+      {
+        "id": 42184,
+        "name": "agent-workspace",
+        "startedUtcTicks": 639200591422559279
+      }
+    ],
+    "gracefulExit": true,
+    "residueCount": 0
+  },
+  "cleanup": {
+    "fixtureRemoved": true
+  },
+  "result": "passed"
+}

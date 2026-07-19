@@ -48,7 +48,7 @@ pub fn user_data_root_from(home: &Path) -> PathBuf {
 /// 当操作系统无法解析用户主目录时返回 `None`；调用方应降级为默认配置或
 /// 内存状态，禁止回退到 Paneflow 的旧数据目录。
 pub fn user_data_root() -> Option<PathBuf> {
-    dirs::home_dir().map(|home| user_data_root_from(&home))
+    crate::data_layout::current_user_home().map(|home| user_data_root_from(&home))
 }
 
 /// 根据指定主目录生成设置文件路径。
@@ -58,7 +58,7 @@ pub fn config_path_from(home: &Path) -> PathBuf {
 
 /// 返回当前用户的 AgentWorkspace 设置文件路径。
 pub fn config_path() -> Option<PathBuf> {
-    dirs::home_dir().map(|home| config_path_from(&home))
+    crate::data_layout::current_user_home().map(|home| config_path_from(&home))
 }
 
 /// 根据指定主目录生成工作区会话文件路径。
@@ -71,7 +71,7 @@ pub fn session_path_from(home: &Path) -> PathBuf {
 /// 调试版与发布版已经由根目录隔离，因此文件名保持一致，减少备份、诊断和
 /// 后续模式迁移时的分支数量。
 pub fn session_path() -> Option<PathBuf> {
-    dirs::home_dir().map(|home| session_path_from(&home))
+    crate::data_layout::current_user_home().map(|home| session_path_from(&home))
 }
 
 /// 根据指定主目录生成一个缓存文件路径。
@@ -84,7 +84,7 @@ pub fn cache_file_path_from(home: &Path, filename: &str) -> PathBuf {
 
 /// 返回当前用户数据根目录下的缓存文件路径。
 pub fn cache_file_path(filename: &str) -> Option<PathBuf> {
-    dirs::home_dir().map(|home| cache_file_path_from(&home, filename))
+    crate::data_layout::current_user_home().map(|home| cache_file_path_from(&home, filename))
 }
 
 /// Load the PaneFlow configuration from the default platform path.

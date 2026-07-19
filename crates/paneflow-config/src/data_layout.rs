@@ -1,10 +1,32 @@
-//! AgentWorkspace 用户数据目录的纯路径布局。
+//! AgentWorkspace 用户数据目录布局与当前用户主目录解析。
 //!
-//! 本模块只计算路径，不访问文件系统。配置、会话、内部状态、稳定二进制、
-//! 可重建缓存与日志都从同一个用户主目录派生，调用方无需了解根目录命名，
-//! 也不能回退到 Paneflow 的旧 AppData 或当前工作目录。
+//! `UserDataLayout` 只计算路径，不访问文件系统。配置、会话、内部状态、稳定
+//! 二进制、可重建缓存与日志都从同一个用户主目录派生。当前用户解析在 Windows
+//! 上优先使用有效的绝对 `USERPROFILE`，再回退系统 Known Folder，使正常桌面运行
+//! 与隔离 Release 验收遵守同一契约，且不会回退到 Paneflow 旧目录或当前工作目录。
 
 use std::path::{Path, PathBuf};
+
+/// 返回当前进程应使用的用户主目录。
+///
+/// Windows 正常登录环境的 `USERPROFILE` 与系统 Known Folder 一致；显式传入
+/// 隔离 profile 的子进程则使用该目录，便于真实 Release 验收且不触碰开发者数据。
+/// 空值或相对路径不可信，会回退到操作系统目录解析；其他平台保持原有行为。
+pub fn current_user_home() -> Option<PathBuf> {
+    #[cfg(windows)]
+    if let Some(profile) = valid_windows_user_profile(std::env::var_os("USERPROFILE")) {
+        return Some(profile);
+    }
+
+    dirs::home_dir()
+}
+
+/// 校验 Windows `USERPROFILE` 必须是非空绝对路径，不访问文件系统。
+#[cfg(windows)]
+fn valid_windows_user_profile(raw: Option<std::ffi::OsString>) -> Option<PathBuf> {
+    let path = PathBuf::from(raw?);
+    (!path.as_os_str().is_empty() && path.is_absolute()).then_some(path)
+}
 
 /// 发布构建使用的用户数据根目录名。
 pub const RELEASE_USER_DATA_DIRNAME: &str = ".agent-workspace";
@@ -188,6 +210,24 @@ mod tests {
         assert_eq!(release.root(), home.join(".agent-workspace"));
         assert_eq!(debug.root(), home.join(".agent-workspace-dev"));
         assert_ne!(release.root(), debug.root());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_user_profile_accepts_only_absolute_nonempty_paths() {
+        assert_eq!(
+            valid_windows_user_profile(Some(std::ffi::OsString::from(r"C:\隔离用户"))),
+            Some(PathBuf::from(r"C:\隔离用户"))
+        );
+        assert_eq!(
+            valid_windows_user_profile(Some(std::ffi::OsString::from("relative-user"))),
+            None
+        );
+        assert_eq!(
+            valid_windows_user_profile(Some(std::ffi::OsString::from(""))),
+            None
+        );
+        assert_eq!(valid_windows_user_profile(None), None);
     }
 
     #[test]

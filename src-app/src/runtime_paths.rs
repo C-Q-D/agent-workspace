@@ -274,7 +274,8 @@ pub fn augment_path_for_gui_launch() {
 /// 无法解析用户主目录时返回 `None`；调用方必须使用内存降级，禁止回退到
 /// Paneflow 旧目录、当前工作目录或系统临时目录。
 pub fn user_data_layout() -> Option<paneflow_config::data_layout::UserDataLayout> {
-    dirs::home_dir().map(|home| paneflow_config::data_layout::UserDataLayout::from_home(&home))
+    paneflow_config::data_layout::current_user_home()
+        .map(|home| paneflow_config::data_layout::UserDataLayout::from_home(&home))
 }
 
 /// 返回已经确认根目录可写的用户数据布局。
