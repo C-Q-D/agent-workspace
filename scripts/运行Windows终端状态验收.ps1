@@ -142,6 +142,11 @@ function Restore-IsolatedState {
     }
     $script:statePrepared = $false
     Remove-Item -LiteralPath $stateDirectory -Recurse -Force
+    # PowerShell 和应用会在隔离 HOME 下生成 helper、cache 与更新探针；它们可重建且
+    # 不属于验收证据，必须整棵删除，避免二进制或机器状态进入 Git。
+    if (Test-Path -LiteralPath $isolatedUser -PathType Container) {
+        Remove-Item -LiteralPath $isolatedUser -Recurse -Force
+    }
 }
 
 function Get-ProcessTreeIds {
