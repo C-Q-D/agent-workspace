@@ -315,9 +315,9 @@ impl PaneFlowApp {
                 None
             }
         };
-        // 恢复工作区不在构造阶段直接登记 watcher；应用结构完成后统一进入
-        // WorkspaceLifecycle 的 Git 准备，成功回填时再建立对称的 watcher 引用。
-        let git_watch_counts = std::collections::HashMap::new();
+        // 恢复工作区不在构造阶段登记 watcher。Git 准备回填元数据后，由展示状态
+        // 对应的稳定 WindowSession 派生唯一活动路径；矩阵态始终保持 None。
+        let active_git_watch = None;
 
         // Poll git watcher events with 300ms debounce.
         // Filter: only HEAD and index matter. NonRecursive mode limits events to
@@ -573,69 +573,54 @@ impl PaneFlowApp {
         // Config hot-reload is now driven by ConfigWatcher (notify crate, 300ms debounce).
         // Changes are picked up in the 50ms IPC poll loop below via process_config_changes().
 
-        // Fallback: poll git metadata for all workspaces every 30s.
-        // Primary detection is event-driven (US-003 notify watcher above).
-        // This timer catches edge cases where file system events are missed.
+        // Git watcher 的 30 秒兜底只刷新当前活动上下文。保留既有周期用于补偿文件
+        // 系统漏事件，但不再按窗口数量扇出 Git 子进程；矩阵态得到空列表且零探测。
         cx.spawn(
             async |this: gpui::WeakEntity<Self>, cx: &mut gpui::AsyncApp| {
                 loop {
                     smol::Timer::after(std::time::Duration::from_secs(30)).await;
 
-                    // Phase 1: collect CWDs from workspaces + agents
-                    // projects (cheap, main thread). Dedup so a cwd
-                    // shared by a workspace and a project only fires
-                    // one subprocess per tick.
-                    let cwds = cx.update(|cx| {
+                    // Phase 1：稳定 ID → WindowSession → 唯一 workspaceRoot。
+                    let cwd = cx.update(|cx| {
                         this.update(cx, |app: &mut Self, _cx: &mut Context<Self>| {
-                            let mut seen = std::collections::HashSet::new();
-                            let mut out = Vec::new();
-                            for ws in &app.workspaces {
-                                if seen.insert(ws.cwd.clone()) {
-                                    out.push(ws.cwd.clone());
-                                }
-                            }
-                            for p in &app.projects {
-                                if seen.insert(p.cwd.clone()) {
-                                    out.push(p.cwd.clone());
-                                }
-                            }
-                            out
+                            app.active_context_workspace()
+                                .map(|workspace| workspace.cwd.clone())
                         })
                     });
-                    let cwds = match cwds {
+                    let cwd = match cwd {
                         Ok(c) => c,
                         Err(_) => break,
                     };
+                    let Some(cwd) = cwd else {
+                        continue;
+                    };
 
-                    // Phase 2: run git probes off main thread
-                    let results = smol::unblock(move || {
-                        cwds.into_iter()
-                            .map(|cwd| {
-                                let (branch, is_repo) = crate::workspace::detect_branch(&cwd);
-                                let stats = crate::workspace::GitDiffStats::from_cwd(&cwd);
-                                (cwd, branch, is_repo, stats)
-                            })
-                            .collect::<Vec<_>>()
+                    // Phase 2：后台只执行一个 root 的 Git 探测。
+                    let result = smol::unblock(move || {
+                        let (branch, is_repo) = crate::workspace::detect_branch(&cwd);
+                        let stats = crate::workspace::GitDiffStats::from_cwd(&cwd);
+                        (cwd, branch, is_repo, stats)
                     })
                     .await;
 
-                    // Phase 3: apply results (cheap, main thread)
+                    // Phase 3：完成时再次按活动 root 校验，旧聚焦结果不得污染新会话。
                     let apply = cx.update(|cx| {
                         this.update(cx, |app: &mut Self, cx: &mut Context<Self>| {
-                            let mut changed = false;
-                            let mut refreshed_diff = false;
-                            for (cwd, branch, is_repo, stats) in &results {
-                                if app.apply_git_state_for_cwd(
-                                    cwd,
-                                    branch.clone(),
-                                    *is_repo,
-                                    stats.clone(),
-                                ) {
-                                    changed = true;
-                                    refreshed_diff |=
-                                        app.refresh_agents_diff_if_open_for_cwd(cwd, cx);
-                                }
+                            let (cwd, branch, is_repo, stats) = &result;
+                            if app
+                                .active_context_workspace()
+                                .is_none_or(|workspace| workspace.cwd != *cwd)
+                            {
+                                return;
                             }
+                            let changed = app.apply_git_state_for_cwd(
+                                cwd,
+                                branch.clone(),
+                                *is_repo,
+                                stats.clone(),
+                            );
+                            let refreshed_diff =
+                                changed && app.refresh_agents_diff_if_open_for_cwd(cwd, cx);
                             if changed && !refreshed_diff {
                                 cx.notify();
                             }
@@ -894,7 +879,7 @@ impl PaneFlowApp {
             title_bar_help_menu_open: None,
             git_watcher,
             git_event_rx,
-            git_watch_counts,
+            active_git_watch,
             git_preparations: Default::default(),
             settings_scroll: gpui::ScrollHandle::new(),
             settings_drag: None,

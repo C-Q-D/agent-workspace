@@ -2402,6 +2402,29 @@ impl PaneFlowApp {
                     serde_json::json!(null)
                 }
             }
+            "workspace.context_resources" => {
+                // A026 运行时验收快照：只暴露资源数量与稳定 ID，不读取文件、Git
+                // 内容或终端缓冲。该方法让性能脚本可以证明 16 窗格 Grid 为零活动
+                // 上下文、Focused/Review 至多一个，而不依赖窗口截图主观推断。
+                let surface = match self.workspace_focus.surface() {
+                    crate::app::workspace_focus::DisplaySurface::Grid => "grid",
+                    crate::app::workspace_focus::DisplaySurface::Focused => "focused",
+                    crate::app::workspace_focus::DisplaySurface::Review => "review",
+                    crate::app::workspace_focus::DisplaySurface::Settings => "settings",
+                };
+                let workspace_id = self.workspace_focus.workspace_id();
+                serde_json::json!({
+                    "surface": surface,
+                    "workspace_id": workspace_id,
+                    "active_contexts": usize::from(workspace_id.is_some()),
+                    "git_watchers": usize::from(self.active_git_watch.is_some()),
+                    "files_watchers": usize::from(self.files_watcher.is_some()),
+                    "review_hosts": usize::from(
+                        self.diff_mode.diff_view.is_some()
+                            || self.diff_mode.multi_diff_view.is_some()
+                    ),
+                })
+            }
             "workspace.create" => {
                 // Cap workspace count to prevent unbounded growth from malicious
                 // or buggy IPC clients (CWE-400). Matches the keyboard-action cap
@@ -2495,9 +2518,6 @@ impl PaneFlowApp {
                         // ID 撤销确认，避免留下指向已删除工作区的遮罩层。
                         if self.pending_workspace_close == Some(self.workspaces[idx].id) {
                             self.pending_workspace_close = None;
-                        }
-                        if let Some(dir) = self.workspaces[idx].git_dir.clone() {
-                            self.unwatch_git_dir(&dir);
                         }
                         // US-009 (orchestration-v2): same teardown as the UI
                         // close path - clean managed worktrees removed in the

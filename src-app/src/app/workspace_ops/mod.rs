@@ -856,9 +856,6 @@ impl PaneFlowApp {
             return;
         }
         self.pending_workspace_close = None;
-        if let Some(dir) = self.workspaces[idx].git_dir.clone() {
-            self.unwatch_git_dir(&dir);
-        }
         // 先从唯一集合取出，再由 WindowSession 的消费式关闭入口释放布局和 PTY 实体；
         // 这样 watcher/worktree 元数据与终端资源都不会留在部分关闭状态。
         let workspace = self.workspaces.remove(idx);

@@ -986,8 +986,11 @@ struct PaneFlowApp {
     git_watcher: Option<notify::RecommendedWatcher>,
     /// Receiver for raw notify events from the git file watcher.
     git_event_rx: std::sync::mpsc::Receiver<notify::Result<notify::Event>>,
-    /// Refcount for watched `.git` directories (multiple workspaces may share a repo).
-    git_watch_counts: std::collections::HashMap<std::path::PathBuf, usize>,
+    /// 当前聚焦 `WindowSession` 对应的唯一 `.git` 监听路径。
+    ///
+    /// 矩阵态为 `None`；切换聚焦时原路径先解除，再登记目标路径。该字段替代按全部
+    /// 工作区维护的 watcher 引用计数，避免 16 窗格总览常驻 16 份 Git 上下文。
+    active_git_watch: Option<std::path::PathBuf>,
     /// 正在进行的工作区 Git 准备批次；同一路径的并发创建共享一个后台任务。
     git_preparations: app::event_handlers::GitPreparationRegistry,
     /// Scroll state for the inline settings page.
@@ -1354,41 +1357,47 @@ impl PaneFlowApp {
         cx.notify();
     }
 
-    /// 按已解析的 Git 元数据路径注册一次文件监听，并维护共享仓库引用计数。
+    /// 让通用 Git 元数据 watcher 只跟随普通聚焦会话。
     ///
-    /// 只有操作系统 watcher 注册成功后才记录第一次引用；这样临时失败不会留下
-    /// 虚假的计数，后续工作区仍有机会重新注册。watcher 不可用时保留引用计数，
-    /// 应用会继续依靠现有轮询刷新 Git 状态。
-    fn watch_git_path(&mut self, git_dir: &std::path::Path) {
-        let current = self.git_watch_counts.get(git_dir).copied().unwrap_or(0);
-        if current == 0
-            && let Some(ref mut watcher) = self.git_watcher
-            && let Err(error) = watcher.watch(git_dir, notify::RecursiveMode::NonRecursive)
+    /// 目标路径始终由 `DisplayState` 的稳定 ID 重新查找 `WindowSession` 派生；
+    /// Grid 与 Settings 没有可见活动上下文，Review 已由专用 `DiffView` watcher
+    /// 持有当前仓库，因此三者都会解除通用监听，避免同一仓库出现两套 watcher。
+    /// 注册失败时不伪造活动路径，后续聚焦或 Git 准备完成仍可重试；30 秒回退也
+    /// 只探测同一个活动 root。
+    fn reconcile_active_git_watch(&mut self) {
+        let target = (self.workspace_focus.surface()
+            == app::workspace_focus::DisplaySurface::Focused)
+            .then(|| self.workspace_focus.workspace_id())
+            .flatten()
+            .and_then(|workspace_id| {
+                self.workspaces
+                    .iter()
+                    .find(|workspace| workspace.id == workspace_id)
+            })
+            .and_then(|workspace| workspace.git_dir.clone());
+
+        if self.active_git_watch == target {
+            return;
+        }
+        if let Some(previous) = self.active_git_watch.take()
+            && let Some(watcher) = self.git_watcher.as_mut()
         {
+            let _ = watcher.unwatch(&previous);
+        }
+        let Some(target) = target else {
+            return;
+        };
+        let Some(watcher) = self.git_watcher.as_mut() else {
+            return;
+        };
+        if let Err(error) = watcher.watch(&target, notify::RecursiveMode::NonRecursive) {
             log::warn!(
-                "git watcher: failed to watch {}: {error}",
-                git_dir.display()
+                "active git watcher: failed to watch {}: {error}",
+                target.display()
             );
             return;
         }
-        *self
-            .git_watch_counts
-            .entry(git_dir.to_path_buf())
-            .or_insert(0) += 1;
-    }
-
-    /// Remove a workspace's `.git` directory from the file watcher.
-    /// Only unwatches when the last workspace using this git dir is removed.
-    fn unwatch_git_dir(&mut self, git_dir: &std::path::Path) {
-        if let Some(count) = self.git_watch_counts.get_mut(git_dir) {
-            *count = count.saturating_sub(1);
-            if *count == 0 {
-                self.git_watch_counts.remove(git_dir);
-                if let Some(ref mut watcher) = self.git_watcher {
-                    let _ = watcher.unwatch(git_dir);
-                }
-            }
-        }
+        self.active_git_watch = Some(target);
     }
 
     /// Create a new pane wrapping a terminal, and subscribe to its events.

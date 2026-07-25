@@ -1,0 +1,54 @@
+{
+  "Commit": "ecee8b200436eb57b36c846ecf73f035230fcedc",
+  "BinarySha256": "480CFD934FD1C71AF60E2A421BB10B24479F836BEDC06A7F4071FA90060FBEB4",
+  "WorkspaceCount": 16,
+  "DistinctRepositoryCount": 16,
+  "Grid": {
+    "surface": "grid",
+    "workspace_id": null,
+    "active_contexts": 0,
+    "git_watchers": 0,
+    "files_watchers": 0,
+    "review_hosts": 0
+  },
+  "FocusedA": {
+    "surface": "focused",
+    "workspace_id": 1,
+    "active_contexts": 1,
+    "git_watchers": 1,
+    "files_watchers": 1,
+    "review_hosts": 0
+  },
+  "FocusedB": {
+    "surface": "focused",
+    "workspace_id": 2,
+    "active_contexts": 1,
+    "git_watchers": 1,
+    "files_watchers": 1,
+    "review_hosts": 0
+  },
+  "Review": {
+    "surface": "review",
+    "workspace_id": 2,
+    "active_contexts": 1,
+    "git_watchers": 0,
+    "files_watchers": 0,
+    "review_hosts": 1
+  },
+  "GridResources": {
+    "CpuAveragePercent": 0.3744,
+    "WorkingSetPeakMiB": 208.105,
+    "HandlePeak": 677
+  },
+  "ReviewResources": {
+    "CpuAveragePercent": 0.0676,
+    "WorkingSetPeakMiB": 191.543,
+    "HandlePeak": 708
+  },
+  "PowerShellCount": 16,
+  "PowerShellIdsStable": true,
+  "WorkingSetWithin256MiB": true,
+  "CpuWithinOnePercent": true,
+  "RemainingProcessIds": [],
+  "Passed": true
+}

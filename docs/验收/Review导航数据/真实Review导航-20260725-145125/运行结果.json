@@ -1,0 +1,60 @@
+{
+  "RunId": "真实Review导航-20260725-145125",
+  "Commit": "ecee8b200436eb57b36c846ecf73f035230fcedc",
+  "BinaryPath": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\target\\release\\agent-workspace.exe",
+  "BinarySha256": "480CFD934FD1C71AF60E2A421BB10B24479F836BEDC06A7F4071FA90060FBEB4",
+  "Workspaces": [
+    {
+      "Index": 0,
+      "Title": "Review-A"
+    },
+    {
+      "Index": 1,
+      "Title": "Review-B"
+    }
+  ],
+  "NavigationSequence": [
+    0,
+    1,
+    0
+  ],
+  "PowerShellProcessIdsBefore": [
+    19952,
+    30532
+  ],
+  "PowerShellProcessIdsAfter": [
+    19952,
+    30532
+  ],
+  "PowerShellProcessIdsStable": true,
+  "SurfaceEvidence": [
+    {
+      "Workspace": "A",
+      "SurfaceId": 12884901889,
+      "OutputGeneration": 47,
+      "BackgroundOutputObserved": true
+    },
+    {
+      "Workspace": "B",
+      "SurfaceId": 4294967314,
+      "OutputGeneration": 42,
+      "BackgroundOutputObserved": true
+    }
+  ],
+  "AllBackgroundOutputObserved": true,
+  "AppCpuAveragePercent": 0.0966,
+  "AppWorkingSetPeakMiB": 149.133,
+  "AppPrivatePeakMiB": 121.016,
+  "WideWorkspaceAScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\Review导航数据\\真实Review导航-20260725-145125\\宽屏-工作区A.png",
+  "WideWorkspaceBScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\Review导航数据\\真实Review导航-20260725-145125\\宽屏-工作区B.png",
+  "NarrowWorkspaceBScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\Review导航数据\\真实Review导航-20260725-145125\\窄屏-工作区B.png",
+  "ReturnWorkspaceAScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\Review导航数据\\真实Review导航-20260725-145125\\返回-工作区A.png",
+  "TrackedProcessIds": [
+    9748,
+    13656,
+    19952,
+    29084,
+    30532
+  ],
+  "RemainingProcessIds": []
+}

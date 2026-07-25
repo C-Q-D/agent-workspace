@@ -8,7 +8,6 @@
 //! code-motion, behaviour unchanged.
 
 use gpui::{App, AppContext, Context, Entity};
-use notify::Watcher;
 use paneflow_config::schema::TerminalSurfaceProfile;
 
 use crate::layout::{LayoutTree, MAX_PANES};
@@ -1673,11 +1672,6 @@ impl PaneFlowApp {
                         else {
                             return;
                         };
-                        // Unwatch old git dir
-                        let old_git_dir = app.workspaces[ws_idx].git_dir.clone();
-                        if let Some(ref dir) = old_git_dir {
-                            app.unwatch_git_dir(dir);
-                        }
                         // Update workspace git tracking (cwd stays fixed at creation -
                         // it represents the workspace's root folder and must not drift
                         // when the user `cd`s inside the shell).
@@ -1686,18 +1680,9 @@ impl PaneFlowApp {
                             ws.git_dir = git_dir.clone();
                             ws.cwd.clone()
                         };
-                        // Watch new git dir
-                        if let Some(ref dir) = git_dir {
-                            let count = app.git_watch_counts.entry(dir.clone()).or_insert(0);
-                            *count += 1;
-                            if *count == 1
-                                && let Some(ref mut watcher) = app.git_watcher
-                                && let Err(e) =
-                                    watcher.watch(dir, notify::RecursiveMode::NonRecursive)
-                            {
-                                log::warn!("git watcher: failed to watch {}: {e}", dir.display());
-                            }
-                        }
+                        // Git 元数据可能在聚焦后才完成回填；重新对齐会只登记当前
+                        // WindowSession 的路径，其他工作区不产生常驻上下文。
+                        app.reconcile_active_git_watch();
                         let changed =
                             app.apply_git_state_for_cwd(&tracked_cwd, branch, is_repo, stats);
                         let refreshed_diff =
@@ -1797,13 +1782,9 @@ impl PaneFlowApp {
                             else {
                                 continue;
                             };
-                            // 每个工作区都拥有一份 watcher 引用；关闭时原有流程会按工作区
-                            // 各自释放，从而保持共享仓库的引用计数对称。
-                            let git_dir = prepared.git_dir.clone();
                             tracked_cwds.insert(app.workspaces[ws_idx].cwd.clone());
                             app.workspaces[ws_idx]
                                 .apply_prepared_git_repository(prepared.clone());
-                            app.watch_git_path(&git_dir);
                         }
 
                         if tracked_cwds.is_empty() {
@@ -1822,6 +1803,7 @@ impl PaneFlowApp {
                         }
                         app.save_session(cx);
                         app.reconcile_diff_after_workspace_change(cx);
+                        app.reconcile_active_git_watch();
                         // 即使分支和统计值没有变化，仓库身份元数据也刚刚完成回填，
                         // 因此没有由 Diff 刷新触发重绘时仍需通知界面。
                         if !refreshed_diff {

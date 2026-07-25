@@ -214,3 +214,40 @@ fn active_context_must_not_own_a_duplicate_workspace_root() {
         "Project scope 不能从 active_idx 推测审查对象"
     );
 }
+
+/// A026：矩阵总览不能按工作区数量常驻 Git 上下文资源。
+///
+/// 旧实现用 `git_watch_counts` 为每个仓库登记 watcher，并在 30 秒回退任务中遍历
+/// 全部工作区；16 窗格因此会产生 16-root 后台工作。目标实现只能保存当前聚焦
+/// `WindowSession` 对应的一个监听路径，矩阵态必须自然得到零。
+#[test]
+fn grid_must_not_start_per_workspace_git_context_resources() {
+    let main_source = include_str!("../main.rs");
+    let bootstrap_source = include_str!("bootstrap.rs");
+    let event_source = include_str!("event_handlers.rs");
+
+    assert!(
+        main_source.contains("active_git_watch: Option<std::path::PathBuf>"),
+        "应用只能持有零或一个活动 Git watcher 路径"
+    );
+    assert!(
+        main_source.contains("== app::workspace_focus::DisplaySurface::Focused"),
+        "通用 Git watcher 只能存在于普通聚焦态，Review 必须交给专用资源"
+    );
+    assert!(
+        !main_source.contains("git_watch_counts:"),
+        "不得继续按所有工作区维护 Git watcher 引用计数"
+    );
+    assert!(
+        bootstrap_source.contains("active_context_workspace()"),
+        "Git 回退刷新只能从当前活动上下文派生"
+    );
+    assert!(
+        !bootstrap_source.contains("for ws in &app.workspaces"),
+        "矩阵态回退刷新不得遍历全部工作区"
+    );
+    assert!(
+        !event_source.contains("app.watch_git_path(&git_dir)"),
+        "工作区 Git 准备完成不能无条件启动常驻 watcher"
+    );
+}

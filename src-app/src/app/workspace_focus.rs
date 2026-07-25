@@ -408,7 +408,14 @@ impl PaneFlowApp {
         &mut self,
         command: DisplayCommand,
     ) -> Result<DisplayTransition, DisplayTransitionError> {
-        self.workspace_focus.transition(command)
+        let transition = self.workspace_focus.transition(command);
+        if transition.is_ok() {
+            // 展示状态是活动上下文的唯一开关：Grid 解除 Git watcher，Focused/Review
+            // 只登记稳定 ID 对应的一个仓库。即使命令幂等也重试，允许 Git 准备在
+            // 上一次转换之后才异步回填 `git_dir`。
+            self.reconcile_active_git_watch();
+        }
+        transition
     }
 
     /// 返回当前聚焦 ID 对应的唯一 WindowSession 所属工作区。
