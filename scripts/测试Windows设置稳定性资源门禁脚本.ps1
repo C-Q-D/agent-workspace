@@ -66,6 +66,8 @@ $Source = Get-Content -Raw -LiteralPath $ScriptPath
 foreach ($Required in @(
     'PrintWindow',
     'PostMessage',
+    'Enter-WorkspaceFocus',
+    'Exit-WorkspaceFocus',
     'focusAndExplicitRestoreCompleted',
     'noWriteAfterSecondRound',
     'gitHasUncommittedChange',

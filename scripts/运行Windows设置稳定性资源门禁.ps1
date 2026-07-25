@@ -474,12 +474,19 @@ function Save-WindowScreenshot {
     }
 }
 
-function Invoke-FocusAndRestore {
-    <# 进入首个工作区聚焦态，采样文件/Git 上下文后主动点击恢复按钮。 #>
-    param(
-        [Parameter(Mandatory = $true)][Diagnostics.Process]$Process,
-        [Parameter(Mandatory = $true)][string]$ScreenshotPath
-    )
+function Enter-WorkspaceFocus {
+    <# 进入首个工作区聚焦态；活动输出在该状态采样以复用历史重绘门控口径。 #>
+    param([Parameter(Mandatory = $true)][Diagnostics.Process]$Process)
+
+    $Process.Refresh()
+    $Handle = $Process.MainWindowHandle
+    Invoke-WindowClick -Handle $Handle -X 120 -Y 104
+    Start-Sleep -Milliseconds 750
+}
+
+function Exit-WorkspaceFocus {
+    <# 主动点击放大视图恢复按钮，返回完整矩阵而不替换任何 PTY。 #>
+    param([Parameter(Mandatory = $true)][Diagnostics.Process]$Process)
 
     $Process.Refresh()
     $Handle = $Process.MainWindowHandle
@@ -487,15 +494,10 @@ function Invoke-FocusAndRestore {
     if (-not [AgentWorkspaceSettingsPerfWindow]::GetClientRect($Handle, [ref]$Client)) {
         throw '无法读取 AgentWorkspace 客户区。'
     }
-    Invoke-WindowClick -Handle $Handle -X 120 -Y 104
-    Start-Sleep -Milliseconds 750
-    Save-WindowScreenshot -Process $Process -Path $ScreenshotPath
-    $FocusedPhase = Measure-ResourcePhase -Process $Process -Phase 'focused-file-git'
     # 聚焦后右侧文件树占 300px；恢复按钮位于中间主区域标题栏右端。
     $RestoreX = [Math]::Max(260, ($Client.Right - $Client.Left) - 316)
     Invoke-WindowClick -Handle $Handle -X $RestoreX -Y 56
     Start-Sleep -Milliseconds 750
-    return $FocusedPhase
 }
 
 function Stop-AppGracefully {
@@ -628,6 +630,9 @@ function Invoke-Scenario {
 
         $RoundTwo = Write-SettingsRound -Path $ConfigPath -Round 'round-two'
         $SecondWriteTime = (Get-Item -LiteralPath $ConfigPath).LastWriteTimeUtc
+        # 先进入应用级聚焦，再让所有终端持续输出。这样活动阶段与 P1.5 的 1% CPU
+        # 历史门禁采用同一“一个可见终端、后台终端抑制重绘”口径。
+        Enter-WorkspaceFocus -Process $Process
         $Iterations = [Math]::Max(
             5,
             [Math]::Ceiling(($PhaseDurationSeconds * 1000.0) / $OutputIntervalMilliseconds)
@@ -647,7 +652,9 @@ function Invoke-Scenario {
             throw '第二轮设置完成后出现额外配置写入。'
         }
         $FocusScreenshot = Join-Path $ScenarioDirectory '聚焦文件Git上下文.png'
-        $Focused = Invoke-FocusAndRestore -Process $Process -ScreenshotPath $FocusScreenshot
+        Save-WindowScreenshot -Process $Process -Path $FocusScreenshot
+        $Focused = Measure-ResourcePhase -Process $Process -Phase 'focused-file-git'
+        Exit-WorkspaceFocus -Process $Process
 
         $After = Wait-MatrixReady -Process $Process -PipeName $PipeName -TerminalCount $TerminalCount
         $AfterSurfaceIds = @($After.surfaces | ForEach-Object { [uint64]$_.surface_id })
