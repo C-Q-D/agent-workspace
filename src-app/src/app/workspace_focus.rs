@@ -103,7 +103,85 @@ impl WorkspaceFocusState {
 #[cfg(test)]
 mod tests {
     use super::WorkspaceFocusState;
+    use paneflow_config::schema::AppMode;
     use std::path::Path;
+
+    /// 旧展示字段组合是否满足当前公开产品的不变量。
+    ///
+    /// 这个辅助函数只描述 A012 已确认的规则，不参与生产状态转换。A016 引入单一
+    /// 展示状态后，下面的待修测试应改为直接验证新类型无法构造这些组合。
+    fn legacy_display_fields_are_consistent(
+        mode: AppMode,
+        settings_open: bool,
+        focus: &WorkspaceFocusState,
+        active_workspace_id: Option<u64>,
+    ) -> bool {
+        if settings_open {
+            return mode == AppMode::Cli;
+        }
+
+        match mode {
+            AppMode::Cli => true,
+            AppMode::Diff => focus.workspace_id() == active_workspace_id,
+            // Agents 已退出 v1 公开产品面，因此不属于可构造的公开展示状态。
+            AppMode::Agents => false,
+        }
+    }
+
+    /// 旧字段能够独立组成“Review 可见但没有放大工作区”的非法状态。
+    #[test]
+    fn legacy_fields_expose_review_without_focused_workspace_gap() {
+        let focus = WorkspaceFocusState::default();
+
+        assert!(!legacy_display_fields_are_consistent(
+            AppMode::Diff,
+            false,
+            &focus,
+            Some(41),
+        ));
+    }
+
+    /// 旧字段能够同时表达设置覆盖层和仍在后台存活的 Review 主模式。
+    #[test]
+    fn legacy_fields_expose_settings_over_review_gap() {
+        let mut focus = WorkspaceFocusState::default();
+        focus.focus(41, r"C:\repo-a");
+
+        assert!(!legacy_display_fields_are_consistent(
+            AppMode::Diff,
+            true,
+            &focus,
+            Some(41),
+        ));
+    }
+
+    /// A016 的红灯：当前类型系统无法阻止 Review 与空聚焦上下文同时存在。
+    ///
+    /// 本原子只建立失败证据，因此先忽略该目标态断言，避免把已知红灯带入普通
+    /// CI。A016 必须用单一展示状态替换此测试，并移除忽略标记。
+    #[test]
+    #[ignore = "A016 将引入不能构造该非法组合的单一展示状态"]
+    fn display_state_must_not_allow_review_without_focus() {
+        let focus = WorkspaceFocusState::default();
+
+        assert!(
+            legacy_display_fields_are_consistent(AppMode::Diff, false, &focus, Some(41)),
+            "旧 AppMode 与 WorkspaceFocusState 可独立写入，Review 因而能缺少聚焦上下文"
+        );
+    }
+
+    /// A016 的第二个红灯：设置页不应与 Review 同时成为两个可写展示事实。
+    #[test]
+    #[ignore = "A016 将把设置页建模为互斥的单一展示状态"]
+    fn display_state_must_not_allow_settings_over_review() {
+        let mut focus = WorkspaceFocusState::default();
+        focus.focus(41, r"C:\repo-a");
+
+        assert!(
+            legacy_display_fields_are_consistent(AppMode::Diff, true, &focus, Some(41)),
+            "旧 settings_section 覆盖 Review 渲染，但不会退出底层 Review 状态"
+        );
+    }
 
     #[test]
     fn switching_workspace_replaces_root_and_drops_stale_surface() {
