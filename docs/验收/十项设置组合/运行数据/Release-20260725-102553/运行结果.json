@@ -1,0 +1,240 @@
+{
+  "schemaVersion": 1,
+  "runId": "Release-20260725-102553",
+  "executedAt": "2026-07-25T10:30:05.2782136+08:00",
+  "baseCommit": "335f8410e1c895be982f12e492df70a66479cf7a",
+  "binary": {
+    "path": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\target\\release\\agent-workspace.exe",
+    "sha256": "f98c6198937a06c6f65e7fd8cf8d30fafb565675c0dfde1e492ad2c7cf79a5ad",
+    "version": "agent-workspace 0.7.11"
+  },
+  "isolation": {
+    "userProfile": "F:\\AWStableSettings-Release-20260725-102553\\隔离用户",
+    "dataRoot": "F:\\AWStableSettings-Release-20260725-102553\\隔离用户\\.agent-workspace",
+    "workspaceRoot": "F:\\AWStableSettings-Release-20260725-102553\\真实工作区",
+    "pipe": "\\\\.\\pipe\\agent-workspace-stable-settings-20260725-102553"
+  },
+  "settings": {
+    "keys": [
+      "theme_mode",
+      "theme",
+      "font_family",
+      "font_size",
+      "default_shell",
+      "default_reference_format",
+      "workspace_grid_density",
+      "git_auto_init",
+      "claude_code_command",
+      "codex_command"
+    ],
+    "initial": {
+      "theme_mode": "system",
+      "theme": "One Dark",
+      "font_family": null,
+      "font_size": 13.0,
+      "default_shell": null,
+      "default_reference_format": "common",
+      "workspace_grid_density": "auto",
+      "git_auto_init": true,
+      "claude_code_command": null,
+      "codex_command": null
+    },
+    "roundOne": {
+      "theme_mode": "dark",
+      "theme": "One Dark",
+      "font_family": "Consolas",
+      "font_size": 14.0,
+      "default_shell": "powershell.exe",
+      "default_reference_format": "claude",
+      "workspace_grid_density": "compact",
+      "git_auto_init": false,
+      "claude_code_command": "claude --model sonnet",
+      "codex_command": "codex --sandbox workspace-write"
+    },
+    "roundTwo": {
+      "theme_mode": "light",
+      "theme": "AgentWorkspace Light",
+      "font_family": "Cascadia Mono",
+      "font_size": 15.0,
+      "default_shell": "pwsh.exe",
+      "default_reference_format": "codex",
+      "workspace_grid_density": "comfortable",
+      "git_auto_init": true,
+      "claude_code_command": "claude --model opus",
+      "codex_command": "codex --sandbox read-only"
+    },
+    "restored": {
+      "theme_mode": "light",
+      "theme": "AgentWorkspace Light",
+      "font_family": "Cascadia Mono",
+      "font_size": 15.0,
+      "default_shell": "pwsh.exe",
+      "default_reference_format": "codex",
+      "workspace_grid_density": "comfortable",
+      "git_auto_init": true,
+      "claude_code_command": "claude --model opus",
+      "codex_command": "codex --sandbox read-only"
+    },
+    "unknownFieldPreserved": true
+  },
+  "lifecycle": {
+    "initial": {
+      "windowHandle": 11995564,
+      "appPid": 22560,
+      "workspaceIds": [
+        1
+      ],
+      "surfaceIds": [
+        12884901889
+      ],
+      "powershellPids": [
+        14048
+      ],
+      "processTree": [
+        {
+          "id": 14048,
+          "name": "pwsh",
+          "startedUtcTicks": 639205431546803199
+        },
+        {
+          "id": 22560,
+          "name": "agent-workspace",
+          "startedUtcTicks": 639205431531714879
+        },
+        {
+          "id": 29584,
+          "name": "conhost",
+          "startedUtcTicks": 639205431546793072
+        }
+      ]
+    },
+    "roundOne": {
+      "windowHandle": 11995564,
+      "appPid": 22560,
+      "workspaceIds": [
+        1
+      ],
+      "surfaceIds": [
+        12884901889
+      ],
+      "powershellPids": [
+        14048
+      ],
+      "processTree": [
+        {
+          "id": 14048,
+          "name": "pwsh",
+          "startedUtcTicks": 639205431546803199
+        },
+        {
+          "id": 22560,
+          "name": "agent-workspace",
+          "startedUtcTicks": 639205431531714879
+        },
+        {
+          "id": 29584,
+          "name": "conhost",
+          "startedUtcTicks": 639205431546793072
+        }
+      ]
+    },
+    "roundTwo": {
+      "windowHandle": 11995564,
+      "appPid": 22560,
+      "workspaceIds": [
+        1
+      ],
+      "surfaceIds": [
+        12884901889
+      ],
+      "powershellPids": [
+        14048
+      ],
+      "processTree": [
+        {
+          "id": 14048,
+          "name": "pwsh",
+          "startedUtcTicks": 639205431546803199
+        },
+        {
+          "id": 22560,
+          "name": "agent-workspace",
+          "startedUtcTicks": 639205431531714879
+        },
+        {
+          "id": 29584,
+          "name": "conhost",
+          "startedUtcTicks": 639205431546793072
+        }
+      ]
+    },
+    "restored": {
+      "windowHandle": 4196702,
+      "appPid": 9596,
+      "workspaceIds": [
+        1
+      ],
+      "surfaceIds": [
+        4294967301
+      ],
+      "powershellPids": [
+        13972
+      ],
+      "processTree": [
+        {
+          "id": 9596,
+          "name": "agent-workspace",
+          "startedUtcTicks": 639205434036068582
+        },
+        {
+          "id": 13972,
+          "name": "pwsh",
+          "startedUtcTicks": 639205434051005423
+        },
+        {
+          "id": 27804,
+          "name": "conhost",
+          "startedUtcTicks": 639205434050990878
+        }
+      ]
+    },
+    "currentIdentityPreservedAcrossBothRounds": true,
+    "firstTrackedProcesses": [
+      {
+        "id": 14048,
+        "name": "pwsh",
+        "startedUtcTicks": 639205431546803199
+      },
+      {
+        "id": 22560,
+        "name": "agent-workspace",
+        "startedUtcTicks": 639205431531714879
+      },
+      {
+        "id": 29584,
+        "name": "conhost",
+        "startedUtcTicks": 639205431546793072
+      }
+    ],
+    "restoredTrackedProcesses": [
+      {
+        "id": 9596,
+        "name": "agent-workspace",
+        "startedUtcTicks": 639205434036068582
+      },
+      {
+        "id": 13972,
+        "name": "pwsh",
+        "startedUtcTicks": 639205434051005423
+      },
+      {
+        "id": 27804,
+        "name": "conhost",
+        "startedUtcTicks": 639205434050990878
+      }
+    ],
+    "gracefulExitBothRuns": true,
+    "residueCount": 0
+  },
+  "result": "passed"
+}

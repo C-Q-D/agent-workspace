@@ -1,0 +1,12 @@
+{
+  "theme_mode": "light",
+  "theme": "AgentWorkspace Light",
+  "font_family": "Cascadia Mono",
+  "font_size": 15.0,
+  "default_shell": "pwsh.exe",
+  "default_reference_format": "codex",
+  "workspace_grid_density": "comfortable",
+  "git_auto_init": true,
+  "claude_code_command": "claude --model opus",
+  "codex_command": "codex --sandbox read-only"
+}

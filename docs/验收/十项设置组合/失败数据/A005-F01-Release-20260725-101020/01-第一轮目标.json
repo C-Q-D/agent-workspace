@@ -1,0 +1,12 @@
+{
+  "theme_mode": "dark",
+  "theme": "Claude",
+  "font_family": "Consolas",
+  "font_size": 14.0,
+  "default_shell": "powershell.exe",
+  "default_reference_format": "claude",
+  "workspace_grid_density": "compact",
+  "git_auto_init": false,
+  "claude_code_command": "claude --model sonnet",
+  "codex_command": "codex --sandbox workspace-write"
+}

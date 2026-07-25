@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "active_workspace": 0,
+  "workspace_grid_page": 0,
+  "workspaces": [
+    {
+      "title": "Stable Settings",
+      "cwd": "F:\\AWStableSettings-Release-20260725-102553\\真实工作区",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\AWStableSettings-Release-20260725-102553\\真实工作区",
+            "env": null,
+            "focus": true,
+            "scrollback": "PS F:\\AWStableSettings-Release-20260725-102553\\真实工作区>"
+          }
+        ]
+      },
+      "reference_format": "common"
+    }
+  ],
+  "active_project": 0,
+  "mode": "cli",
+  "diff_scope": "project"
+}

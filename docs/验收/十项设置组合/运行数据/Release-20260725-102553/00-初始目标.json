@@ -1,0 +1,18 @@
+{
+  "telemetry": {
+    "enabled": false
+  },
+  "theme_mode": "system",
+  "theme": null,
+  "font_family": null,
+  "font_size": 13.0,
+  "default_shell": null,
+  "default_reference_format": "common",
+  "workspace_grid_density": "auto",
+  "git_auto_init": true,
+  "claude_code_command": null,
+  "codex_command": null,
+  "future_setting": {
+    "preserved": true
+  }
+}

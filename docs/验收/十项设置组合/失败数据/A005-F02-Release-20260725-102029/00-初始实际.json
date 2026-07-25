@@ -1,0 +1,12 @@
+{
+  "theme_mode": "system",
+  "theme": "One Dark",
+  "font_family": null,
+  "font_size": 13.0,
+  "default_shell": null,
+  "default_reference_format": "common",
+  "workspace_grid_density": "auto",
+  "git_auto_init": true,
+  "claude_code_command": null,
+  "codex_command": null
+}
