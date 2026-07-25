@@ -371,7 +371,7 @@ function Get-LifecycleSnapshot {
     return [ordered]@{
         windowHandle = $Process.MainWindowHandle.ToInt64()
         appPid = $Process.Id
-        workspaceIds = @($Workspaces | ForEach-Object { [uint64]$_.id })
+        workspaceIds = @($Workspaces | ForEach-Object { [uint64]$_.workspace_id })
         surfaceIds = @($Surfaces | ForEach-Object { [uint64]$_.surface_id })
         powershellPids = @(
             $Tree |
@@ -588,10 +588,20 @@ finally {
         else { Set-Item "Env:$Name" $Value }
     }
     if ($null -ne $Process) {
+        $Tracked = @(Get-ProcessTree -RootProcessId $Process.Id)
         $Live = Get-Process -Id $Process.Id -ErrorAction SilentlyContinue
         if ($null -ne $Live) {
             Stop-Process -Id $Process.Id -Force -ErrorAction SilentlyContinue
             $Process.WaitForExit(5000) | Out-Null
+        }
+        # 失败清理不计为验收通过，但必须回收本轮已经记录的真实 ConPTY 子树，避免失败脚本
+        # 把 PowerShell 留在用户机器上。按后代逆序停止，且用启动时间防止误伤复用 PID。
+        foreach ($Entry in @($Tracked | Select-Object -Reverse)) {
+            $Descendant = Get-Process -Id $Entry.id -ErrorAction SilentlyContinue
+            if ($null -ne $Descendant -and
+                $Descendant.StartTime.ToUniversalTime().Ticks -eq $Entry.startedUtcTicks) {
+                Stop-Process -Id $Entry.id -Force -ErrorAction SilentlyContinue
+            }
         }
     }
 }

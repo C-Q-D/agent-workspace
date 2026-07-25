@@ -1267,6 +1267,34 @@ fn drain_ipc_requests_for_tick(
     ready
 }
 
+/// 构造 `workspace.list` 的稳定公开投影。
+///
+/// `index` 是当前列表位置，关闭或重排工作区后可能变化；`workspace_id` 是工作区创建时
+/// 分配的稳定身份，供生命周期验收和精确 IPC 目标使用。二者必须同时保留，避免调用方
+/// 把导航位置误当成长期身份。该函数只序列化已有内存状态，不触发文件、Git 或终端工作。
+#[allow(clippy::too_many_arguments)]
+fn workspace_list_projection(
+    index: usize,
+    workspace_id: u64,
+    title: &str,
+    cwd: &str,
+    panes: usize,
+    terminal_status: &str,
+    reference_format: &str,
+    active: bool,
+) -> serde_json::Value {
+    serde_json::json!({
+        "index": index,
+        "workspace_id": workspace_id,
+        "title": title,
+        "cwd": cwd,
+        "panes": panes,
+        "terminal_status": terminal_status,
+        "reference_format": reference_format,
+        "active": active,
+    })
+}
+
 impl PaneFlowApp {
     /// One automation poll tick for IPC, surface events, config reloads, and
     /// update-check completion. Keeping this order in one method prevents the
@@ -2345,15 +2373,16 @@ impl PaneFlowApp {
                     .iter()
                     .enumerate()
                     .map(|(i, ws)| {
-                        serde_json::json!({
-                            "index": i,
-                            "title": ws.title,
-                            "cwd": ws.cwd,
-                            "panes": ws.pane_count(),
-                            "terminal_status": ws.terminal_status(cx).as_wire_name(),
-                            "reference_format": ws.reference_format.as_persisted(),
-                            "active": i == self.active_idx,
-                        })
+                        workspace_list_projection(
+                            i,
+                            ws.id,
+                            &ws.title,
+                            &ws.cwd,
+                            ws.pane_count(),
+                            ws.terminal_status(cx).as_wire_name(),
+                            ws.reference_format.as_persisted(),
+                            i == self.active_idx,
+                        )
                     })
                     .collect();
                 serde_json::json!({"workspaces": list})
@@ -4288,6 +4317,21 @@ mod tests {
     use super::*;
     use std::sync::atomic::AtomicBool;
     use std::sync::{Arc, mpsc};
+
+    #[test]
+    fn workspace_list_projection_keeps_stable_id_separate_from_index() {
+        let projected =
+            workspace_list_projection(2, 41, "后端", r"F:\repo", 3, "running", "codex", true);
+
+        assert_eq!(projected["index"], 2);
+        assert_eq!(projected["workspace_id"], 41);
+        assert_eq!(projected["title"], "后端");
+        assert_eq!(projected["cwd"], r"F:\repo");
+        assert_eq!(projected["panes"], 3);
+        assert_eq!(projected["terminal_status"], "running");
+        assert_eq!(projected["reference_format"], "codex");
+        assert_eq!(projected["active"], true);
+    }
 
     fn test_ipc_request(method: &str, cancelled: bool) -> crate::ipc::IpcRequest {
         let (response_tx, _response_rx) = mpsc::channel();
