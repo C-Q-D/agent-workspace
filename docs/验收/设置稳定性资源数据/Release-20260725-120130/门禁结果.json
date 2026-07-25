@@ -1,0 +1,3569 @@
+{
+  "schemaVersion": 1,
+  "runId": "Release-20260725-120130",
+  "executedAt": "2026-07-25T12:02:16.8951731+08:00",
+  "baseCommit": "eb49b80d061d267e3661dc6769b247e860019958",
+  "binary": {
+    "path": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\target\\release\\agent-workspace.exe",
+    "sha256": "010747a6bf943ddf1c1392aea30bbb8e0ee07666f545ba8e62e8851dd0cac089",
+    "version": "agent-workspace 0.7.11"
+  },
+  "environment": {
+    "osCaption": "Microsoft Windows 11 专业版",
+    "osVersion": "10.0.26200",
+    "osBuildNumber": "26200",
+    "osArchitecture": "64 位",
+    "totalPhysicalMemoryGiB": 31.636,
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "logicalProcessorCount": 20,
+    "powershellVersion": "7.6.3"
+  },
+  "budgets": {
+    "steadyHostCpuMaximumPercent": 1.0,
+    "hostWorkingSetMaximumMiB": 256.0,
+    "minimumSamplesPerPhase": 2,
+    "outputIntervalMilliseconds": 250
+  },
+  "performanceMetrics": [
+    {
+      "terminalCount": 9,
+      "phase": "cold-start",
+      "sampleCount": 5,
+      "hostCpuPercent": 0.2776,
+      "hostWorkingSetPeakMiB": 132.359,
+      "hostPrivatePeakMiB": 124.668,
+      "hostThreadPeak": 20,
+      "hostHandlePeak": 475
+    },
+    {
+      "terminalCount": 9,
+      "phase": "stable-idle",
+      "sampleCount": 5,
+      "hostCpuPercent": 0.3122,
+      "hostWorkingSetPeakMiB": 163.949,
+      "hostPrivatePeakMiB": 189.895,
+      "hostThreadPeak": 51,
+      "hostHandlePeak": 623
+    },
+    {
+      "terminalCount": 9,
+      "phase": "active-output",
+      "sampleCount": 5,
+      "hostCpuPercent": 1.0583,
+      "hostWorkingSetPeakMiB": 162.875,
+      "hostPrivatePeakMiB": 163.234,
+      "hostThreadPeak": 52,
+      "hostHandlePeak": 630
+    },
+    {
+      "terminalCount": 9,
+      "phase": "focused-file-git",
+      "sampleCount": 5,
+      "hostCpuPercent": 0.564,
+      "hostWorkingSetPeakMiB": 160.949,
+      "hostPrivatePeakMiB": 161.238,
+      "hostThreadPeak": 52,
+      "hostHandlePeak": 630
+    },
+    {
+      "terminalCount": 16,
+      "phase": "cold-start",
+      "sampleCount": 5,
+      "hostCpuPercent": 0.4698,
+      "hostWorkingSetPeakMiB": 132.23,
+      "hostPrivatePeakMiB": 124.777,
+      "hostThreadPeak": 21,
+      "hostHandlePeak": 476
+    },
+    {
+      "terminalCount": 16,
+      "phase": "stable-idle",
+      "sampleCount": 5,
+      "hostCpuPercent": 0.7842,
+      "hostWorkingSetPeakMiB": 187.195,
+      "hostPrivatePeakMiB": 239.352,
+      "hostThreadPeak": 72,
+      "hostHandlePeak": 708
+    },
+    {
+      "terminalCount": 16,
+      "phase": "active-output",
+      "sampleCount": 5,
+      "hostCpuPercent": 1.2891,
+      "hostWorkingSetPeakMiB": 191.414,
+      "hostPrivatePeakMiB": 219.711,
+      "hostThreadPeak": 73,
+      "hostHandlePeak": 721
+    },
+    {
+      "terminalCount": 16,
+      "phase": "focused-file-git",
+      "sampleCount": 5,
+      "hostCpuPercent": 0.5048,
+      "hostWorkingSetPeakMiB": 189.777,
+      "hostPrivatePeakMiB": 217.902,
+      "hostThreadPeak": 74,
+      "hostHandlePeak": 723
+    }
+  ],
+  "contract": {
+    "schemaVersion": 1,
+    "platform": "windows",
+    "binary": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\target\\release\\agent-workspace.exe",
+    "terminalCounts": [
+      9,
+      16
+    ],
+    "phases": [
+      "cold-start",
+      "stable-idle",
+      "active-output",
+      "focused-file-git"
+    ],
+    "resourceGroups": [
+      "host",
+      "shell",
+      "cli",
+      "helper"
+    ],
+    "settingsKeys": [
+      "theme_mode",
+      "theme",
+      "font_family",
+      "font_size",
+      "default_shell",
+      "default_reference_format",
+      "workspace_grid_density",
+      "git_auto_init",
+      "claude_code_command",
+      "codex_command"
+    ],
+    "sampleIntervalMilliseconds": 1000,
+    "phaseDurationSeconds": 5,
+    "outputIntervalMilliseconds": 250,
+    "minimumSamplesPerPhase": 2,
+    "interaction": "真实 AgentWorkspace、PowerShell/ConPTY、配置 watcher、应用级聚焦与恢复"
+  },
+  "scenarios": [
+    {
+      "terminalCount": 9,
+      "coldStartSamplingBeganBeforeAppReady": true,
+      "coldSamplingStartedMilliseconds": 8.486,
+      "appReadyObservationUpperBoundMilliseconds": 4086.671,
+      "restartReadyMilliseconds": 1606.328,
+      "settings": {
+        "keys": [
+          "theme_mode",
+          "theme",
+          "font_family",
+          "font_size",
+          "default_shell",
+          "default_reference_format",
+          "workspace_grid_density",
+          "git_auto_init",
+          "claude_code_command",
+          "codex_command"
+        ],
+        "writeCount": 2,
+        "first": {
+          "telemetry": {
+            "enabled": false
+          },
+          "theme_mode": "dark",
+          "theme": "One Dark",
+          "font_family": "Consolas",
+          "font_size": 14.0,
+          "default_shell": "powershell.exe",
+          "default_reference_format": "claude",
+          "workspace_grid_density": "compact",
+          "git_auto_init": false,
+          "claude_code_command": "claude --model sonnet",
+          "codex_command": "codex --sandbox workspace-write",
+          "future_setting": {
+            "preserved": true
+          }
+        },
+        "second": {
+          "telemetry": {
+            "enabled": false
+          },
+          "theme_mode": "light",
+          "theme": "AgentWorkspace Light",
+          "font_family": "Cascadia Mono",
+          "font_size": 15.0,
+          "default_shell": "pwsh.exe",
+          "default_reference_format": "codex",
+          "workspace_grid_density": "comfortable",
+          "git_auto_init": true,
+          "claude_code_command": "claude --model opus",
+          "codex_command": "codex --sandbox read-only",
+          "future_setting": {
+            "preserved": true
+          }
+        },
+        "unknownFieldPreserved": true,
+        "noWriteAfterSecondRound": true
+      },
+      "matrix": {
+        "workspaces": 9,
+        "surfaces": 9,
+        "powershellProcesses": 9,
+        "surfaceIdsStable": true,
+        "powershellPidsStable": true,
+        "restoredWorkspaces": 9,
+        "restoredSurfaces": 9,
+        "restoredPowerShellProcesses": 9,
+        "workspaceIdsRestored": true,
+        "powershellPidsRecreatedAcrossRestart": true
+      },
+      "context": {
+        "workspaceRoot": "F:\\AWSettingsPerf-Release-20260725-120130\\09终端\\真实Git工作区",
+        "fileExists": true,
+        "gitRepository": true,
+        "gitHasUncommittedChange": true,
+        "focusedScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\设置稳定性资源数据\\Release-20260725-120130\\09终端\\聚焦文件Git上下文.png",
+        "focusAndExplicitRestoreCompleted": true
+      },
+      "resources": {
+        "sampleIntervalMilliseconds": 1000,
+        "phaseDurationSeconds": 5,
+        "phases": [
+          {
+            "name": "cold-start",
+            "intervalMilliseconds": 1000,
+            "requestedDurationSeconds": 5,
+            "elapsedSeconds": 4.027,
+            "sampleCount": 5,
+            "samples": [
+              {
+                "sample": 1,
+                "timestampUtc": "2026-07-25T04:01:30.8374630+00:00",
+                "elapsedMilliseconds": 86.174,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      32652
+                    ],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 2.508,
+                    "privateMemoryMiB": 0.656,
+                    "threadCount": 1,
+                    "handleCount": 50
+                  },
+                  "shell": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 1,
+                    "processIds": [
+                      7744
+                    ],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 9.809,
+                    "privateMemoryMiB": 1.574,
+                    "threadCount": 6,
+                    "handleCount": 147
+                  }
+                }
+              },
+              {
+                "sample": 2,
+                "timestampUtc": "2026-07-25T04:01:31.7791099+00:00",
+                "elapsedMilliseconds": 1026.082,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      32652
+                    ],
+                    "cpuTotalMilliseconds": 171.875,
+                    "workingSetMiB": 106.27,
+                    "privateMemoryMiB": 123.746,
+                    "threadCount": 13,
+                    "handleCount": 434
+                  },
+                  "shell": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  }
+                }
+              },
+              {
+                "sample": 3,
+                "timestampUtc": "2026-07-25T04:01:32.7772135+00:00",
+                "elapsedMilliseconds": 2024.182,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      32652
+                    ],
+                    "cpuTotalMilliseconds": 187.5,
+                    "workingSetMiB": 132.359,
+                    "privateMemoryMiB": 124.668,
+                    "threadCount": 20,
+                    "handleCount": 475
+                  },
+                  "shell": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  }
+                }
+              },
+              {
+                "sample": 4,
+                "timestampUtc": "2026-07-25T04:01:33.7761794+00:00",
+                "elapsedMilliseconds": 3023.15,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      32652
+                    ],
+                    "cpuTotalMilliseconds": 203.125,
+                    "workingSetMiB": 131.605,
+                    "privateMemoryMiB": 123.926,
+                    "threadCount": 20,
+                    "handleCount": 475
+                  },
+                  "shell": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  }
+                }
+              },
+              {
+                "sample": 5,
+                "timestampUtc": "2026-07-25T04:01:34.7796986+00:00",
+                "elapsedMilliseconds": 4026.666,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      32652
+                    ],
+                    "cpuTotalMilliseconds": 218.75,
+                    "workingSetMiB": 131.754,
+                    "privateMemoryMiB": 124.012,
+                    "threadCount": 20,
+                    "handleCount": 475
+                  },
+                  "shell": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "stable-idle",
+            "intervalMilliseconds": 1000,
+            "requestedDurationSeconds": 5,
+            "elapsedSeconds": 4.092,
+            "sampleCount": 5,
+            "samples": [
+              {
+                "sample": 1,
+                "timestampUtc": "2026-07-25T04:01:35.5861591+00:00",
+                "elapsedMilliseconds": 88.667,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      32652
+                    ],
+                    "cpuTotalMilliseconds": 796.875,
+                    "workingSetMiB": 163.949,
+                    "privateMemoryMiB": 189.895,
+                    "threadCount": 51,
+                    "handleCount": 623
+                  },
+                  "shell": {
+                    "processCount": 9,
+                    "processIds": [
+                      4928,
+                      7624,
+                      16776,
+                      18552,
+                      21396,
+                      25816,
+                      26136,
+                      30456,
+                      30800
+                    ],
+                    "cpuTotalMilliseconds": 2953.125,
+                    "workingSetMiB": 645.0,
+                    "privateMemoryMiB": 519.766,
+                    "threadCount": 296,
+                    "handleCount": 5504
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 9,
+                    "processIds": [
+                      9108,
+                      11168,
+                      14688,
+                      20816,
+                      21316,
+                      22648,
+                      27428,
+                      28140,
+                      28704
+                    ],
+                    "cpuTotalMilliseconds": 203.125,
+                    "workingSetMiB": 73.141,
+                    "privateMemoryMiB": 12.941,
+                    "threadCount": 63,
+                    "handleCount": 975
+                  }
+                }
+              },
+              {
+                "sample": 2,
+                "timestampUtc": "2026-07-25T04:01:36.5665166+00:00",
+                "elapsedMilliseconds": 1069.021,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      32652
+                    ],
+                    "cpuTotalMilliseconds": 812.5,
+                    "workingSetMiB": 157.91,
+                    "privateMemoryMiB": 183.121,
+                    "threadCount": 49,
+                    "handleCount": 619
+                  },
+                  "shell": {
+                    "processCount": 9,
+                    "processIds": [
+                      4928,
+                      7624,
+                      16776,
+                      18552,
+                      21396,
+                      25816,
+                      26136,
+                      30456,
+                      30800
+                    ],
+                    "cpuTotalMilliseconds": 3218.75,
+                    "workingSetMiB": 666.539,
+                    "privateMemoryMiB": 530.73,
+                    "threadCount": 301,
+                    "handleCount": 5626
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 9,
+                    "processIds": [
+                      9108,
+                      11168,
+                      14688,
+                      20816,
+                      21316,
+                      22648,
+                      27428,
+                      28140,
+                      28704
+                    ],
+                    "cpuTotalMilliseconds": 203.125,
+                    "workingSetMiB": 73.141,
+                    "privateMemoryMiB": 12.941,
+                    "threadCount": 63,
+                    "handleCount": 975
+                  }
+                }
+              },
+              {
+                "sample": 3,
+                "timestampUtc": "2026-07-25T04:01:37.5807865+00:00",
+                "elapsedMilliseconds": 2083.291,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      32652
+                    ],
+                    "cpuTotalMilliseconds": 890.625,
+                    "workingSetMiB": 155.305,
+                    "privateMemoryMiB": 180.496,
+                    "threadCount": 50,
+                    "handleCount": 621
+                  },
+                  "shell": {
+                    "processCount": 9,
+                    "processIds": [
+                      4928,
+                      7624,
+                      16776,
+                      18552,
+                      21396,
+                      25816,
+                      26136,
+                      30456,
+                      30800
+                    ],
+                    "cpuTotalMilliseconds": 3218.75,
+                    "workingSetMiB": 666.57,
+                    "privateMemoryMiB": 530.562,
+                    "threadCount": 295,
+                    "handleCount": 5620
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 9,
+                    "processIds": [
+                      9108,
+                      11168,
+                      14688,
+                      20816,
+                      21316,
+                      22648,
+                      27428,
+                      28140,
+                      28704
+                    ],
+                    "cpuTotalMilliseconds": 203.125,
+                    "workingSetMiB": 73.141,
+                    "privateMemoryMiB": 12.941,
+                    "threadCount": 63,
+                    "handleCount": 975
+                  }
+                }
+              },
+              {
+                "sample": 4,
+                "timestampUtc": "2026-07-25T04:01:38.5681647+00:00",
+                "elapsedMilliseconds": 3070.669,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      32652
+                    ],
+                    "cpuTotalMilliseconds": 984.375,
+                    "workingSetMiB": 155.266,
+                    "privateMemoryMiB": 156.945,
+                    "threadCount": 49,
+                    "handleCount": 619
+                  },
+                  "shell": {
+                    "processCount": 9,
+                    "processIds": [
+                      4928,
+                      7624,
+                      16776,
+                      18552,
+                      21396,
+                      25816,
+                      26136,
+                      30456,
+                      30800
+                    ],
+                    "cpuTotalMilliseconds": 3218.75,
+                    "workingSetMiB": 666.57,
+                    "privateMemoryMiB": 530.562,
+                    "threadCount": 295,
+                    "handleCount": 5620
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 9,
+                    "processIds": [
+                      9108,
+                      11168,
+                      14688,
+                      20816,
+                      21316,
+                      22648,
+                      27428,
+                      28140,
+                      28704
+                    ],
+                    "cpuTotalMilliseconds": 203.125,
+                    "workingSetMiB": 73.141,
+                    "privateMemoryMiB": 12.941,
+                    "threadCount": 63,
+                    "handleCount": 975
+                  }
+                }
+              },
+              {
+                "sample": 5,
+                "timestampUtc": "2026-07-25T04:01:39.5899261+00:00",
+                "elapsedMilliseconds": 4092.432,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      32652
+                    ],
+                    "cpuTotalMilliseconds": 1046.875,
+                    "workingSetMiB": 156.238,
+                    "privateMemoryMiB": 157.898,
+                    "threadCount": 49,
+                    "handleCount": 619
+                  },
+                  "shell": {
+                    "processCount": 9,
+                    "processIds": [
+                      4928,
+                      7624,
+                      16776,
+                      18552,
+                      21396,
+                      25816,
+                      26136,
+                      30456,
+                      30800
+                    ],
+                    "cpuTotalMilliseconds": 3218.75,
+                    "workingSetMiB": 666.57,
+                    "privateMemoryMiB": 530.562,
+                    "threadCount": 295,
+                    "handleCount": 5620
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 9,
+                    "processIds": [
+                      9108,
+                      11168,
+                      14688,
+                      20816,
+                      21316,
+                      22648,
+                      27428,
+                      28140,
+                      28704
+                    ],
+                    "cpuTotalMilliseconds": 203.125,
+                    "workingSetMiB": 73.141,
+                    "privateMemoryMiB": 12.941,
+                    "threadCount": 63,
+                    "handleCount": 975
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "active-output",
+            "intervalMilliseconds": 1000,
+            "requestedDurationSeconds": 5,
+            "elapsedSeconds": 4.071,
+            "sampleCount": 5,
+            "samples": [
+              {
+                "sample": 1,
+                "timestampUtc": "2026-07-25T04:01:40.9670732+00:00",
+                "elapsedMilliseconds": 84.584,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      32652
+                    ],
+                    "cpuTotalMilliseconds": 1312.5,
+                    "workingSetMiB": 162.875,
+                    "privateMemoryMiB": 163.234,
+                    "threadCount": 50,
+                    "handleCount": 626
+                  },
+                  "shell": {
+                    "processCount": 9,
+                    "processIds": [
+                      4928,
+                      7624,
+                      16776,
+                      18552,
+                      21396,
+                      25816,
+                      26136,
+                      30456,
+                      30800
+                    ],
+                    "cpuTotalMilliseconds": 3796.875,
+                    "workingSetMiB": 678.684,
+                    "privateMemoryMiB": 549.797,
+                    "threadCount": 303,
+                    "handleCount": 5774
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 9,
+                    "processIds": [
+                      9108,
+                      11168,
+                      14688,
+                      20816,
+                      21316,
+                      22648,
+                      27428,
+                      28140,
+                      28704
+                    ],
+                    "cpuTotalMilliseconds": 281.25,
+                    "workingSetMiB": 73.602,
+                    "privateMemoryMiB": 13.277,
+                    "threadCount": 63,
+                    "handleCount": 993
+                  }
+                }
+              },
+              {
+                "sample": 2,
+                "timestampUtc": "2026-07-25T04:01:41.9777471+00:00",
+                "elapsedMilliseconds": 1095.264,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      32652
+                    ],
+                    "cpuTotalMilliseconds": 1640.625,
+                    "workingSetMiB": 162.527,
+                    "privateMemoryMiB": 162.945,
+                    "threadCount": 50,
+                    "handleCount": 626
+                  },
+                  "shell": {
+                    "processCount": 9,
+                    "processIds": [
+                      4928,
+                      7624,
+                      16776,
+                      18552,
+                      21396,
+                      25816,
+                      26136,
+                      30456,
+                      30800
+                    ],
+                    "cpuTotalMilliseconds": 3875.0,
+                    "workingSetMiB": 680.719,
+                    "privateMemoryMiB": 554.984,
+                    "threadCount": 304,
+                    "handleCount": 5800
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 9,
+                    "processIds": [
+                      9108,
+                      11168,
+                      14688,
+                      20816,
+                      21316,
+                      22648,
+                      27428,
+                      28140,
+                      28704
+                    ],
+                    "cpuTotalMilliseconds": 296.875,
+                    "workingSetMiB": 73.602,
+                    "privateMemoryMiB": 13.277,
+                    "threadCount": 63,
+                    "handleCount": 993
+                  }
+                }
+              },
+              {
+                "sample": 3,
+                "timestampUtc": "2026-07-25T04:01:42.9547379+00:00",
+                "elapsedMilliseconds": 2072.25,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      32652
+                    ],
+                    "cpuTotalMilliseconds": 1734.375,
+                    "workingSetMiB": 162.605,
+                    "privateMemoryMiB": 162.961,
+                    "threadCount": 50,
+                    "handleCount": 626
+                  },
+                  "shell": {
+                    "processCount": 9,
+                    "processIds": [
+                      4928,
+                      7624,
+                      16776,
+                      18552,
+                      21396,
+                      25816,
+                      26136,
+                      30456,
+                      30800
+                    ],
+                    "cpuTotalMilliseconds": 3875.0,
+                    "workingSetMiB": 680.578,
+                    "privateMemoryMiB": 554.734,
+                    "threadCount": 295,
+                    "handleCount": 5791
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 9,
+                    "processIds": [
+                      9108,
+                      11168,
+                      14688,
+                      20816,
+                      21316,
+                      22648,
+                      27428,
+                      28140,
+                      28704
+                    ],
+                    "cpuTotalMilliseconds": 296.875,
+                    "workingSetMiB": 73.602,
+                    "privateMemoryMiB": 13.277,
+                    "threadCount": 63,
+                    "handleCount": 993
+                  }
+                }
+              },
+              {
+                "sample": 4,
+                "timestampUtc": "2026-07-25T04:01:43.9531635+00:00",
+                "elapsedMilliseconds": 3070.674,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      32652
+                    ],
+                    "cpuTotalMilliseconds": 1921.875,
+                    "workingSetMiB": 160.973,
+                    "privateMemoryMiB": 161.363,
+                    "threadCount": 52,
+                    "handleCount": 630
+                  },
+                  "shell": {
+                    "processCount": 9,
+                    "processIds": [
+                      4928,
+                      7624,
+                      16776,
+                      18552,
+                      21396,
+                      25816,
+                      26136,
+                      30456,
+                      30800
+                    ],
+                    "cpuTotalMilliseconds": 3875.0,
+                    "workingSetMiB": 680.578,
+                    "privateMemoryMiB": 554.734,
+                    "threadCount": 295,
+                    "handleCount": 5791
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 9,
+                    "processIds": [
+                      9108,
+                      11168,
+                      14688,
+                      20816,
+                      21316,
+                      22648,
+                      27428,
+                      28140,
+                      28704
+                    ],
+                    "cpuTotalMilliseconds": 296.875,
+                    "workingSetMiB": 73.602,
+                    "privateMemoryMiB": 13.277,
+                    "threadCount": 63,
+                    "handleCount": 993
+                  }
+                }
+              },
+              {
+                "sample": 5,
+                "timestampUtc": "2026-07-25T04:01:44.9535634+00:00",
+                "elapsedMilliseconds": 4071.074,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      32652
+                    ],
+                    "cpuTotalMilliseconds": 2156.25,
+                    "workingSetMiB": 161.188,
+                    "privateMemoryMiB": 161.551,
+                    "threadCount": 52,
+                    "handleCount": 630
+                  },
+                  "shell": {
+                    "processCount": 9,
+                    "processIds": [
+                      4928,
+                      7624,
+                      16776,
+                      18552,
+                      21396,
+                      25816,
+                      26136,
+                      30456,
+                      30800
+                    ],
+                    "cpuTotalMilliseconds": 3875.0,
+                    "workingSetMiB": 680.578,
+                    "privateMemoryMiB": 554.734,
+                    "threadCount": 295,
+                    "handleCount": 5791
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 9,
+                    "processIds": [
+                      9108,
+                      11168,
+                      14688,
+                      20816,
+                      21316,
+                      22648,
+                      27428,
+                      28140,
+                      28704
+                    ],
+                    "cpuTotalMilliseconds": 296.875,
+                    "workingSetMiB": 73.602,
+                    "privateMemoryMiB": 13.277,
+                    "threadCount": 63,
+                    "handleCount": 993
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "focused-file-git",
+            "intervalMilliseconds": 1000,
+            "requestedDurationSeconds": 5,
+            "elapsedSeconds": 4.083,
+            "sampleCount": 5,
+            "samples": [
+              {
+                "sample": 1,
+                "timestampUtc": "2026-07-25T04:01:45.5829921+00:00",
+                "elapsedMilliseconds": 66.156,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      32652
+                    ],
+                    "cpuTotalMilliseconds": 2281.25,
+                    "workingSetMiB": 160.949,
+                    "privateMemoryMiB": 161.238,
+                    "threadCount": 50,
+                    "handleCount": 626
+                  },
+                  "shell": {
+                    "processCount": 9,
+                    "processIds": [
+                      4928,
+                      7624,
+                      16776,
+                      18552,
+                      21396,
+                      25816,
+                      26136,
+                      30456,
+                      30800
+                    ],
+                    "cpuTotalMilliseconds": 3921.875,
+                    "workingSetMiB": 680.918,
+                    "privateMemoryMiB": 555.18,
+                    "threadCount": 302,
+                    "handleCount": 5798
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 9,
+                    "processIds": [
+                      9108,
+                      11168,
+                      14688,
+                      20816,
+                      21316,
+                      22648,
+                      27428,
+                      28140,
+                      28704
+                    ],
+                    "cpuTotalMilliseconds": 312.5,
+                    "workingSetMiB": 73.602,
+                    "privateMemoryMiB": 13.277,
+                    "threadCount": 63,
+                    "handleCount": 993
+                  }
+                }
+              },
+              {
+                "sample": 2,
+                "timestampUtc": "2026-07-25T04:01:46.5890969+00:00",
+                "elapsedMilliseconds": 1072.242,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      32652
+                    ],
+                    "cpuTotalMilliseconds": 2343.75,
+                    "workingSetMiB": 160.91,
+                    "privateMemoryMiB": 161.23,
+                    "threadCount": 52,
+                    "handleCount": 630
+                  },
+                  "shell": {
+                    "processCount": 9,
+                    "processIds": [
+                      4928,
+                      7624,
+                      16776,
+                      18552,
+                      21396,
+                      25816,
+                      26136,
+                      30456,
+                      30800
+                    ],
+                    "cpuTotalMilliseconds": 3921.875,
+                    "workingSetMiB": 683.09,
+                    "privateMemoryMiB": 557.32,
+                    "threadCount": 304,
+                    "handleCount": 5953
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 9,
+                    "processIds": [
+                      9108,
+                      11168,
+                      14688,
+                      20816,
+                      21316,
+                      22648,
+                      27428,
+                      28140,
+                      28704
+                    ],
+                    "cpuTotalMilliseconds": 312.5,
+                    "workingSetMiB": 73.602,
+                    "privateMemoryMiB": 13.277,
+                    "threadCount": 63,
+                    "handleCount": 993
+                  }
+                }
+              },
+              {
+                "sample": 3,
+                "timestampUtc": "2026-07-25T04:01:47.5729287+00:00",
+                "elapsedMilliseconds": 2056.074,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      32652
+                    ],
+                    "cpuTotalMilliseconds": 2500.0,
+                    "workingSetMiB": 160.203,
+                    "privateMemoryMiB": 160.457,
+                    "threadCount": 50,
+                    "handleCount": 626
+                  },
+                  "shell": {
+                    "processCount": 9,
+                    "processIds": [
+                      4928,
+                      7624,
+                      16776,
+                      18552,
+                      21396,
+                      25816,
+                      26136,
+                      30456,
+                      30800
+                    ],
+                    "cpuTotalMilliseconds": 3921.875,
+                    "workingSetMiB": 682.957,
+                    "privateMemoryMiB": 557.07,
+                    "threadCount": 295,
+                    "handleCount": 5944
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 9,
+                    "processIds": [
+                      9108,
+                      11168,
+                      14688,
+                      20816,
+                      21316,
+                      22648,
+                      27428,
+                      28140,
+                      28704
+                    ],
+                    "cpuTotalMilliseconds": 312.5,
+                    "workingSetMiB": 73.602,
+                    "privateMemoryMiB": 13.277,
+                    "threadCount": 63,
+                    "handleCount": 993
+                  }
+                }
+              },
+              {
+                "sample": 4,
+                "timestampUtc": "2026-07-25T04:01:48.5847683+00:00",
+                "elapsedMilliseconds": 3067.913,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      32652
+                    ],
+                    "cpuTotalMilliseconds": 2531.25,
+                    "workingSetMiB": 160.016,
+                    "privateMemoryMiB": 160.281,
+                    "threadCount": 50,
+                    "handleCount": 626
+                  },
+                  "shell": {
+                    "processCount": 9,
+                    "processIds": [
+                      4928,
+                      7624,
+                      16776,
+                      18552,
+                      21396,
+                      25816,
+                      26136,
+                      30456,
+                      30800
+                    ],
+                    "cpuTotalMilliseconds": 3921.875,
+                    "workingSetMiB": 683.898,
+                    "privateMemoryMiB": 557.742,
+                    "threadCount": 302,
+                    "handleCount": 5951
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 9,
+                    "processIds": [
+                      9108,
+                      11168,
+                      14688,
+                      20816,
+                      21316,
+                      22648,
+                      27428,
+                      28140,
+                      28704
+                    ],
+                    "cpuTotalMilliseconds": 312.5,
+                    "workingSetMiB": 73.602,
+                    "privateMemoryMiB": 13.277,
+                    "threadCount": 63,
+                    "handleCount": 993
+                  }
+                }
+              },
+              {
+                "sample": 5,
+                "timestampUtc": "2026-07-25T04:01:49.5999434+00:00",
+                "elapsedMilliseconds": 4083.088,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      32652
+                    ],
+                    "cpuTotalMilliseconds": 2734.375,
+                    "workingSetMiB": 160.508,
+                    "privateMemoryMiB": 160.871,
+                    "threadCount": 50,
+                    "handleCount": 626
+                  },
+                  "shell": {
+                    "processCount": 9,
+                    "processIds": [
+                      4928,
+                      7624,
+                      16776,
+                      18552,
+                      21396,
+                      25816,
+                      26136,
+                      30456,
+                      30800
+                    ],
+                    "cpuTotalMilliseconds": 3921.875,
+                    "workingSetMiB": 684.168,
+                    "privateMemoryMiB": 557.906,
+                    "threadCount": 303,
+                    "handleCount": 5952
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 9,
+                    "processIds": [
+                      9108,
+                      11168,
+                      14688,
+                      20816,
+                      21316,
+                      22648,
+                      27428,
+                      28140,
+                      28704
+                    ],
+                    "cpuTotalMilliseconds": 312.5,
+                    "workingSetMiB": 73.602,
+                    "privateMemoryMiB": 13.277,
+                    "threadCount": 63,
+                    "handleCount": 993
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "process": {
+        "gracefulExitBothRuns": true,
+        "firstTracked": [
+          {
+            "id": 4928,
+            "name": "powershell",
+            "startedUtcTicks": 639205488953476484
+          },
+          {
+            "id": 7624,
+            "name": "powershell",
+            "startedUtcTicks": 639205488949256977
+          },
+          {
+            "id": 9108,
+            "name": "conhost",
+            "startedUtcTicks": 639205488952839520
+          },
+          {
+            "id": 11168,
+            "name": "conhost",
+            "startedUtcTicks": 639205488949247829
+          },
+          {
+            "id": 14688,
+            "name": "conhost",
+            "startedUtcTicks": 639205488952239086
+          },
+          {
+            "id": 16776,
+            "name": "powershell",
+            "startedUtcTicks": 639205488952852106
+          },
+          {
+            "id": 18552,
+            "name": "powershell",
+            "startedUtcTicks": 639205488951060380
+          },
+          {
+            "id": 20816,
+            "name": "conhost",
+            "startedUtcTicks": 639205488951613852
+          },
+          {
+            "id": 21316,
+            "name": "conhost",
+            "startedUtcTicks": 639205488951044564
+          },
+          {
+            "id": 21396,
+            "name": "powershell",
+            "startedUtcTicks": 639205488952256268
+          },
+          {
+            "id": 22648,
+            "name": "conhost",
+            "startedUtcTicks": 639205488950483641
+          },
+          {
+            "id": 25816,
+            "name": "powershell",
+            "startedUtcTicks": 639205488951627974
+          },
+          {
+            "id": 26136,
+            "name": "powershell",
+            "startedUtcTicks": 639205488948348127
+          },
+          {
+            "id": 27428,
+            "name": "conhost",
+            "startedUtcTicks": 639205488949868380
+          },
+          {
+            "id": 28140,
+            "name": "conhost",
+            "startedUtcTicks": 639205488953438764
+          },
+          {
+            "id": 28704,
+            "name": "conhost",
+            "startedUtcTicks": 639205488948337660
+          },
+          {
+            "id": 30456,
+            "name": "powershell",
+            "startedUtcTicks": 639205488950493345
+          },
+          {
+            "id": 30800,
+            "name": "powershell",
+            "startedUtcTicks": 639205488949877630
+          },
+          {
+            "id": 32652,
+            "name": "agent-workspace",
+            "startedUtcTicks": 639205488907443132
+          }
+        ],
+        "restartTracked": [
+          {
+            "id": 6816,
+            "name": "pwsh",
+            "startedUtcTicks": 639205489118307097
+          },
+          {
+            "id": 7120,
+            "name": "pwsh",
+            "startedUtcTicks": 639205489118249207
+          },
+          {
+            "id": 7676,
+            "name": "conhost",
+            "startedUtcTicks": 639205489118284834
+          },
+          {
+            "id": 8316,
+            "name": "pwsh",
+            "startedUtcTicks": 639205489118281195
+          },
+          {
+            "id": 9924,
+            "name": "conhost",
+            "startedUtcTicks": 639205489118251020
+          },
+          {
+            "id": 13484,
+            "name": "conhost",
+            "startedUtcTicks": 639205489118311538
+          },
+          {
+            "id": 14980,
+            "name": "conhost",
+            "startedUtcTicks": 639205489118228371
+          },
+          {
+            "id": 15468,
+            "name": "conhost",
+            "startedUtcTicks": 639205489118263987
+          },
+          {
+            "id": 17740,
+            "name": "pwsh",
+            "startedUtcTicks": 639205489118264735
+          },
+          {
+            "id": 18908,
+            "name": "conhost",
+            "startedUtcTicks": 639205489118206696
+          },
+          {
+            "id": 22024,
+            "name": "pwsh",
+            "startedUtcTicks": 639205489118221918
+          },
+          {
+            "id": 22996,
+            "name": "pwsh",
+            "startedUtcTicks": 639205489118299396
+          },
+          {
+            "id": 24072,
+            "name": "agent-workspace",
+            "startedUtcTicks": 639205489105169445
+          },
+          {
+            "id": 26120,
+            "name": "conhost",
+            "startedUtcTicks": 639205489118293025
+          },
+          {
+            "id": 26720,
+            "name": "conhost",
+            "startedUtcTicks": 639205489118274437
+          },
+          {
+            "id": 28076,
+            "name": "conhost",
+            "startedUtcTicks": 639205489118210808
+          },
+          {
+            "id": 30312,
+            "name": "pwsh",
+            "startedUtcTicks": 639205489118289186
+          },
+          {
+            "id": 31152,
+            "name": "pwsh",
+            "startedUtcTicks": 639205489118329068
+          },
+          {
+            "id": 31912,
+            "name": "pwsh",
+            "startedUtcTicks": 639205489118224393
+          }
+        ],
+        "residueCount": 0
+      },
+      "result": "passed"
+    },
+    {
+      "terminalCount": 16,
+      "coldStartSamplingBeganBeforeAppReady": true,
+      "coldSamplingStartedMilliseconds": 3.731,
+      "appReadyObservationUpperBoundMilliseconds": 4019.399,
+      "restartReadyMilliseconds": 1609.682,
+      "settings": {
+        "keys": [
+          "theme_mode",
+          "theme",
+          "font_family",
+          "font_size",
+          "default_shell",
+          "default_reference_format",
+          "workspace_grid_density",
+          "git_auto_init",
+          "claude_code_command",
+          "codex_command"
+        ],
+        "writeCount": 2,
+        "first": {
+          "telemetry": {
+            "enabled": false
+          },
+          "theme_mode": "dark",
+          "theme": "One Dark",
+          "font_family": "Consolas",
+          "font_size": 14.0,
+          "default_shell": "powershell.exe",
+          "default_reference_format": "claude",
+          "workspace_grid_density": "compact",
+          "git_auto_init": false,
+          "claude_code_command": "claude --model sonnet",
+          "codex_command": "codex --sandbox workspace-write",
+          "future_setting": {
+            "preserved": true
+          }
+        },
+        "second": {
+          "telemetry": {
+            "enabled": false
+          },
+          "theme_mode": "light",
+          "theme": "AgentWorkspace Light",
+          "font_family": "Cascadia Mono",
+          "font_size": 15.0,
+          "default_shell": "pwsh.exe",
+          "default_reference_format": "codex",
+          "workspace_grid_density": "comfortable",
+          "git_auto_init": true,
+          "claude_code_command": "claude --model opus",
+          "codex_command": "codex --sandbox read-only",
+          "future_setting": {
+            "preserved": true
+          }
+        },
+        "unknownFieldPreserved": true,
+        "noWriteAfterSecondRound": true
+      },
+      "matrix": {
+        "workspaces": 16,
+        "surfaces": 16,
+        "powershellProcesses": 16,
+        "surfaceIdsStable": true,
+        "powershellPidsStable": true,
+        "restoredWorkspaces": 16,
+        "restoredSurfaces": 16,
+        "restoredPowerShellProcesses": 16,
+        "workspaceIdsRestored": true,
+        "powershellPidsRecreatedAcrossRestart": true
+      },
+      "context": {
+        "workspaceRoot": "F:\\AWSettingsPerf-Release-20260725-120130\\16终端\\真实Git工作区",
+        "fileExists": true,
+        "gitRepository": true,
+        "gitHasUncommittedChange": true,
+        "focusedScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\设置稳定性资源数据\\Release-20260725-120130\\16终端\\聚焦文件Git上下文.png",
+        "focusAndExplicitRestoreCompleted": true
+      },
+      "resources": {
+        "sampleIntervalMilliseconds": 1000,
+        "phaseDurationSeconds": 5,
+        "phases": [
+          {
+            "name": "cold-start",
+            "intervalMilliseconds": 1000,
+            "requestedDurationSeconds": 5,
+            "elapsedSeconds": 4.014,
+            "sampleCount": 5,
+            "samples": [
+              {
+                "sample": 1,
+                "timestampUtc": "2026-07-25T04:01:52.5481215+00:00",
+                "elapsedMilliseconds": 22.71,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      3328
+                    ],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 2.508,
+                    "privateMemoryMiB": 0.66,
+                    "threadCount": 1,
+                    "handleCount": 50
+                  },
+                  "shell": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 1,
+                    "processIds": [
+                      31356
+                    ],
+                    "cpuTotalMilliseconds": 15.625,
+                    "workingSetMiB": 9.383,
+                    "privateMemoryMiB": 1.488,
+                    "threadCount": 5,
+                    "handleCount": 138
+                  }
+                }
+              },
+              {
+                "sample": 2,
+                "timestampUtc": "2026-07-25T04:01:53.5525412+00:00",
+                "elapsedMilliseconds": 1027.127,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      3328
+                    ],
+                    "cpuTotalMilliseconds": 296.875,
+                    "workingSetMiB": 106.508,
+                    "privateMemoryMiB": 124.066,
+                    "threadCount": 13,
+                    "handleCount": 434
+                  },
+                  "shell": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  }
+                }
+              },
+              {
+                "sample": 3,
+                "timestampUtc": "2026-07-25T04:01:54.5431451+00:00",
+                "elapsedMilliseconds": 2017.73,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      3328
+                    ],
+                    "cpuTotalMilliseconds": 343.75,
+                    "workingSetMiB": 132.23,
+                    "privateMemoryMiB": 124.777,
+                    "threadCount": 21,
+                    "handleCount": 476
+                  },
+                  "shell": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  }
+                }
+              },
+              {
+                "sample": 4,
+                "timestampUtc": "2026-07-25T04:01:55.5494107+00:00",
+                "elapsedMilliseconds": 3023.996,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      3328
+                    ],
+                    "cpuTotalMilliseconds": 359.375,
+                    "workingSetMiB": 131.641,
+                    "privateMemoryMiB": 123.98,
+                    "threadCount": 20,
+                    "handleCount": 475
+                  },
+                  "shell": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  }
+                }
+              },
+              {
+                "sample": 5,
+                "timestampUtc": "2026-07-25T04:01:56.5390458+00:00",
+                "elapsedMilliseconds": 4013.63,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      3328
+                    ],
+                    "cpuTotalMilliseconds": 375.0,
+                    "workingSetMiB": 131.641,
+                    "privateMemoryMiB": 123.98,
+                    "threadCount": 20,
+                    "handleCount": 475
+                  },
+                  "shell": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "stable-idle",
+            "intervalMilliseconds": 1000,
+            "requestedDurationSeconds": 5,
+            "elapsedSeconds": 4.119,
+            "sampleCount": 5,
+            "samples": [
+              {
+                "sample": 1,
+                "timestampUtc": "2026-07-25T04:01:57.9152177+00:00",
+                "elapsedMilliseconds": 133.688,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      3328
+                    ],
+                    "cpuTotalMilliseconds": 1875.0,
+                    "workingSetMiB": 187.195,
+                    "privateMemoryMiB": 239.352,
+                    "threadCount": 72,
+                    "handleCount": 707
+                  },
+                  "shell": {
+                    "processCount": 16,
+                    "processIds": [
+                      1532,
+                      2468,
+                      7040,
+                      7084,
+                      9144,
+                      14580,
+                      14780,
+                      15828,
+                      18556,
+                      20456,
+                      27492,
+                      28920,
+                      29132,
+                      31672,
+                      32296,
+                      32752
+                    ],
+                    "cpuTotalMilliseconds": 4984.375,
+                    "workingSetMiB": 1164.824,
+                    "privateMemoryMiB": 934.258,
+                    "threadCount": 535,
+                    "handleCount": 9887
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 16,
+                    "processIds": [
+                      3744,
+                      10336,
+                      10908,
+                      18888,
+                      21836,
+                      21912,
+                      22404,
+                      24720,
+                      25212,
+                      25376,
+                      26712,
+                      27688,
+                      27768,
+                      29552,
+                      30988,
+                      31768
+                    ],
+                    "cpuTotalMilliseconds": 156.25,
+                    "workingSetMiB": 130.082,
+                    "privateMemoryMiB": 23.051,
+                    "threadCount": 112,
+                    "handleCount": 1731
+                  }
+                }
+              },
+              {
+                "sample": 2,
+                "timestampUtc": "2026-07-25T04:01:58.8813403+00:00",
+                "elapsedMilliseconds": 1099.811,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      3328
+                    ],
+                    "cpuTotalMilliseconds": 2078.125,
+                    "workingSetMiB": 184.043,
+                    "privateMemoryMiB": 235.77,
+                    "threadCount": 70,
+                    "handleCount": 706
+                  },
+                  "shell": {
+                    "processCount": 16,
+                    "processIds": [
+                      1532,
+                      2468,
+                      7040,
+                      7084,
+                      9144,
+                      14580,
+                      14780,
+                      15828,
+                      18556,
+                      20456,
+                      27492,
+                      28920,
+                      29132,
+                      31672,
+                      32296,
+                      32752
+                    ],
+                    "cpuTotalMilliseconds": 5328.125,
+                    "workingSetMiB": 1186.082,
+                    "privateMemoryMiB": 945.0,
+                    "threadCount": 534,
+                    "handleCount": 10008
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 16,
+                    "processIds": [
+                      3744,
+                      10336,
+                      10908,
+                      18888,
+                      21836,
+                      21912,
+                      22404,
+                      24720,
+                      25212,
+                      25376,
+                      26712,
+                      27688,
+                      27768,
+                      29552,
+                      30988,
+                      31768
+                    ],
+                    "cpuTotalMilliseconds": 156.25,
+                    "workingSetMiB": 130.09,
+                    "privateMemoryMiB": 23.059,
+                    "threadCount": 112,
+                    "handleCount": 1731
+                  }
+                }
+              },
+              {
+                "sample": 3,
+                "timestampUtc": "2026-07-25T04:01:59.8832720+00:00",
+                "elapsedMilliseconds": 2101.743,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      3328
+                    ],
+                    "cpuTotalMilliseconds": 2343.75,
+                    "workingSetMiB": 182.094,
+                    "privateMemoryMiB": 233.672,
+                    "threadCount": 71,
+                    "handleCount": 708
+                  },
+                  "shell": {
+                    "processCount": 16,
+                    "processIds": [
+                      1532,
+                      2468,
+                      7040,
+                      7084,
+                      9144,
+                      14580,
+                      14780,
+                      15828,
+                      18556,
+                      20456,
+                      27492,
+                      28920,
+                      29132,
+                      31672,
+                      32296,
+                      32752
+                    ],
+                    "cpuTotalMilliseconds": 5328.125,
+                    "workingSetMiB": 1186.117,
+                    "privateMemoryMiB": 944.836,
+                    "threadCount": 528,
+                    "handleCount": 10002
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 16,
+                    "processIds": [
+                      3744,
+                      10336,
+                      10908,
+                      18888,
+                      21836,
+                      21912,
+                      22404,
+                      24720,
+                      25212,
+                      25376,
+                      26712,
+                      27688,
+                      27768,
+                      29552,
+                      30988,
+                      31768
+                    ],
+                    "cpuTotalMilliseconds": 156.25,
+                    "workingSetMiB": 130.09,
+                    "privateMemoryMiB": 23.059,
+                    "threadCount": 112,
+                    "handleCount": 1731
+                  }
+                }
+              },
+              {
+                "sample": 4,
+                "timestampUtc": "2026-07-25T04:02:00.9038392+00:00",
+                "elapsedMilliseconds": 3122.31,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      3328
+                    ],
+                    "cpuTotalMilliseconds": 2453.125,
+                    "workingSetMiB": 182.168,
+                    "privateMemoryMiB": 212.129,
+                    "threadCount": 70,
+                    "handleCount": 706
+                  },
+                  "shell": {
+                    "processCount": 16,
+                    "processIds": [
+                      1532,
+                      2468,
+                      7040,
+                      7084,
+                      9144,
+                      14580,
+                      14780,
+                      15828,
+                      18556,
+                      20456,
+                      27492,
+                      28920,
+                      29132,
+                      31672,
+                      32296,
+                      32752
+                    ],
+                    "cpuTotalMilliseconds": 5328.125,
+                    "workingSetMiB": 1186.117,
+                    "privateMemoryMiB": 944.836,
+                    "threadCount": 528,
+                    "handleCount": 10002
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 16,
+                    "processIds": [
+                      3744,
+                      10336,
+                      10908,
+                      18888,
+                      21836,
+                      21912,
+                      22404,
+                      24720,
+                      25212,
+                      25376,
+                      26712,
+                      27688,
+                      27768,
+                      29552,
+                      30988,
+                      31768
+                    ],
+                    "cpuTotalMilliseconds": 156.25,
+                    "workingSetMiB": 130.09,
+                    "privateMemoryMiB": 23.059,
+                    "threadCount": 112,
+                    "handleCount": 1731
+                  }
+                }
+              },
+              {
+                "sample": 5,
+                "timestampUtc": "2026-07-25T04:02:01.9001209+00:00",
+                "elapsedMilliseconds": 4118.591,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      3328
+                    ],
+                    "cpuTotalMilliseconds": 2500.0,
+                    "workingSetMiB": 182.027,
+                    "privateMemoryMiB": 211.984,
+                    "threadCount": 70,
+                    "handleCount": 706
+                  },
+                  "shell": {
+                    "processCount": 16,
+                    "processIds": [
+                      1532,
+                      2468,
+                      7040,
+                      7084,
+                      9144,
+                      14580,
+                      14780,
+                      15828,
+                      18556,
+                      20456,
+                      27492,
+                      28920,
+                      29132,
+                      31672,
+                      32296,
+                      32752
+                    ],
+                    "cpuTotalMilliseconds": 5328.125,
+                    "workingSetMiB": 1186.117,
+                    "privateMemoryMiB": 944.836,
+                    "threadCount": 528,
+                    "handleCount": 10002
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 16,
+                    "processIds": [
+                      3744,
+                      10336,
+                      10908,
+                      18888,
+                      21836,
+                      21912,
+                      22404,
+                      24720,
+                      25212,
+                      25376,
+                      26712,
+                      27688,
+                      27768,
+                      29552,
+                      30988,
+                      31768
+                    ],
+                    "cpuTotalMilliseconds": 156.25,
+                    "workingSetMiB": 130.09,
+                    "privateMemoryMiB": 23.059,
+                    "threadCount": 112,
+                    "handleCount": 1731
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "active-output",
+            "intervalMilliseconds": 1000,
+            "requestedDurationSeconds": 5,
+            "elapsedSeconds": 4.116,
+            "sampleCount": 5,
+            "samples": [
+              {
+                "sample": 1,
+                "timestampUtc": "2026-07-25T04:02:03.6920086+00:00",
+                "elapsedMilliseconds": 116.442,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      3328
+                    ],
+                    "cpuTotalMilliseconds": 3468.75,
+                    "workingSetMiB": 191.262,
+                    "privateMemoryMiB": 219.574,
+                    "threadCount": 71,
+                    "handleCount": 717
+                  },
+                  "shell": {
+                    "processCount": 16,
+                    "processIds": [
+                      1532,
+                      2468,
+                      7040,
+                      7084,
+                      9144,
+                      14580,
+                      14780,
+                      15828,
+                      18556,
+                      20456,
+                      27492,
+                      28920,
+                      29132,
+                      31672,
+                      32296,
+                      32752
+                    ],
+                    "cpuTotalMilliseconds": 6843.75,
+                    "workingSetMiB": 1214.555,
+                    "privateMemoryMiB": 988.586,
+                    "threadCount": 552,
+                    "handleCount": 10843
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 16,
+                    "processIds": [
+                      3744,
+                      10336,
+                      10908,
+                      18888,
+                      21836,
+                      21912,
+                      22404,
+                      24720,
+                      25212,
+                      25376,
+                      26712,
+                      27688,
+                      27768,
+                      29552,
+                      30988,
+                      31768
+                    ],
+                    "cpuTotalMilliseconds": 453.125,
+                    "workingSetMiB": 130.992,
+                    "privateMemoryMiB": 23.625,
+                    "threadCount": 112,
+                    "handleCount": 1763
+                  }
+                }
+              },
+              {
+                "sample": 2,
+                "timestampUtc": "2026-07-25T04:02:04.6882529+00:00",
+                "elapsedMilliseconds": 1112.65,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      3328
+                    ],
+                    "cpuTotalMilliseconds": 3921.875,
+                    "workingSetMiB": 191.414,
+                    "privateMemoryMiB": 219.711,
+                    "threadCount": 71,
+                    "handleCount": 717
+                  },
+                  "shell": {
+                    "processCount": 16,
+                    "processIds": [
+                      1532,
+                      2468,
+                      7040,
+                      7084,
+                      9144,
+                      14580,
+                      14780,
+                      15828,
+                      18556,
+                      20456,
+                      27492,
+                      28920,
+                      29132,
+                      31672,
+                      32296,
+                      32752
+                    ],
+                    "cpuTotalMilliseconds": 7046.875,
+                    "workingSetMiB": 1217.598,
+                    "privateMemoryMiB": 994.676,
+                    "threadCount": 547,
+                    "handleCount": 10863
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 16,
+                    "processIds": [
+                      3744,
+                      10336,
+                      10908,
+                      18888,
+                      21836,
+                      21912,
+                      22404,
+                      24720,
+                      25212,
+                      25376,
+                      26712,
+                      27688,
+                      27768,
+                      29552,
+                      30988,
+                      31768
+                    ],
+                    "cpuTotalMilliseconds": 468.75,
+                    "workingSetMiB": 130.992,
+                    "privateMemoryMiB": 23.625,
+                    "threadCount": 112,
+                    "handleCount": 1763
+                  }
+                }
+              },
+              {
+                "sample": 3,
+                "timestampUtc": "2026-07-25T04:02:05.6816074+00:00",
+                "elapsedMilliseconds": 2106.003,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      3328
+                    ],
+                    "cpuTotalMilliseconds": 4093.75,
+                    "workingSetMiB": 189.621,
+                    "privateMemoryMiB": 217.746,
+                    "threadCount": 72,
+                    "handleCount": 719
+                  },
+                  "shell": {
+                    "processCount": 16,
+                    "processIds": [
+                      1532,
+                      2468,
+                      7040,
+                      7084,
+                      9144,
+                      14580,
+                      14780,
+                      15828,
+                      18556,
+                      20456,
+                      27492,
+                      28920,
+                      29132,
+                      31672,
+                      32296,
+                      32752
+                    ],
+                    "cpuTotalMilliseconds": 7078.125,
+                    "workingSetMiB": 1218.566,
+                    "privateMemoryMiB": 995.527,
+                    "threadCount": 537,
+                    "handleCount": 10853
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 16,
+                    "processIds": [
+                      3744,
+                      10336,
+                      10908,
+                      18888,
+                      21836,
+                      21912,
+                      22404,
+                      24720,
+                      25212,
+                      25376,
+                      26712,
+                      27688,
+                      27768,
+                      29552,
+                      30988,
+                      31768
+                    ],
+                    "cpuTotalMilliseconds": 468.75,
+                    "workingSetMiB": 130.992,
+                    "privateMemoryMiB": 23.625,
+                    "threadCount": 112,
+                    "handleCount": 1763
+                  }
+                }
+              },
+              {
+                "sample": 4,
+                "timestampUtc": "2026-07-25T04:02:06.6786092+00:00",
+                "elapsedMilliseconds": 3103.005,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      3328
+                    ],
+                    "cpuTotalMilliseconds": 4312.5,
+                    "workingSetMiB": 189.668,
+                    "privateMemoryMiB": 217.969,
+                    "threadCount": 73,
+                    "handleCount": 721
+                  },
+                  "shell": {
+                    "processCount": 16,
+                    "processIds": [
+                      1532,
+                      2468,
+                      7040,
+                      7084,
+                      9144,
+                      14580,
+                      14780,
+                      15828,
+                      18556,
+                      20456,
+                      27492,
+                      28920,
+                      29132,
+                      31672,
+                      32296,
+                      32752
+                    ],
+                    "cpuTotalMilliseconds": 7109.375,
+                    "workingSetMiB": 1219.684,
+                    "privateMemoryMiB": 996.777,
+                    "threadCount": 537,
+                    "handleCount": 10853
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 16,
+                    "processIds": [
+                      3744,
+                      10336,
+                      10908,
+                      18888,
+                      21836,
+                      21912,
+                      22404,
+                      24720,
+                      25212,
+                      25376,
+                      26712,
+                      27688,
+                      27768,
+                      29552,
+                      30988,
+                      31768
+                    ],
+                    "cpuTotalMilliseconds": 468.75,
+                    "workingSetMiB": 130.992,
+                    "privateMemoryMiB": 23.625,
+                    "threadCount": 112,
+                    "handleCount": 1763
+                  }
+                }
+              },
+              {
+                "sample": 5,
+                "timestampUtc": "2026-07-25T04:02:07.6919471+00:00",
+                "elapsedMilliseconds": 4116.343,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      3328
+                    ],
+                    "cpuTotalMilliseconds": 4500.0,
+                    "workingSetMiB": 189.516,
+                    "privateMemoryMiB": 217.598,
+                    "threadCount": 71,
+                    "handleCount": 717
+                  },
+                  "shell": {
+                    "processCount": 16,
+                    "processIds": [
+                      1532,
+                      2468,
+                      7040,
+                      7084,
+                      9144,
+                      14580,
+                      14780,
+                      15828,
+                      18556,
+                      20456,
+                      27492,
+                      28920,
+                      29132,
+                      31672,
+                      32296,
+                      32752
+                    ],
+                    "cpuTotalMilliseconds": 7109.375,
+                    "workingSetMiB": 1221.262,
+                    "privateMemoryMiB": 998.109,
+                    "threadCount": 549,
+                    "handleCount": 10865
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 16,
+                    "processIds": [
+                      3744,
+                      10336,
+                      10908,
+                      18888,
+                      21836,
+                      21912,
+                      22404,
+                      24720,
+                      25212,
+                      25376,
+                      26712,
+                      27688,
+                      27768,
+                      29552,
+                      30988,
+                      31768
+                    ],
+                    "cpuTotalMilliseconds": 484.375,
+                    "workingSetMiB": 130.992,
+                    "privateMemoryMiB": 23.625,
+                    "threadCount": 112,
+                    "handleCount": 1763
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "focused-file-git",
+            "intervalMilliseconds": 1000,
+            "requestedDurationSeconds": 5,
+            "elapsedSeconds": 4.122,
+            "sampleCount": 5,
+            "samples": [
+              {
+                "sample": 1,
+                "timestampUtc": "2026-07-25T04:02:08.8000454+00:00",
+                "elapsedMilliseconds": 98.551,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      3328
+                    ],
+                    "cpuTotalMilliseconds": 4531.25,
+                    "workingSetMiB": 189.777,
+                    "privateMemoryMiB": 217.902,
+                    "threadCount": 74,
+                    "handleCount": 723
+                  },
+                  "shell": {
+                    "processCount": 16,
+                    "processIds": [
+                      1532,
+                      2468,
+                      7040,
+                      7084,
+                      9144,
+                      14580,
+                      14780,
+                      15828,
+                      18556,
+                      20456,
+                      27492,
+                      28920,
+                      29132,
+                      31672,
+                      32296,
+                      32752
+                    ],
+                    "cpuTotalMilliseconds": 7109.375,
+                    "workingSetMiB": 1224.996,
+                    "privateMemoryMiB": 1001.793,
+                    "threadCount": 552,
+                    "handleCount": 11055
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 16,
+                    "processIds": [
+                      3744,
+                      10336,
+                      10908,
+                      18888,
+                      21836,
+                      21912,
+                      22404,
+                      24720,
+                      25212,
+                      25376,
+                      26712,
+                      27688,
+                      27768,
+                      29552,
+                      30988,
+                      31768
+                    ],
+                    "cpuTotalMilliseconds": 484.375,
+                    "workingSetMiB": 130.992,
+                    "privateMemoryMiB": 23.625,
+                    "threadCount": 112,
+                    "handleCount": 1763
+                  }
+                }
+              },
+              {
+                "sample": 2,
+                "timestampUtc": "2026-07-25T04:02:09.8192494+00:00",
+                "elapsedMilliseconds": 1117.751,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      3328
+                    ],
+                    "cpuTotalMilliseconds": 4703.125,
+                    "workingSetMiB": 189.699,
+                    "privateMemoryMiB": 217.844,
+                    "threadCount": 71,
+                    "handleCount": 717
+                  },
+                  "shell": {
+                    "processCount": 16,
+                    "processIds": [
+                      1532,
+                      2468,
+                      7040,
+                      7084,
+                      9144,
+                      14580,
+                      14780,
+                      15828,
+                      18556,
+                      20456,
+                      27492,
+                      28920,
+                      29132,
+                      31672,
+                      32296,
+                      32752
+                    ],
+                    "cpuTotalMilliseconds": 7140.625,
+                    "workingSetMiB": 1226.156,
+                    "privateMemoryMiB": 1002.723,
+                    "threadCount": 539,
+                    "handleCount": 11127
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 16,
+                    "processIds": [
+                      3744,
+                      10336,
+                      10908,
+                      18888,
+                      21836,
+                      21912,
+                      22404,
+                      24720,
+                      25212,
+                      25376,
+                      26712,
+                      27688,
+                      27768,
+                      29552,
+                      30988,
+                      31768
+                    ],
+                    "cpuTotalMilliseconds": 484.375,
+                    "workingSetMiB": 130.992,
+                    "privateMemoryMiB": 23.625,
+                    "threadCount": 112,
+                    "handleCount": 1763
+                  }
+                }
+              },
+              {
+                "sample": 3,
+                "timestampUtc": "2026-07-25T04:02:10.8033720+00:00",
+                "elapsedMilliseconds": 2101.873,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      3328
+                    ],
+                    "cpuTotalMilliseconds": 4703.125,
+                    "workingSetMiB": 189.273,
+                    "privateMemoryMiB": 217.297,
+                    "threadCount": 71,
+                    "handleCount": 717
+                  },
+                  "shell": {
+                    "processCount": 16,
+                    "processIds": [
+                      1532,
+                      2468,
+                      7040,
+                      7084,
+                      9144,
+                      14580,
+                      14780,
+                      15828,
+                      18556,
+                      20456,
+                      27492,
+                      28920,
+                      29132,
+                      31672,
+                      32296,
+                      32752
+                    ],
+                    "cpuTotalMilliseconds": 7156.25,
+                    "workingSetMiB": 1227.816,
+                    "privateMemoryMiB": 1003.816,
+                    "threadCount": 549,
+                    "handleCount": 11137
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 16,
+                    "processIds": [
+                      3744,
+                      10336,
+                      10908,
+                      18888,
+                      21836,
+                      21912,
+                      22404,
+                      24720,
+                      25212,
+                      25376,
+                      26712,
+                      27688,
+                      27768,
+                      29552,
+                      30988,
+                      31768
+                    ],
+                    "cpuTotalMilliseconds": 484.375,
+                    "workingSetMiB": 130.992,
+                    "privateMemoryMiB": 23.625,
+                    "threadCount": 112,
+                    "handleCount": 1763
+                  }
+                }
+              },
+              {
+                "sample": 4,
+                "timestampUtc": "2026-07-25T04:02:11.8226137+00:00",
+                "elapsedMilliseconds": 3121.116,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      3328
+                    ],
+                    "cpuTotalMilliseconds": 4921.875,
+                    "workingSetMiB": 189.43,
+                    "privateMemoryMiB": 217.629,
+                    "threadCount": 71,
+                    "handleCount": 717
+                  },
+                  "shell": {
+                    "processCount": 16,
+                    "processIds": [
+                      1532,
+                      2468,
+                      7040,
+                      7084,
+                      9144,
+                      14580,
+                      14780,
+                      15828,
+                      18556,
+                      20456,
+                      27492,
+                      28920,
+                      29132,
+                      31672,
+                      32296,
+                      32752
+                    ],
+                    "cpuTotalMilliseconds": 7156.25,
+                    "workingSetMiB": 1228.18,
+                    "privateMemoryMiB": 1003.988,
+                    "threadCount": 548,
+                    "handleCount": 11136
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 16,
+                    "processIds": [
+                      3744,
+                      10336,
+                      10908,
+                      18888,
+                      21836,
+                      21912,
+                      22404,
+                      24720,
+                      25212,
+                      25376,
+                      26712,
+                      27688,
+                      27768,
+                      29552,
+                      30988,
+                      31768
+                    ],
+                    "cpuTotalMilliseconds": 484.375,
+                    "workingSetMiB": 130.992,
+                    "privateMemoryMiB": 23.625,
+                    "threadCount": 112,
+                    "handleCount": 1763
+                  }
+                }
+              },
+              {
+                "sample": 5,
+                "timestampUtc": "2026-07-25T04:02:12.8236172+00:00",
+                "elapsedMilliseconds": 4122.119,
+                "groups": {
+                  "host": {
+                    "processCount": 1,
+                    "processIds": [
+                      3328
+                    ],
+                    "cpuTotalMilliseconds": 4937.5,
+                    "workingSetMiB": 189.324,
+                    "privateMemoryMiB": 217.348,
+                    "threadCount": 71,
+                    "handleCount": 717
+                  },
+                  "shell": {
+                    "processCount": 16,
+                    "processIds": [
+                      1532,
+                      2468,
+                      7040,
+                      7084,
+                      9144,
+                      14580,
+                      14780,
+                      15828,
+                      18556,
+                      20456,
+                      27492,
+                      28920,
+                      29132,
+                      31672,
+                      32296,
+                      32752
+                    ],
+                    "cpuTotalMilliseconds": 7156.25,
+                    "workingSetMiB": 1228.008,
+                    "privateMemoryMiB": 1003.688,
+                    "threadCount": 537,
+                    "handleCount": 11125
+                  },
+                  "cli": {
+                    "processCount": 0,
+                    "processIds": [],
+                    "cpuTotalMilliseconds": 0.0,
+                    "workingSetMiB": 0.0,
+                    "privateMemoryMiB": 0.0,
+                    "threadCount": 0,
+                    "handleCount": 0
+                  },
+                  "helper": {
+                    "processCount": 16,
+                    "processIds": [
+                      3744,
+                      10336,
+                      10908,
+                      18888,
+                      21836,
+                      21912,
+                      22404,
+                      24720,
+                      25212,
+                      25376,
+                      26712,
+                      27688,
+                      27768,
+                      29552,
+                      30988,
+                      31768
+                    ],
+                    "cpuTotalMilliseconds": 484.375,
+                    "workingSetMiB": 130.992,
+                    "privateMemoryMiB": 23.625,
+                    "threadCount": 112,
+                    "handleCount": 1763
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "process": {
+        "gracefulExitBothRuns": true,
+        "firstTracked": [
+          {
+            "id": 1532,
+            "name": "powershell",
+            "startedUtcTicks": 639205489175895765
+          },
+          {
+            "id": 2468,
+            "name": "powershell",
+            "startedUtcTicks": 639205489168918656
+          },
+          {
+            "id": 3328,
+            "name": "agent-workspace",
+            "startedUtcTicks": 639205489125237403
+          },
+          {
+            "id": 3744,
+            "name": "conhost",
+            "startedUtcTicks": 639205489176476293
+          },
+          {
+            "id": 7040,
+            "name": "powershell",
+            "startedUtcTicks": 639205489174476305
+          },
+          {
+            "id": 7084,
+            "name": "powershell",
+            "startedUtcTicks": 639205489173267779
+          },
+          {
+            "id": 9144,
+            "name": "powershell",
+            "startedUtcTicks": 639205489170775915
+          },
+          {
+            "id": 10336,
+            "name": "conhost",
+            "startedUtcTicks": 639205489174454932
+          },
+          {
+            "id": 10908,
+            "name": "conhost",
+            "startedUtcTicks": 639205489171969912
+          },
+          {
+            "id": 14580,
+            "name": "powershell",
+            "startedUtcTicks": 639205489172001949
+          },
+          {
+            "id": 14780,
+            "name": "powershell",
+            "startedUtcTicks": 639205489170140226
+          },
+          {
+            "id": 15828,
+            "name": "powershell",
+            "startedUtcTicks": 639205489169540997
+          },
+          {
+            "id": 18556,
+            "name": "powershell",
+            "startedUtcTicks": 639205489176496053
+          },
+          {
+            "id": 18888,
+            "name": "conhost",
+            "startedUtcTicks": 639205489175148604
+          },
+          {
+            "id": 20456,
+            "name": "powershell",
+            "startedUtcTicks": 639205489168279306
+          },
+          {
+            "id": 21836,
+            "name": "conhost",
+            "startedUtcTicks": 639205489168901467
+          },
+          {
+            "id": 21912,
+            "name": "conhost",
+            "startedUtcTicks": 639205489171394614
+          },
+          {
+            "id": 22404,
+            "name": "conhost",
+            "startedUtcTicks": 639205489170754701
+          },
+          {
+            "id": 24720,
+            "name": "conhost",
+            "startedUtcTicks": 639205489172594738
+          },
+          {
+            "id": 25212,
+            "name": "conhost",
+            "startedUtcTicks": 639205489173247170
+          },
+          {
+            "id": 25376,
+            "name": "conhost",
+            "startedUtcTicks": 639205489165509793
+          },
+          {
+            "id": 26712,
+            "name": "conhost",
+            "startedUtcTicks": 639205489173825597
+          },
+          {
+            "id": 27492,
+            "name": "powershell",
+            "startedUtcTicks": 639205489171410624
+          },
+          {
+            "id": 27688,
+            "name": "conhost",
+            "startedUtcTicks": 639205489167667953
+          },
+          {
+            "id": 27768,
+            "name": "conhost",
+            "startedUtcTicks": 639205489170125569
+          },
+          {
+            "id": 28920,
+            "name": "powershell",
+            "startedUtcTicks": 639205489165523990
+          },
+          {
+            "id": 29132,
+            "name": "powershell",
+            "startedUtcTicks": 639205489173843569
+          },
+          {
+            "id": 29552,
+            "name": "conhost",
+            "startedUtcTicks": 639205489168263674
+          },
+          {
+            "id": 30988,
+            "name": "conhost",
+            "startedUtcTicks": 639205489175877112
+          },
+          {
+            "id": 31672,
+            "name": "powershell",
+            "startedUtcTicks": 639205489167683192
+          },
+          {
+            "id": 31768,
+            "name": "conhost",
+            "startedUtcTicks": 639205489169524224
+          },
+          {
+            "id": 32296,
+            "name": "powershell",
+            "startedUtcTicks": 639205489172612177
+          },
+          {
+            "id": 32752,
+            "name": "powershell",
+            "startedUtcTicks": 639205489175168439
+          }
+        ],
+        "restartTracked": [
+          {
+            "id": 8268,
+            "name": "pwsh",
+            "startedUtcTicks": 639205489352475192
+          },
+          {
+            "id": 8432,
+            "name": "pwsh",
+            "startedUtcTicks": 639205489352563625
+          },
+          {
+            "id": 8844,
+            "name": "conhost",
+            "startedUtcTicks": 639205489352499032
+          },
+          {
+            "id": 10268,
+            "name": "conhost",
+            "startedUtcTicks": 639205489352406483
+          },
+          {
+            "id": 16376,
+            "name": "conhost",
+            "startedUtcTicks": 639205489352517334
+          },
+          {
+            "id": 16668,
+            "name": "conhost",
+            "startedUtcTicks": 639205489352391829
+          },
+          {
+            "id": 17040,
+            "name": "pwsh",
+            "startedUtcTicks": 639205489352548775
+          },
+          {
+            "id": 18420,
+            "name": "pwsh",
+            "startedUtcTicks": 639205489352517327
+          },
+          {
+            "id": 18704,
+            "name": "conhost",
+            "startedUtcTicks": 639205489352544691
+          },
+          {
+            "id": 19784,
+            "name": "pwsh",
+            "startedUtcTicks": 639205489352461688
+          },
+          {
+            "id": 20072,
+            "name": "conhost",
+            "startedUtcTicks": 639205489352444055
+          },
+          {
+            "id": 20696,
+            "name": "pwsh",
+            "startedUtcTicks": 639205489352535726
+          },
+          {
+            "id": 21220,
+            "name": "conhost",
+            "startedUtcTicks": 639205489352450846
+          },
+          {
+            "id": 23852,
+            "name": "conhost",
+            "startedUtcTicks": 639205489353059434
+          },
+          {
+            "id": 24056,
+            "name": "conhost",
+            "startedUtcTicks": 639205489352463045
+          },
+          {
+            "id": 24196,
+            "name": "pwsh",
+            "startedUtcTicks": 639205489352519904
+          },
+          {
+            "id": 24684,
+            "name": "pwsh",
+            "startedUtcTicks": 639205489352400582
+          },
+          {
+            "id": 24944,
+            "name": "conhost",
+            "startedUtcTicks": 639205489352530835
+          },
+          {
+            "id": 25284,
+            "name": "pwsh",
+            "startedUtcTicks": 639205489352439507
+          },
+          {
+            "id": 25508,
+            "name": "pwsh",
+            "startedUtcTicks": 639205489352422021
+          },
+          {
+            "id": 26312,
+            "name": "pwsh",
+            "startedUtcTicks": 639205489352538361
+          },
+          {
+            "id": 27432,
+            "name": "pwsh",
+            "startedUtcTicks": 639205489352462998
+          },
+          {
+            "id": 27528,
+            "name": "conhost",
+            "startedUtcTicks": 639205489352419232
+          },
+          {
+            "id": 28472,
+            "name": "conhost",
+            "startedUtcTicks": 639205489352431357
+          },
+          {
+            "id": 28580,
+            "name": "pwsh",
+            "startedUtcTicks": 639205489352489739
+          },
+          {
+            "id": 28888,
+            "name": "pwsh",
+            "startedUtcTicks": 639205489352436627
+          },
+          {
+            "id": 29064,
+            "name": "git",
+            "startedUtcTicks": 639205489353031112
+          },
+          {
+            "id": 29288,
+            "name": "agent-workspace",
+            "startedUtcTicks": 639205489337742572
+          },
+          {
+            "id": 30336,
+            "name": "conhost",
+            "startedUtcTicks": 639205489352387016
+          },
+          {
+            "id": 30596,
+            "name": "conhost",
+            "startedUtcTicks": 639205489352487032
+          },
+          {
+            "id": 30716,
+            "name": "conhost",
+            "startedUtcTicks": 639205489352476469
+          },
+          {
+            "id": 31088,
+            "name": "conhost",
+            "startedUtcTicks": 639205489352518050
+          },
+          {
+            "id": 32304,
+            "name": "conhost",
+            "startedUtcTicks": 639205489352552678
+          },
+          {
+            "id": 32328,
+            "name": "pwsh",
+            "startedUtcTicks": 639205489352401903
+          },
+          {
+            "id": 32388,
+            "name": "pwsh",
+            "startedUtcTicks": 639205489352567433
+          }
+        ],
+        "residueCount": 0
+      },
+      "result": "passed"
+    }
+  ],
+  "checks": {
+    "terminalCountsExact": true,
+    "phaseOrderExact": true,
+    "settingsKeysExact": true,
+    "hostShellCliSeparated": true,
+    "sampleCountSufficient": true,
+    "hostCpuWithinOnePercent": false,
+    "hostWorkingSetWithin256MiB": true,
+    "coldStartMeasuredBeforeReady": true,
+    "allContextLoaded": true,
+    "allProcessesStable": true,
+    "zeroResidue": true
+  },
+  "result": "failed"
+}

@@ -10,6 +10,7 @@ use gpui::{
 use paneflow_config::schema::WorkspaceGridDensity;
 
 use crate::PaneFlowApp;
+use crate::app::workspace_focus::DisplayCommand;
 
 /// 卡片之间及矩阵外侧的统一间距。
 const GRID_GAP: f32 = 8.0;
@@ -361,7 +362,9 @@ impl PaneFlowApp {
             .position(|workspace| workspace.id == workspace_id)
         else {
             // 生命周期原子会在关闭入口主动清理；这里保留防御性回退，避免空白主区域。
-            self.workspace_focus.clear();
+            self.workspace_focus
+                .transition(DisplayCommand::ClearWorkspace)
+                .expect("失效放大目标的防御清理对所有展示表面都合法");
             return self.render_workspace_grid(window, available_width, available_height, ui, cx);
         };
 

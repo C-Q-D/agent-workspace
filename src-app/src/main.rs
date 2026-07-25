@@ -1615,7 +1615,11 @@ impl Render for PaneFlowApp {
             let available_width =
                 (f32::from(viewport.width) - primary_sidebar_width - right_sidebar_width).max(1.0);
             let available_height = (f32::from(viewport.height) - f32::from(title_bar_h)).max(1.0);
-            if self.workspace_focus.is_focused() {
+            if matches!(
+                self.workspace_focus.surface(),
+                app::workspace_focus::DisplaySurface::Focused
+                    | app::workspace_focus::DisplaySurface::Review
+            ) {
                 self.render_maximized_workspace(window, available_width, available_height, ui, cx)
             } else {
                 self.render_workspace_grid(window, available_width, available_height, ui, cx)

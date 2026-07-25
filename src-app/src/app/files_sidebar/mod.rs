@@ -31,6 +31,7 @@ use gpui::{
 
 use crate::app::files_tree::{self, FilesTreeState};
 use crate::app::ipc_handler::{find_pane_by_surface_id, find_terminal_by_surface_id};
+use crate::app::workspace_focus::DisplaySurface;
 use crate::reference_formatter::{ReferenceFormat, ReferenceRequest, format_reference};
 use crate::{PaneFlowApp, ToggleFilesSidebar};
 
@@ -174,7 +175,7 @@ impl PaneFlowApp {
     ) {
         // 第一版把文件树定义为放大工作区的上下文面板；矩阵状态不允许手动挂载，
         // 避免右侧目录与多个同时可见终端之间产生含糊归属。
-        if !self.workspace_focus.is_focused() {
+        if !matches!(self.workspace_focus.surface(), DisplaySurface::Focused) {
             if self.files_sidebar_open {
                 self.close_files_sidebar(cx);
             }

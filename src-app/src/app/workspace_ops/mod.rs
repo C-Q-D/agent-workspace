@@ -21,6 +21,7 @@ mod tab;
 
 use gpui::{App, AppContext, ClipboardItem, Context, Focusable, PathPromptOptions, Window};
 
+use crate::app::workspace_focus::{DisplayCommand, DisplaySurface, DisplayTransition};
 use crate::app::workspace_lifecycle::{WorkspaceLifecycle, WorkspaceLifecycleRegistration};
 use crate::layout::{LayoutTree, MAX_PANES, SplitDirection};
 use crate::terminal::TerminalView;
@@ -239,7 +240,16 @@ impl PaneFlowApp {
         else {
             return false;
         };
-        self.workspace_focus.focus(workspace_id, workspace_root);
+        if self
+            .workspace_focus
+            .transition(DisplayCommand::FocusWorkspace {
+                workspace_id,
+                workspace_root: workspace_root.into(),
+            })
+            .is_err()
+        {
+            return false;
+        }
         self.activate_workspace_at(idx, WorkspaceFocusTarget::FirstPane, window, cx)
     }
 
@@ -255,7 +265,10 @@ impl PaneFlowApp {
 
     /// 仅由放大视图的恢复按钮退出应用级放大，并标记活动工作区所在矩阵页。
     pub(crate) fn restore_workspace_grid(&mut self, cx: &mut Context<Self>) {
-        if !self.workspace_focus.restore_grid() {
+        if !matches!(
+            self.workspace_focus.transition(DisplayCommand::RestoreGrid),
+            Ok(DisplayTransition::Changed)
+        ) {
             return;
         }
         if self.files_sidebar_open {
@@ -269,7 +282,7 @@ impl PaneFlowApp {
     /// 仍有工作区时把目标对齐到活动项；最后一个工作区消失时才允许被动清空
     /// 放大状态，并同步释放已经失去目录归属的文件树。
     pub(crate) fn reconcile_maximized_workspace_after_change(&mut self, cx: &mut Context<Self>) {
-        if !self.workspace_focus.is_focused() {
+        if self.workspace_focus.workspace_id().is_none() {
             return;
         }
         if let Some((workspace_id, workspace_root)) = self
@@ -277,13 +290,20 @@ impl PaneFlowApp {
             .get(self.active_idx)
             .map(|workspace| (workspace.id, workspace.cwd.clone()))
         {
-            self.workspace_focus.focus(workspace_id, workspace_root);
+            self.workspace_focus
+                .transition(DisplayCommand::FocusWorkspace {
+                    workspace_id,
+                    workspace_root: workspace_root.into(),
+                })
+                .expect("工作区生命周期切换在 Settings 返回状态中同样合法");
             // Diff 模式的可见上下文只能是当前仓库改动；文件树等返回 CLI 后再恢复。
             if matches!(self.mode, paneflow_config::schema::AppMode::Cli) {
                 self.retarget_files_sidebar_without_window(cx);
             }
         } else {
-            self.workspace_focus.clear();
+            self.workspace_focus
+                .transition(DisplayCommand::ClearWorkspace)
+                .expect("清空工作区展示上下文对所有表面都合法");
             if self.files_sidebar_open {
                 self.close_files_sidebar(cx);
             }
@@ -344,10 +364,14 @@ impl PaneFlowApp {
         let changed = idx != self.active_idx;
         self.dismiss_transient_surfaces();
         self.active_idx = idx;
-        if self.workspace_focus.is_focused() {
+        if self.workspace_focus.workspace_id().is_some() {
             let workspace = &self.workspaces[idx];
             self.workspace_focus
-                .focus(workspace.id, workspace.cwd.clone());
+                .transition(DisplayCommand::FocusWorkspace {
+                    workspace_id: workspace.id,
+                    workspace_root: workspace.cwd.clone().into(),
+                })
+                .expect("活动工作区切换在 Settings 返回状态中同样合法");
         }
         Some(changed)
     }
@@ -379,7 +403,7 @@ impl PaneFlowApp {
                         None => self.close_sessions_sidebar(cx),
                     }
                 }
-                if self.workspace_focus.is_focused()
+                if matches!(self.workspace_focus.surface(), DisplaySurface::Focused)
                     && matches!(self.mode, paneflow_config::schema::AppMode::Cli)
                 {
                     self.open_files_sidebar_for_maximized_workspace(window, cx);
@@ -389,7 +413,7 @@ impl PaneFlowApp {
                 if self.agent_sessions.sessions_sidebar_open {
                     self.close_sessions_sidebar(cx);
                 }
-                if self.workspace_focus.is_focused()
+                if matches!(self.workspace_focus.surface(), DisplaySurface::Focused)
                     && matches!(self.mode, paneflow_config::schema::AppMode::Cli)
                 {
                     self.retarget_files_sidebar_without_window(cx);

@@ -20,12 +20,12 @@ $Contracts = @(
     [ordered]@{
         id = "grid-to-focus"
         path = "src-app/src/app/workspace_ops/mod.rs"
-        markers = @("pub(crate) fn maximize_workspace_at(", "self.workspace_focus.focus(workspace_id, workspace_root)", "pub(crate) fn restore_workspace_grid(")
+        markers = @("pub(crate) fn maximize_workspace_at(", ".transition(DisplayCommand::FocusWorkspace", "pub(crate) fn restore_workspace_grid(", ".transition(DisplayCommand::RestoreGrid)")
     },
     [ordered]@{
         id = "focused-switch"
         path = "src-app/src/app/workspace_ops/mod.rs"
-        markers = @("fn begin_workspace_activation(", "self.active_idx = idx;", "if self.workspace_focus.is_focused()")
+        markers = @("fn begin_workspace_activation(", "self.active_idx = idx;", "if self.workspace_focus.workspace_id().is_some()")
     },
     [ordered]@{
         id = "diff-enter-exit"
@@ -40,7 +40,7 @@ $Contracts = @(
     [ordered]@{
         id = "close-focused-workspace"
         path = "src-app/src/app/workspace_ops/mod.rs"
-        markers = @("pub(crate) fn reconcile_maximized_workspace_after_change(", "self.workspace_focus.clear();", "self.close_files_sidebar(cx);")
+        markers = @("pub(crate) fn reconcile_maximized_workspace_after_change(", ".transition(DisplayCommand::ClearWorkspace)", "self.close_files_sidebar(cx);")
     },
     [ordered]@{
         id = "session-save"
@@ -50,7 +50,7 @@ $Contracts = @(
     [ordered]@{
         id = "active-context"
         path = "src-app/src/app/workspace_focus.rs"
-        markers = @("pub(crate) struct WorkspaceFocusState", "workspace_root: PathBuf", "terminal_surface_id: Option<u64>", "reveal_workspace_id: Option<u64>")
+        markers = @("pub(crate) struct DisplayState", "pub(crate) enum DisplayCommand", "workspace_root: PathBuf", "terminal_surface_id: Option<u64>", "reveal_workspace_id: Option<u64>")
     }
 )
 
