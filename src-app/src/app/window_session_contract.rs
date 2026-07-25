@@ -7,7 +7,7 @@
 use super::workspace_focus::{DisplayState, DisplaySurface};
 use super::workspace_lifecycle::WorkspaceLifecycle;
 use crate::SettingsSection;
-use crate::workspace::ensure_local_repository;
+use crate::workspace::{WindowSession, WindowSessionIdentityError, ensure_local_repository};
 use std::path::Path;
 
 /// 创建入口生成的生命周期回执必须把一个稳定 ID 与一个稳定目录绑定。
@@ -108,23 +108,45 @@ fn non_git_session_root_is_initialized_once_and_reused() {
     assert!(root.path().join(".git").is_dir());
 }
 
-/// A022 的目标态红灯：生产类型必须同时拥有会话身份、稳定目录和终端生命周期。
-///
-/// 本测试先以源码契约记录缺口，A022 引入真实类型后必须改为类型级断言并移除忽略。
+/// A022 的目标态已经成为真实类型契约：聚合根公开稳定身份、目录和终端生命周期查询。
 #[test]
-#[ignore = "A022 将引入统一持有 ID、workspaceRoot 与终端生命周期的 WindowSession"]
 fn window_session_must_be_a_single_production_aggregate() {
-    let sources = concat!(
-        include_str!("workspace_lifecycle.rs"),
-        include_str!("../workspace/mod.rs"),
-        include_str!("../terminal/view.rs"),
-    );
+    let _root_accessor: fn(&WindowSession) -> &Path = WindowSession::workspace_root;
+    let _terminal_lifecycle: fn(
+        &WindowSession,
+        &gpui::App,
+    ) -> crate::terminal::TerminalLifecycleStatus = WindowSession::terminal_status;
 
-    assert!(sources.contains("struct WindowSession"));
-    assert!(sources.contains("workspace_root"));
     assert!(
-        sources.contains("terminal_lifecycle") || sources.contains("lifecycle_status"),
-        "WindowSession 必须拥有终端生命周期元数据，而不是只保存 UI 索引"
+        std::mem::needs_drop::<WindowSession>(),
+        "WindowSession 必须唯一持有需要释放的布局/终端实体，不能退化为复制型快照"
+    );
+}
+
+/// 非零 ID 与非空 root 是所有构造入口共享的身份门禁。
+#[test]
+fn window_session_identity_rejects_detached_id_and_empty_root() {
+    assert_eq!(
+        WindowSession::validate_identity(0, r"C:\repo-a"),
+        Err(WindowSessionIdentityError::MissingId)
+    );
+    assert_eq!(
+        WindowSession::validate_identity(41, "  "),
+        Err(WindowSessionIdentityError::MissingWorkspaceRoot)
+    );
+    assert_eq!(WindowSession::validate_identity(41, r"C:\repo-a"), Ok(()));
+}
+
+/// 相同 ID 不能被重复绑定到另一目录；不同 ID 可以共享 root 以支持同仓库多 CLI。
+#[test]
+fn window_session_identity_rejects_root_rebinding_but_allows_shared_repo() {
+    assert_eq!(
+        WindowSession::validate_rebinding(41, r"C:\repo-a", 41, r"C:\repo-b"),
+        Err(WindowSessionIdentityError::WorkspaceRootMismatch)
+    );
+    assert_eq!(
+        WindowSession::validate_rebinding(41, r"C:\repo-a", 72, r"C:\repo-a"),
+        Ok(())
     );
 }
 

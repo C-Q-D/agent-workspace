@@ -468,7 +468,7 @@ impl PaneFlowApp {
             registrations.push(WorkspaceLifecycle::registration(
                 ws_id,
                 workspace_index,
-                workspace.cwd.clone(),
+                workspace.workspace_root().display().to_string(),
             ));
             restored_session_indices.push(session_index);
             workspaces.push(workspace);

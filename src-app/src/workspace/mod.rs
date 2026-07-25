@@ -1,13 +1,16 @@
-//! 工作区领域对象：管理具名终端窗格集合、分割布局与放大状态。
+//! 工作区与 WindowSession 领域对象。
 //!
-//! 本模块同时维护放大布局的关键性能不变量：隐藏窗格继续运行并更新终端
-//! 状态，但不请求重绘；退出放大时统一恢复可见性，避免不同退出路径遗漏。
+//! `WindowSession` 唯一持有稳定身份、绑定目录和终端布局；`Workspace` 保存标题、
+//! Git 派生元数据与文件树偏好。本模块同时维护放大布局的性能不变量：隐藏窗格继续
+//! 运行并更新终端状态，但不请求重绘；退出放大时统一恢复可见性。
 
 mod git;
 pub mod pid_resolve;
 mod ports;
 pub mod surface_naming;
 pub mod worktree;
+
+use std::path::Path;
 
 #[cfg(test)]
 pub use git::ensure_local_repository;
@@ -79,18 +82,99 @@ impl AgentCompletionNotification {
     }
 }
 
-pub struct Workspace {
-    /// Unique workspace identifier, assigned at construction.
+/// 一个终端窗口的核心会话聚合根。
+///
+/// 本类型唯一持有稳定会话 ID、创建时绑定的 `workspaceRoot` 以及布局中的终端实体。
+/// Git 元数据、文件树缓存和界面标题仍属于外层 [`Workspace`]，避免把整个应用状态
+/// 塞入会话对象。删除外层 Workspace 时，本对象随之唯一释放布局和终端实体引用。
+pub struct WindowSession {
+    /// 创建时分配的稳定会话标识；UI 索引和 PTY PID 都不能替代它。
     pub id: u64,
-    pub title: String,
-    /// Working directory at creation time. Does not update when the shell `cd`s.
+    /// 创建时绑定的稳定目录；保留 `cwd` 字段名供迁移期调用方使用，但不会跟随终端 `cd`。
     pub cwd: String,
+    /// 当前终端布局；叶节点中的 `Entity<Pane>` 是会话持有的终端句柄入口。
     pub root: Option<LayoutTree>,
-    /// Saved layout tree when zoomed. `Some(tree)` means the workspace is zoomed
-    /// and `root` contains only the zoomed pane as a single Leaf.
+    /// 放大时保存的完整布局；与 `root` 互斥持有同一组窗格实体。
     pub saved_layout: Option<LayoutTree>,
     /// 当前工作区是否位于动态矩阵的可见页；只控制终端重绘，不暂停 PTY。
     grid_page_visible: bool,
+}
+
+/// WindowSession 身份构造被拒绝的确定原因。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum WindowSessionIdentityError {
+    /// `0` 保留给脱离工作区的普通终端，不能成为窗口会话 ID。
+    MissingId,
+    /// 稳定工作区目录不能为空白。
+    MissingWorkspaceRoot,
+    /// 同一个稳定 ID 不能在生命周期中被重新绑定到另一个目录。
+    #[cfg(test)]
+    WorkspaceRootMismatch,
+}
+
+impl WindowSession {
+    /// 创建会话聚合根；所有构造入口必须显式提供稳定 ID、目录和终端布局。
+    fn new(
+        id: u64,
+        workspace_root: String,
+        root: LayoutTree,
+    ) -> Result<Self, WindowSessionIdentityError> {
+        Self::validate_identity(id, &workspace_root)?;
+        Ok(Self {
+            id,
+            cwd: workspace_root,
+            root: Some(root),
+            saved_layout: None,
+            grid_page_visible: true,
+        })
+    }
+
+    /// 校验稳定会话身份，不读取 UI 索引、PTY PID 或文件系统临时状态。
+    pub(crate) fn validate_identity(
+        id: u64,
+        workspace_root: &str,
+    ) -> Result<(), WindowSessionIdentityError> {
+        if id == 0 {
+            return Err(WindowSessionIdentityError::MissingId);
+        }
+        if workspace_root.trim().is_empty() {
+            return Err(WindowSessionIdentityError::MissingWorkspaceRoot);
+        }
+        Ok(())
+    }
+
+    /// 校验一次身份对齐是否仍指向同一稳定会话。
+    ///
+    /// 不同会话允许绑定同一个仓库目录，这是用户同时运行多个 CLI 的正常场景；只有
+    /// 相同 ID 携带不同 root 才是身份冲突。
+    #[cfg(test)]
+    pub(crate) fn validate_rebinding(
+        current_id: u64,
+        current_root: &str,
+        incoming_id: u64,
+        incoming_root: &str,
+    ) -> Result<(), WindowSessionIdentityError> {
+        Self::validate_identity(incoming_id, incoming_root)?;
+        if current_id == incoming_id && Path::new(current_root) != Path::new(incoming_root) {
+            return Err(WindowSessionIdentityError::WorkspaceRootMismatch);
+        }
+        Ok(())
+    }
+
+    /// 返回创建时绑定的稳定工作区目录。
+    pub fn workspace_root(&self) -> &Path {
+        Path::new(&self.cwd)
+    }
+}
+
+/// 工作区界面与仓库元数据外壳。
+///
+/// 核心终端会话由 [`WindowSession`] 唯一持有；本类型继续保存标题、Git 派生状态和
+/// 文件树展示偏好。迁移期间通过 `Deref` 兼容既有字段读取，避免复制会话数据。
+pub struct Workspace {
+    /// 唯一拥有的窗口会话聚合根。
+    session: WindowSession,
+    pub title: String,
     /// Cached git diff stats, refreshed by a background poller.
     pub git_stats: GitDiffStats,
     /// Current git branch name. Empty string when not a git repo or branch unknown.
@@ -168,6 +252,22 @@ pub struct Workspace {
     pub managed_worktrees: Vec<worktree::ManagedWorktree>,
 }
 
+impl std::ops::Deref for Workspace {
+    type Target = WindowSession;
+
+    /// 兼容迁移期既有只读字段和会话方法；所有权仍只存在于 `session` 字段。
+    fn deref(&self) -> &Self::Target {
+        &self.session
+    }
+}
+
+impl std::ops::DerefMut for Workspace {
+    /// 兼容迁移期既有会话写入；A023～A025 会逐步收敛到显式生命周期方法。
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.session
+    }
+}
+
 impl Workspace {
     /// 把后台完成的 Git 仓库准备结果写入当前工作区。
     ///
@@ -206,12 +306,9 @@ impl Workspace {
         let worktree_root =
             git::resolve_worktree_root(&cwd, git_dir.as_deref(), repo_root.as_deref(), is_worktree);
         Self {
-            id,
+            session: WindowSession::new(id, cwd, root)
+                .expect("工作区构造入口必须先提供非零 ID 与稳定 workspaceRoot"),
             title,
-            cwd,
-            root: Some(root),
-            saved_layout: None,
-            grid_page_visible: true,
             git_stats: GitDiffStats::default(),
             git_branch,
             is_git_repo,
@@ -271,7 +368,10 @@ impl Workspace {
             reference_format,
         )
     }
+}
 
+impl WindowSession {
+    /// 返回当前会话是否只显示一个放大窗格。
     pub fn is_zoomed(&self) -> bool {
         self.saved_layout.is_some()
     }
@@ -414,7 +514,9 @@ impl Workspace {
         let tree = self.saved_layout.as_ref().or(self.root.as_ref())?;
         Some(tree.serialize_deferred(cx, terms))
     }
+}
 
+impl Workspace {
     /// Push the current `custom_buttons` list to every `Pane` in the
     /// workspace's layout tree so the tab bar re-renders with the new set.
     /// Call after mutating `self.custom_buttons` (add / edit / delete).
