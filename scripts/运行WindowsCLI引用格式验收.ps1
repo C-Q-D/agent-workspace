@@ -34,18 +34,21 @@ $rightClickScreenshot = Join-Path $runDirectory '真实右键菜单.png'
 $resultPath = Join-Path $runDirectory '运行结果.json'
 $firstSessionPath = Join-Path $runDirectory '首次退出会话.json'
 $restoredSessionPath = Join-Path $runDirectory '重启退出会话.json'
-$actualConfigPath = Join-Path ([Environment]::GetFolderPath('ApplicationData')) 'paneflow\paneflow.json'
-$actualSessionPath = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'paneflow\session.json'
+$dataRoot = Join-Path $env:USERPROFILE '.agent-workspace'
+$actualConfigPath = Join-Path $dataRoot 'config\settings.json'
+$actualSessionPath = Join-Path $dataRoot 'sessions\workspaces.json'
+$pipeName = "agent-workspace-reference-$timestamp"
+$pipePath = "\\.\pipe\$pipeName"
 $configBackupPath = Join-Path $stateDirectory '用户配置.json'
 $sessionBackupPath = Join-Path $stateDirectory '用户会话.json'
 
 New-Item -ItemType Directory -Force -Path $runDirectory, $stateDirectory | Out-Null
 
 function Invoke-PaneflowRpc {
-    <# 通过一次一连接协议调用真实 Paneflow JSON-RPC。 #>
+    <# 通过本次验收独占的命名管道调用真实 AgentWorkspace JSON-RPC。 #>
     param([Parameter(Mandatory = $true)][string]$Method, [Parameter(Mandatory = $true)][object]$Params)
 
-    $pipe = [IO.Pipes.NamedPipeClientStream]::new('.', 'paneflow', [IO.Pipes.PipeDirection]::InOut)
+    $pipe = [IO.Pipes.NamedPipeClientStream]::new('.', $pipeName, [IO.Pipes.PipeDirection]::InOut)
     try {
         $pipe.Connect(5000)
         $utf8 = [Text.UTF8Encoding]::new($false)
@@ -78,7 +81,7 @@ function Wait-PaneflowReady {
         }
         Start-Sleep -Milliseconds 500
     }
-    throw 'Paneflow IPC 在 30 秒内未就绪。'
+    throw 'AgentWorkspace IPC 在 30 秒内未就绪。'
 }
 
 function Get-WorkspaceList {
@@ -99,7 +102,7 @@ function Get-WorkspaceSurfaceId {
 
 function Initialize-IsolatedState {
     <# 暂存用户状态并创建不启用遥测的干净配置。 #>
-    if (Get-Process paneflow -ErrorAction SilentlyContinue) { throw '开始验收前仍存在 Paneflow 进程。' }
+    if (Get-Process agent-workspace -ErrorAction SilentlyContinue) { throw '开始验收前仍存在 AgentWorkspace 进程。' }
     $script:hadConfig = Test-Path -LiteralPath $actualConfigPath -PathType Leaf
     $script:hadSession = Test-Path -LiteralPath $actualSessionPath -PathType Leaf
     New-Item -ItemType Directory -Force -Path (Split-Path $actualConfigPath -Parent), (Split-Path $actualSessionPath -Parent) | Out-Null
@@ -341,7 +344,11 @@ try {
     New-Item -ItemType Directory -Force -Path $fixtureRoot, $fixtureDirectory | Out-Null
     @('// 第一行', 'fn target() {', '    println!("reference");', '}', '// 第五行') | Set-Content -LiteralPath $fixtureFile -Encoding utf8
 
-    $firstProcess = Start-Process -FilePath $binary -WorkingDirectory $repoRoot -PassThru
+    # 每次运行使用独占 IPC 端点，避免连接到用户实例；脚本权限只在子进程生命周期内开启。
+    $env:PANEFLOW_NO_TELEMETRY = '1'
+    $env:PANEFLOW_SOCKET_PATH = $pipePath
+    $env:PANEFLOW_IPC_SCRIPTING = '1'
+    $firstProcess = Start-Process -FilePath $binary -WorkingDirectory $repoRoot -WindowStyle Normal -PassThru
     Wait-PaneflowReady
     $firstHandle = Get-RealMainWindow -Process $firstProcess
     $script:activeHandle = $firstHandle

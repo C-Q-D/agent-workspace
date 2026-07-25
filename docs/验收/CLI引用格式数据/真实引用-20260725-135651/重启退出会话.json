@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "active_workspace": 1,
+  "workspace_grid_page": 0,
+  "workspaces": [
+    {
+      "title": "基线工作区",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true,
+            "scrollback": "oh-my-posh: C:\\Users\\Administrator\\Documents\n\\PowerShell\\Microsoft.PowerShell_profile.ps1\n:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:\nPOSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not\n     | recognized as a name of a cmdlet,\n     | function, script file, or executable\n     | program. Check the spelling of the\n     | name, or if a path was included,\n     | verify that the path is correct and\n     | try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\a\ngent-workspace\\app>\noh-my-posh: C:\\Users\\Administrator\\Documents\n\\PowerShell\\Microsoft.PowerShell_profile.ps1\n:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:\nPOSH_THEMES_PATH\\json.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not\n     | recognized as a name of a cmdlet,\n     | function, script file, or executable\n     | program. Check the spelling of the\n     | name, or if a path was included,\n     | verify that the path is correct and\n     | try again.\nPS F:\\workspace\\projects\\AgentWorkspaceLab\\a\ngent-workspace\\app>"
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "title": "引用验收",
+      "cwd": "F:\\AWRef-20260725-135651",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\AWRef-20260725-135651",
+            "env": null,
+            "focus": true,
+            "scrollback": "oh-my-posh: C:\\Users\\Administrator\\Documents\\PowerShell\\Microso\nft.PowerShell_profile.ps1:11\noh-my-posh: C:\\Users\\Administrator\\Documents\\PowerShell\\Microso\nft.PowerShell_profile.ps1:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:POSH_THEMES_PATH\\js\non.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not\n     | recognized as a name of a cmdlet,\n     | function, script file, or executable\n     | program. Check the spelling of the\n     | name, or if a path was included,\n     | verify that the path is correct and\n     | try again.\noh-my-posh: C:\\Users\\Administrator\\Documents\\PowerShell\\Microso\nft.PowerShell_proh-my-posh: C:\\Users\\Administrator\\Documents\\Po\noh-my-posh: C:\\Users\\Administrator\\Documents\\PowerShell\\Microso\nft.PowerShell_profile.ps1:11\nLine |\n  11 |  oh-my-posh init pwsh --config \"$env:POSH_THEMES_PATH\\js\non.omp.json\" | …\n     |  ~~~~~~~~~~\n     | The term 'oh-my-posh' is not\n     | recognized as a name of a cmdlet,\n     | function, script file, or executable\n     | program. Check the spelling of the\n     | name, or if a path was included,\n     | verify that the path is correct and\n     | try again.\nPS F:\\AWRef-20260725-135651>"
+          }
+        ]
+      },
+      "reference_format": "claude"
+    }
+  ],
+  "active_project": 0,
+  "diff_scope": "project"
+}
