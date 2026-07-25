@@ -56,7 +56,9 @@ if ($Contract.settingsKeys.Count -ne 10 -or
     throw '十项设置磁盘键契约不完整或存在重复。'
 }
 if ($Contract.sampleIntervalMilliseconds -ne 1000 -or
-    $Contract.phaseDurationSeconds -ne 10) {
+    $Contract.phaseDurationSeconds -ne 10 -or
+    $Contract.outputIntervalMilliseconds -ne 250 -or
+    $Contract.minimumSamplesPerPhase -ne 2) {
     throw '默认采样间隔或阶段时长发生未审查漂移。'
 }
 
@@ -75,6 +77,11 @@ foreach ($Required in @(
     'coldStartMeasuredBeforeReady',
     'totalPhysicalMemoryGiB',
     'logicalProcessorCount',
+    'steadyHostCpuMaximumPercent',
+    'hostWorkingSetMaximumMiB',
+    'hostCpuWithinOnePercent',
+    'hostWorkingSetWithin256MiB',
+    'sampleCountSufficient',
     'workspaceIdsRestored',
     'powershellPidsRecreatedAcrossRestart',
     'gracefulExitBothRuns',

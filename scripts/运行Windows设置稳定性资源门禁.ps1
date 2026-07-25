@@ -34,6 +34,9 @@ param(
     [ValidateRange(5, 300)]
     [int]$PhaseDurationSeconds = 10,
 
+    [ValidateRange(100, 2000)]
+    [int]$OutputIntervalMilliseconds = 250,
+
     [string]$OutputDirectory = (Join-Path $PSScriptRoot '..\docs\验收\设置稳定性资源数据'),
 
     [switch]$SelfCheck,
@@ -106,6 +109,8 @@ $Contract = [ordered]@{
     settingsKeys = $ExpectedSettings
     sampleIntervalMilliseconds = $SampleIntervalMilliseconds
     phaseDurationSeconds = $PhaseDurationSeconds
+    outputIntervalMilliseconds = $OutputIntervalMilliseconds
+    minimumSamplesPerPhase = 2
     interaction = '真实 AgentWorkspace、PowerShell/ConPTY、配置 watcher、应用级聚焦与恢复'
 }
 
@@ -623,9 +628,12 @@ function Invoke-Scenario {
 
         $RoundTwo = Write-SettingsRound -Path $ConfigPath -Round 'round-two'
         $SecondWriteTime = (Get-Item -LiteralPath $ConfigPath).LastWriteTimeUtc
-        $Iterations = [Math]::Max(5, [Math]::Ceiling($PhaseDurationSeconds * 5))
+        $Iterations = [Math]::Max(
+            5,
+            [Math]::Ceiling(($PhaseDurationSeconds * 1000.0) / $OutputIntervalMilliseconds)
+        )
         foreach ($Surface in $Ready.surfaces) {
-            $Command = "1..$Iterations | ForEach-Object { Write-Output ('A007-ACTIVE-' + `$_); Start-Sleep -Milliseconds 200 }; Write-Output 'A007-ACTIVE-DONE'"
+            $Command = "1..$Iterations | ForEach-Object { Write-Output ('A007-ACTIVE-' + `$_); Start-Sleep -Milliseconds $OutputIntervalMilliseconds }; Write-Output 'A007-ACTIVE-DONE'"
             Invoke-AgentWorkspaceRpc -PipeName $PipeName -Method 'surface.send_text' -Params @{
                 surface_id = [uint64]$Surface.surface_id
                 text = $Command
@@ -791,6 +799,69 @@ $PhaseContractsPassed = @($Scenarios | Where-Object {
     (($_.resources.phases | ForEach-Object { $_.name }) -join ',') -ne
         ($ExpectedPhases -join ',')
 }).Count -eq 0
+$PerformanceMetrics = @()
+foreach ($Scenario in $Scenarios) {
+    foreach ($Phase in $Scenario.resources.phases) {
+        $Samples = @($Phase.samples)
+        $FirstHost = $Samples[0].groups.host
+        $LastHost = $Samples[-1].groups.host
+        $ElapsedMilliseconds = if ($Samples.Count -gt 1) {
+            [double]$Samples[-1].elapsedMilliseconds - [double]$Samples[0].elapsedMilliseconds
+        }
+        else { 0.0 }
+        $HostCpuPercent = if ($ElapsedMilliseconds -gt 0) {
+            (
+                (
+                    [double]$LastHost.cpuTotalMilliseconds -
+                    [double]$FirstHost.cpuTotalMilliseconds
+                ) / $ElapsedMilliseconds / [Environment]::ProcessorCount
+            ) * 100.0
+        }
+        else { 0.0 }
+        $PerformanceMetrics += [ordered]@{
+            terminalCount = [int]$Scenario.terminalCount
+            phase = [string]$Phase.name
+            sampleCount = $Samples.Count
+            hostCpuPercent = [Math]::Round($HostCpuPercent, 4)
+            hostWorkingSetPeakMiB = [Math]::Round(
+                [double]((
+                    $Samples |
+                        ForEach-Object { [double]$_.groups.host.workingSetMiB } |
+                        Measure-Object -Maximum
+                ).Maximum),
+                3
+            )
+            hostPrivatePeakMiB = [Math]::Round(
+                [double]((
+                    $Samples |
+                        ForEach-Object { [double]$_.groups.host.privateMemoryMiB } |
+                        Measure-Object -Maximum
+                ).Maximum),
+                3
+            )
+            hostThreadPeak = [int]((
+                $Samples |
+                    ForEach-Object { [int]$_.groups.host.threadCount } |
+                    Measure-Object -Maximum
+            ).Maximum)
+            hostHandlePeak = [int]((
+                $Samples |
+                    ForEach-Object { [int]$_.groups.host.handleCount } |
+                    Measure-Object -Maximum
+            ).Maximum)
+        }
+    }
+}
+$SteadyMetrics = @($PerformanceMetrics | Where-Object { $_.phase -ne 'cold-start' })
+$SampleCountSufficient = @($PerformanceMetrics | Where-Object { $_.sampleCount -lt 2 }).Count -eq 0
+$HostCpuWithinOnePercent = @(
+    $SteadyMetrics |
+        Where-Object { [double]$_.hostCpuPercent -gt 1.0 }
+).Count -eq 0
+$HostWorkingSetWithin256MiB = @(
+    $PerformanceMetrics |
+        Where-Object { [double]$_.hostWorkingSetPeakMiB -gt 256.0 }
+).Count -eq 0
 $Summary = [ordered]@{
     schemaVersion = 1
     runId = $RunId
@@ -814,6 +885,13 @@ $Summary = [ordered]@{
         logicalProcessorCount = [Environment]::ProcessorCount
         powershellVersion = $PSVersionTable.PSVersion.ToString()
     }
+    budgets = [ordered]@{
+        steadyHostCpuMaximumPercent = 1.0
+        hostWorkingSetMaximumMiB = 256.0
+        minimumSamplesPerPhase = 2
+        outputIntervalMilliseconds = $OutputIntervalMilliseconds
+    }
+    performanceMetrics = $PerformanceMetrics
     contract = $Contract
     scenarios = $Scenarios
     checks = [ordered]@{
@@ -824,6 +902,9 @@ $Summary = [ordered]@{
         phaseOrderExact = $PhaseContractsPassed
         settingsKeysExact = @($ExpectedSettings | Sort-Object -Unique).Count -eq 10
         hostShellCliSeparated = $true
+        sampleCountSufficient = $SampleCountSufficient
+        hostCpuWithinOnePercent = $HostCpuWithinOnePercent
+        hostWorkingSetWithin256MiB = $HostWorkingSetWithin256MiB
         coldStartMeasuredBeforeReady = @($Scenarios | Where-Object {
             -not $_.coldStartSamplingBeganBeforeAppReady
         }).Count -eq 0
