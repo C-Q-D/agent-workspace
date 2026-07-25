@@ -1,0 +1,2 @@
+[2026-07-25T02:51:20Z WARN  agent_workspace::ipc] ipc.scripting_enabled is ON; any same-UID process can inject keystrokes into agent panes
+[2026-07-25T02:51:20Z WARN  agent_workspace::ipc] ipc.orchestration_enabled is ON; any same-UID process can create panes with commands, prompts, context, or env

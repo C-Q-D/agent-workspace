@@ -279,11 +279,19 @@ function Measure-ResourcePhase {
                     3
                 )
                 workingSetMiB = [Math]::Round(
-                    [double](($Members | Measure-Object WorkingSet64 -Sum).Sum) / 1MB,
+                    [double]((
+                        $Members |
+                            ForEach-Object { [double]$_.WorkingSet64 } |
+                            Measure-Object -Sum
+                    ).Sum) / 1MB,
                     3
                 )
                 privateMemoryMiB = [Math]::Round(
-                    [double](($Members | Measure-Object PrivateMemorySize64 -Sum).Sum) / 1MB,
+                    [double]((
+                        $Members |
+                            ForEach-Object { [double]$_.PrivateMemorySize64 } |
+                            Measure-Object -Sum
+                    ).Sum) / 1MB,
                     3
                 )
                 threadCount = [int]((
@@ -291,7 +299,11 @@ function Measure-ResourcePhase {
                         ForEach-Object { $_.Threads.Count } |
                         Measure-Object -Sum
                 ).Sum)
-                handleCount = [int](($Members | Measure-Object HandleCount -Sum).Sum)
+                handleCount = [int]((
+                    $Members |
+                        ForEach-Object { [int]$_.HandleCount } |
+                        Measure-Object -Sum
+                ).Sum)
             }
         }
         $Rows.Add([ordered]@{

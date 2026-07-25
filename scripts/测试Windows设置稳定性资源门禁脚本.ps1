@@ -88,6 +88,15 @@ if (-not $Source.Contains('$ProcessItem = $_') -or
     $Source.Contains("'host' { `$_.Id")) {
     throw '资源分组必须冻结外层 Process，不能让 switch 重绑定自动变量。'
 }
+foreach ($ForbiddenPropertySum in @(
+    'Measure-Object WorkingSet64 -Sum',
+    'Measure-Object PrivateMemorySize64 -Sum',
+    'Measure-Object HandleCount -Sum'
+)) {
+    if ($Source.Contains($ForbiddenPropertySum)) {
+        throw "空资源组不得使用会返回空管道的属性求和：$ForbiddenPropertySum"
+    }
+}
 
 $MissingBinary = Join-Path ([IO.Path]::GetTempPath()) 'A007-不存在-agent-workspace.exe'
 $FailureText = @(
