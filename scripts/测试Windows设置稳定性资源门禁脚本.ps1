@@ -84,6 +84,10 @@ if ($Source.Contains('CopyFromScreen')) {
 if ($Source.Contains('Measure-Object TotalProcessorTime -Sum')) {
     throw 'CPU 累计值不得把 TimeSpan 直接交给 Measure-Object 求和。'
 }
+if (-not $Source.Contains('$ProcessItem = $_') -or
+    $Source.Contains("'host' { `$_.Id")) {
+    throw '资源分组必须冻结外层 Process，不能让 switch 重绑定自动变量。'
+}
 
 $MissingBinary = Join-Path ([IO.Path]::GetTempPath()) 'A007-不存在-agent-workspace.exe'
 $FailureText = @(

@@ -223,14 +223,17 @@ function Get-ResourceGroup {
     $ShellNames = @('pwsh', 'powershell')
     $CliNames = @('codex', 'claude', 'node', 'bun', 'deno')
     return @($Processes | Where-Object {
+        # `switch` 会重绑定 PowerShell 自动变量 `$_` 为当前分支字符串；必须先保存
+        # 外层管道中的真实 Process，否则宿主分支会尝试读取字符串的 Id。
+        $ProcessItem = $_
         switch ($Group) {
-            'host' { $_.Id -eq $RootProcessId }
-            'shell' { $_.ProcessName -in $ShellNames }
-            'cli' { $_.ProcessName -in $CliNames }
+            'host' { $ProcessItem.Id -eq $RootProcessId }
+            'shell' { $ProcessItem.ProcessName -in $ShellNames }
+            'cli' { $ProcessItem.ProcessName -in $CliNames }
             'helper' {
-                $_.Id -ne $RootProcessId -and
-                $_.ProcessName -notin $ShellNames -and
-                $_.ProcessName -notin $CliNames
+                $ProcessItem.Id -ne $RootProcessId -and
+                $ProcessItem.ProcessName -notin $ShellNames -and
+                $ProcessItem.ProcessName -notin $CliNames
             }
         }
     })
