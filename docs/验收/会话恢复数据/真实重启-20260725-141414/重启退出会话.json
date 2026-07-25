@@ -1,0 +1,389 @@
+{
+  "version": 2,
+  "active_workspace": 19,
+  "workspace_grid_page": 1,
+  "workspaces": [
+    {
+      "id": 1,
+      "title": "restore-01",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "id": 2,
+      "title": "restore-02",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "id": 3,
+      "title": "restore-03",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "id": 4,
+      "title": "restore-04",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "id": 5,
+      "title": "restore-05",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "id": 6,
+      "title": "restore-06",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "id": 7,
+      "title": "restore-07",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "id": 8,
+      "title": "restore-08",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "id": 9,
+      "title": "restore-09",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "id": 10,
+      "title": "restore-10",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "id": 11,
+      "title": "restore-11",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "id": 12,
+      "title": "restore-12",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "id": 13,
+      "title": "restore-13",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "id": 14,
+      "title": "restore-14",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "id": 15,
+      "title": "restore-15",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "id": 16,
+      "title": "restore-16",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "id": 17,
+      "title": "restore-17",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "id": 18,
+      "title": "restore-18",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "id": 19,
+      "title": "restore-19",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "id": 20,
+      "title": "restore-20",
+      "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app",
+            "env": null,
+            "focus": true
+          }
+        ]
+      },
+      "reference_format": "common"
+    }
+  ],
+  "active_project": 0,
+  "diff_scope": "project"
+}

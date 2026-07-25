@@ -1,0 +1,251 @@
+{
+  "RunId": "真实重启-20260725-141414",
+  "Commit": "fb25710d1d720dde4c37f2f32bc9201ede863d9d",
+  "BinaryPath": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\target\\release\\agent-workspace.exe",
+  "BinarySha256": "7B1B3296E0D2AFEFB2E5546B40096CC4668CEAAB7D18126EB04209701FE6A860",
+  "WorkspaceCount": 20,
+  "ExpectedTitles": [
+    "restore-01",
+    "restore-02",
+    "restore-03",
+    "restore-04",
+    "restore-05",
+    "restore-06",
+    "restore-07",
+    "restore-08",
+    "restore-09",
+    "restore-10",
+    "restore-11",
+    "restore-12",
+    "restore-13",
+    "restore-14",
+    "restore-15",
+    "restore-16",
+    "restore-17",
+    "restore-18",
+    "restore-19",
+    "restore-20"
+  ],
+  "SavedActiveWorkspace": 19,
+  "SavedWorkspaceGridPage": 1,
+  "SavedWorkspaceIds": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20
+  ],
+  "RestoredActiveWorkspace": 19,
+  "RestoredWorkspaceGridPage": 1,
+  "RestoredWorkspaceIds": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20
+  ],
+  "StableWorkspaceIdsPreserved": true,
+  "MetadataOnlySchemaVersion": 2,
+  "TerminalRuntimeStateOmitted": true,
+  "FirstPowerShellProcesses": [
+    {
+      "Pid": 9404,
+      "StartTimeUtc": "2026-07-25T06:14:18.1136482Z"
+    },
+    {
+      "Pid": 10548,
+      "StartTimeUtc": "2026-07-25T06:14:17.9008016Z"
+    },
+    {
+      "Pid": 16540,
+      "StartTimeUtc": "2026-07-25T06:14:17.1848981Z"
+    },
+    {
+      "Pid": 21868,
+      "StartTimeUtc": "2026-07-25T06:14:17.3098410Z"
+    },
+    {
+      "Pid": 22916,
+      "StartTimeUtc": "2026-07-25T06:14:17.6081982Z"
+    },
+    {
+      "Pid": 23648,
+      "StartTimeUtc": "2026-07-25T06:14:18.0030307Z"
+    },
+    {
+      "Pid": 23724,
+      "StartTimeUtc": "2026-07-25T06:14:18.2332664Z"
+    },
+    {
+      "Pid": 24232,
+      "StartTimeUtc": "2026-07-25T06:14:17.4991538Z"
+    },
+    {
+      "Pid": 24852,
+      "StartTimeUtc": "2026-07-25T06:14:17.7795296Z"
+    },
+    {
+      "Pid": 26060,
+      "StartTimeUtc": "2026-07-25T06:14:17.5536356Z"
+    },
+    {
+      "Pid": 26320,
+      "StartTimeUtc": "2026-07-25T06:14:17.8415357Z"
+    },
+    {
+      "Pid": 27512,
+      "StartTimeUtc": "2026-07-25T06:14:18.0610032Z"
+    },
+    {
+      "Pid": 28112,
+      "StartTimeUtc": "2026-07-25T06:14:17.4360047Z"
+    },
+    {
+      "Pid": 29572,
+      "StartTimeUtc": "2026-07-25T06:14:17.6612164Z"
+    },
+    {
+      "Pid": 30052,
+      "StartTimeUtc": "2026-07-25T06:14:18.1685190Z"
+    },
+    {
+      "Pid": 30384,
+      "StartTimeUtc": "2026-07-25T06:14:17.0919038Z"
+    },
+    {
+      "Pid": 31284,
+      "StartTimeUtc": "2026-07-25T06:14:17.3732331Z"
+    },
+    {
+      "Pid": 31664,
+      "StartTimeUtc": "2026-07-25T06:14:17.2488793Z"
+    },
+    {
+      "Pid": 32200,
+      "StartTimeUtc": "2026-07-25T06:14:17.9508683Z"
+    },
+    {
+      "Pid": 32684,
+      "StartTimeUtc": "2026-07-25T06:14:17.7170301Z"
+    }
+  ],
+  "RestoredPowerShellProcesses": [
+    {
+      "Pid": 2224,
+      "StartTimeUtc": "2026-07-25T06:14:31.2581497Z"
+    },
+    {
+      "Pid": 4768,
+      "StartTimeUtc": "2026-07-25T06:14:31.2556582Z"
+    },
+    {
+      "Pid": 5612,
+      "StartTimeUtc": "2026-07-25T06:14:31.2497407Z"
+    },
+    {
+      "Pid": 6408,
+      "StartTimeUtc": "2026-07-25T06:14:31.2518217Z"
+    },
+    {
+      "Pid": 7352,
+      "StartTimeUtc": "2026-07-25T06:14:31.2574224Z"
+    },
+    {
+      "Pid": 9008,
+      "StartTimeUtc": "2026-07-25T06:14:31.2485013Z"
+    },
+    {
+      "Pid": 12632,
+      "StartTimeUtc": "2026-07-25T06:14:31.2637061Z"
+    },
+    {
+      "Pid": 12948,
+      "StartTimeUtc": "2026-07-25T06:14:31.2531233Z"
+    },
+    {
+      "Pid": 15076,
+      "StartTimeUtc": "2026-07-25T06:14:31.2596781Z"
+    },
+    {
+      "Pid": 20816,
+      "StartTimeUtc": "2026-07-25T06:14:31.2461952Z"
+    },
+    {
+      "Pid": 20912,
+      "StartTimeUtc": "2026-07-25T06:14:31.2625058Z"
+    },
+    {
+      "Pid": 21536,
+      "StartTimeUtc": "2026-07-25T06:14:31.2665205Z"
+    },
+    {
+      "Pid": 22404,
+      "StartTimeUtc": "2026-07-25T06:14:31.2551205Z"
+    },
+    {
+      "Pid": 22744,
+      "StartTimeUtc": "2026-07-25T06:14:31.2608554Z"
+    },
+    {
+      "Pid": 23232,
+      "StartTimeUtc": "2026-07-25T06:14:31.2593718Z"
+    },
+    {
+      "Pid": 26392,
+      "StartTimeUtc": "2026-07-25T06:14:31.2512301Z"
+    },
+    {
+      "Pid": 27992,
+      "StartTimeUtc": "2026-07-25T06:14:31.2473749Z"
+    },
+    {
+      "Pid": 29352,
+      "StartTimeUtc": "2026-07-25T06:14:31.2659168Z"
+    },
+    {
+      "Pid": 30424,
+      "StartTimeUtc": "2026-07-25T06:14:31.2486998Z"
+    },
+    {
+      "Pid": 30492,
+      "StartTimeUtc": "2026-07-25T06:14:31.2459353Z"
+    }
+  ],
+  "PowerShellPidsFullyReplaced": true,
+  "FirstRemainingProcessIds": [],
+  "RestoredRemainingProcessIds": [],
+  "FirstPageScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\会话恢复数据\\真实重启-20260725-141414\\首次启动第一页.png",
+  "SecondPageScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\会话恢复数据\\真实重启-20260725-141414\\首次启动第二页.png",
+  "RestoredPageScreenshot": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\docs\\验收\\会话恢复数据\\真实重启-20260725-141414\\重启恢复第二页.png",
+  "Passed": true
+}

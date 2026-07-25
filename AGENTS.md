@@ -127,10 +127,10 @@ cargo test -p paneflow-app --test flex_nchild
 cargo fmt --all -- --check
 ```
 
-2026-07-25 的 A024 可重复基线为：
+2026-07-25 的 A025 可重复基线为：
 
-- `paneflow-config`：113 passed。
-- `paneflow-app` unit：1482 passed，0 ignored。
+- `paneflow-config`：115 passed。
+- `paneflow-app` unit：1485 passed，0 ignored。
 - `flex_nchild`：5 passed。
 
 该数字只代表基线，不是永久成功标准。每次记录测试结果必须使用当前命令输出，不能复制旧计数。
@@ -185,6 +185,7 @@ fixture 验证错误路径，但 ConPTY、真实 Git、GUI、安装包和 CLI �
 - 项目阶段记录：标准路线阶段与历史。
 - v1 原子任务方案：A001～A142 的唯一执行顺序和完成标准。
 
-当前检查点：A001～A024 已完成；最近三个原子为 A022 `e50ef09`、A023 `3b622d1`
-（证据清理 `ea0a648`）和 A024（使用 `git log -1 -- docs/当前开发状态.md` 定位）。
-ActiveContext 已从聚焦 `WindowSession` 单源派生；下一原子为 A025 统一会话持久化与恢复。
+当前检查点：A001～A025 已完成；最近三个原子为 A023 `3b622d1`
+（证据清理 `ea0a648`）、A024 `8dcc4ed`（引用验收修复 `c32f520`）和 A025
+（使用 `git log -1 -- docs/当前开发状态.md` 定位）。会话恢复已升级为 metadata-only
+v2 并保持稳定窗口 ID；下一原子为 A026 删除重复上下文资源。

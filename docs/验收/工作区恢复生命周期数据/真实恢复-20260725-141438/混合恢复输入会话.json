@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "active_workspace": 2,
+  "workspace_grid_page": 0,
+  "workspaces": [
+    {
+      "title": "已有 Git",
+      "cwd": "F:\\AWRestoreLifecycle-20260725-141438\\已有Git",
+      "layout": null,
+      "reference_format": "common"
+    },
+    {
+      "title": "失效目录",
+      "cwd": "F:\\AWRestoreLifecycle-20260725-141438\\已失效",
+      "layout": null,
+      "reference_format": "common"
+    },
+    {
+      "title": "非 Git",
+      "cwd": "F:\\AWRestoreLifecycle-20260725-141438\\非Git",
+      "layout": null,
+      "reference_format": "common"
+    }
+  ],
+  "active_project": 0,
+  "mode": "cli",
+  "diff_scope": "project"
+}

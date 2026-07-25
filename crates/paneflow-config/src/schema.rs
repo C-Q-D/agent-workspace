@@ -3,8 +3,11 @@
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// Current on-disk schema version for [`SessionState`].
-pub const SESSION_SCHEMA_VERSION: u32 = 1;
+/// 当前磁盘会话 schema 版本。
+///
+/// v2 起只写入可恢复元数据：稳定窗口 ID、目录、布局和用户选择；终端缓冲与进程
+/// 状态只作为 v1 兼容输入读取，不能继续进入新文件。
+pub const SESSION_SCHEMA_VERSION: u32 = 2;
 
 /// Apple system blue, used by built-in themes as the default terminal cursor.
 pub const APPLE_SYSTEM_BLUE_HEX: &str = "#007AFF";
@@ -1519,6 +1522,9 @@ fn default_true() -> bool {
 /// Snapshot of a single workspace for session persistence.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct WorkspaceSession {
+    /// 窗口创建时分配的稳定 ID；旧 v1 会话缺失时由应用迁移边界补齐。
+    #[serde(default)]
+    pub id: u64,
     /// Workspace display title.
     pub title: String,
     /// Root working directory of the workspace.
@@ -1609,15 +1615,15 @@ pub struct SurfaceDefinition {
     pub env: Option<HashMap<String, String>>,
     /// Whether this surface should receive initial focus.
     pub focus: Option<bool>,
-    /// Saved scrollback text (plain, ANSI stripped). Up to 4000 lines / 400K chars.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    /// v1 兼容输入中的终端缓冲。
+    ///
+    /// v2 不再写出该字段，避免把终端输出或敏感内容当作可恢复会话元数据。
+    #[serde(default, skip_serializing)]
     pub scrollback: Option<String>,
-    /// EP-005 US-013: stable tag of the agent CLI last detected in this
-    /// surface's PTY subtree (e.g. `"claude_code"`), so the identity pill
-    /// survives restart as a dimmed "last known" until the first scan
-    /// confirms it. Whitelisted at ingress against the known agent tags;
-    /// unknown or malformed values are dropped silently.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// v1 兼容输入中的最后检测 Agent 标签。
+    ///
+    /// 进程已经随应用退出，v2 不写出该字段，也不会在重启后伪装进程仍存在。
+    #[serde(default, skip_serializing)]
     pub agent: Option<String>,
     /// EP-006 US-019: per-pane font-size override in points. `None` =
     /// follow the global config. Validated at restore ingress (NaN/inf
@@ -1643,6 +1649,33 @@ mod tests {
 
     fn key_set(keys: &[&str]) -> BTreeSet<String> {
         keys.iter().map(|key| (*key).to_string()).collect()
+    }
+
+    /// A025 红灯：新会话必须使用能区分旧版缓冲快照的 v2 schema。
+    #[test]
+    fn session_schema_version_marks_metadata_only_contract() {
+        assert_eq!(
+            SESSION_SCHEMA_VERSION, 2,
+            "A025 必须升级 schema，不能把 v1 的终端缓冲语义继续伪装成当前格式"
+        );
+    }
+
+    /// A025 红灯：终端缓冲和已结束进程身份只能兼容读取，不能写入新会话。
+    #[test]
+    fn terminal_runtime_state_is_read_only_legacy_input() {
+        let surface = SurfaceDefinition {
+            scrollback: Some("不应写入磁盘的终端历史".to_string()),
+            agent: Some("codex".to_string()),
+            ..Default::default()
+        };
+
+        let json = serde_json::to_string(&surface).expect("终端元数据应可序列化");
+
+        assert!(!json.contains("scrollback"), "新会话不得序列化终端缓冲");
+        assert!(
+            !json.contains("\"agent\""),
+            "新会话不得伪装恢复已结束 Agent 进程"
+        );
     }
 
     fn assert_doc_mentions_property_keys(doc: &str, value: &serde_json::Value, context: &str) {

@@ -1,0 +1,40 @@
+{
+  "RunId": "真实恢复-20260725-141438",
+  "Commit": "fb25710d1d720dde4c37f2f32bc9201ede863d9d",
+  "BinaryPath": "F:\\workspace\\projects\\AgentWorkspaceLab\\agent-workspace\\app\\target\\release\\agent-workspace.exe",
+  "BinarySha256": "7B1B3296E0D2AFEFB2E5546B40096CC4668CEAAB7D18126EB04209701FE6A860",
+  "InputWorkspaceCount": 3,
+  "RestoredWorkspaceCount": 2,
+  "RestoredTitles": [
+    "已有 Git",
+    "非 Git"
+  ],
+  "ActiveTitle": "非 Git",
+  "MigratedSchemaVersion": 2,
+  "StableWorkspaceIds": [
+    1,
+    3
+  ],
+  "ExistingGitRoot": "F:\\AWRestoreLifecycle-20260725-141438\\已有Git",
+  "NonGitRoot": "F:\\AWRestoreLifecycle-20260725-141438\\非Git",
+  "MissingRoot": "F:\\AWRestoreLifecycle-20260725-141438\\已失效",
+  "NonGitInitialized": true,
+  "ExistingRemotePreserved": "https://example.invalid/agent-workspace.git",
+  "LaunchRootUntouched": true,
+  "FirstTrackedProcessIds": [
+    14768,
+    18768,
+    20564,
+    25076,
+    26692
+  ],
+  "SecondTrackedProcessIds": [
+    8144,
+    11408,
+    18288,
+    21872,
+    32176
+  ],
+  "RemainingProcessIds": [],
+  "Passed": true
+}

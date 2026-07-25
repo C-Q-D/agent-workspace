@@ -58,6 +58,17 @@ pub fn next_workspace_id() -> u64 {
     NEXT_WORKSPACE_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
 }
 
+/// 保证后续新建窗口的 ID 大于已经从磁盘恢复的稳定 ID。
+///
+/// 多次调用和乱序恢复都安全；`fetch_max` 只会单调推进计数器，不会覆盖其他线程
+/// 已经领取的更大值。
+pub(crate) fn reserve_workspace_id(restored_id: u64) {
+    NEXT_WORKSPACE_ID.fetch_max(
+        restored_id.saturating_add(1),
+        std::sync::atomic::Ordering::Relaxed,
+    );
+}
+
 /// Runtime-only notification state for a completed agent turn.
 ///
 /// A natural `ai.stop` marks the completion unread. It stays unread even after
@@ -602,9 +613,9 @@ impl WindowSession {
         Some(tree.serialize(cx))
     }
 
-    /// US-011: like [`serialize_layout`] but defers the per-terminal scrollback
-    /// drain. The terminal handles are pushed into `terms` (surface-emission
-    /// order) so `save_session` can drain them off the GPUI main thread.
+    /// 像 [`serialize_layout`] 一样保存布局，但不读取终端缓冲。
+    ///
+    /// 终端句柄按表面顺序写入 `terms`；metadata-only 会话保存方直接丢弃列表。
     pub fn serialize_layout_deferred(
         &self,
         cx: &App,
@@ -777,7 +788,7 @@ fn walk_and_push_config(
 
 #[cfg(test)]
 mod tests {
-    use super::AgentCompletionNotification;
+    use super::{AgentCompletionNotification, next_workspace_id, reserve_workspace_id};
 
     #[test]
     fn agent_completion_stays_unread_until_acknowledged() {
@@ -789,5 +800,15 @@ mod tests {
 
         notification.acknowledge();
         assert!(!notification.is_unread());
+    }
+
+    /// 恢复高位稳定 ID 后，新建窗口不得重新领取已经存在的 ID。
+    #[test]
+    fn restored_id_advances_new_workspace_counter() {
+        reserve_workspace_id(900_000);
+        assert!(
+            next_workspace_id() > 900_000,
+            "新建窗口 ID 必须位于恢复 ID 之后"
+        );
     }
 }

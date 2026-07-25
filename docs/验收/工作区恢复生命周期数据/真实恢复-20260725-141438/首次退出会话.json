@@ -1,0 +1,47 @@
+{
+  "version": 2,
+  "active_workspace": 1,
+  "workspace_grid_page": 0,
+  "workspaces": [
+    {
+      "id": 1,
+      "title": "已有 Git",
+      "cwd": "F:\\AWRestoreLifecycle-20260725-141438\\已有Git",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\AWRestoreLifecycle-20260725-141438\\已有Git",
+            "env": null,
+            "focus": true
+          }
+        ]
+      },
+      "reference_format": "common"
+    },
+    {
+      "id": 3,
+      "title": "非 Git",
+      "cwd": "F:\\AWRestoreLifecycle-20260725-141438\\非Git",
+      "layout": {
+        "type": "pane",
+        "surfaces": [
+          {
+            "surface_type": "terminal",
+            "name": "Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "command": null,
+            "cwd": "F:\\AWRestoreLifecycle-20260725-141438\\非Git",
+            "env": null,
+            "focus": true
+          }
+        ]
+      },
+      "reference_format": "common"
+    }
+  ],
+  "active_project": 0,
+  "diff_scope": "project"
+}

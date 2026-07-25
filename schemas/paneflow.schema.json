@@ -571,14 +571,6 @@
           "type": ["boolean", "null"],
           "description": "When true, this surface receives initial focus."
         },
-        "scrollback": {
-          "type": ["string", "null"],
-          "description": "Saved plain-text scrollback restored with the surface."
-        },
-        "agent": {
-          "type": ["string", "null"],
-          "description": "Stable tag of the agent CLI last detected in this surface, such as 'claude_code'."
-        },
         "font_size": {
           "type": ["number", "null"],
           "description": "Per-surface font-size override in points. Null follows the global font_size.",

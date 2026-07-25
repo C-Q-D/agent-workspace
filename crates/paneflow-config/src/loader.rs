@@ -1591,6 +1591,7 @@ mod tests {
             active_workspace: 0,
             workspace_grid_page: 0,
             workspaces: vec![WorkspaceSession {
+                id: 1,
                 title: "main".to_string(),
                 cwd: "/home/user/project".to_string(),
                 layout: Some(LayoutNode::Pane {
@@ -1621,6 +1622,7 @@ mod tests {
             workspace_grid_page: 2,
             workspaces: vec![
                 WorkspaceSession {
+                    id: 1,
                     title: "frontend".to_string(),
                     cwd: "/home/user/web".to_string(),
                     layout: Some(LayoutNode::Pane {
@@ -1632,6 +1634,7 @@ mod tests {
                     managed_worktrees: vec![],
                 },
                 WorkspaceSession {
+                    id: 2,
                     title: "backend".to_string(),
                     cwd: "/home/user/api".to_string(),
                     layout: Some(LayoutNode::Pane {
@@ -1643,6 +1646,7 @@ mod tests {
                     managed_worktrees: vec![],
                 },
                 WorkspaceSession {
+                    id: 3,
                     title: "devops".to_string(),
                     cwd: "/home/user/infra".to_string(),
                     layout: None,
@@ -1674,6 +1678,7 @@ mod tests {
             active_workspace: 0,
             workspace_grid_page: 0,
             workspaces: vec![WorkspaceSession {
+                id: 1,
                 title: "dev".to_string(),
                 cwd: "/home/user".to_string(),
                 custom_buttons: vec![],
@@ -1720,12 +1725,13 @@ mod tests {
     }
 
     #[test]
-    fn test_session_roundtrip_with_scrollback() {
+    fn test_session_legacy_scrollback_is_read_but_not_rewritten() {
         let state = SessionState {
-            version: 1,
+            version: SESSION_SCHEMA_VERSION,
             active_workspace: 0,
             workspace_grid_page: 0,
             workspaces: vec![WorkspaceSession {
+                id: 1,
                 title: "main".to_string(),
                 cwd: "/tmp".to_string(),
                 custom_buttons: vec![],
@@ -1751,13 +1757,25 @@ mod tests {
             diff_scope: None,
         };
         let json = serde_json::to_string_pretty(&state).unwrap();
+        assert!(
+            !json.contains("scrollback"),
+            "metadata-only 会话不得重新写出旧终端缓冲"
+        );
         let restored: SessionState = serde_json::from_str(&json).unwrap();
-        assert_eq!(state, restored);
         let surface = match &restored.workspaces[0].layout {
             Some(LayoutNode::Pane { surfaces }) => &surfaces[0],
             _ => panic!("expected pane"),
         };
-        assert!(surface.scrollback.as_ref().unwrap().contains("hello"));
+        assert!(
+            surface.scrollback.is_none(),
+            "序列化边界应把旧运行态降为不可恢复输入"
+        );
+
+        let legacy: SurfaceDefinition =
+            serde_json::from_str(r#"{"scrollback":"legacy output","agent":"codex"}"#)
+                .expect("v1 运行态字段仍应可读取以便迁移");
+        assert_eq!(legacy.scrollback.as_deref(), Some("legacy output"));
+        assert_eq!(legacy.agent.as_deref(), Some("codex"));
     }
 
     #[test]
@@ -1769,15 +1787,15 @@ mod tests {
     }
 
     #[test]
-    fn test_session_scrollback_none_omitted_from_json() {
+    fn test_session_scrollback_is_always_omitted_from_json() {
         let surface = SurfaceDefinition {
-            scrollback: None,
+            scrollback: Some("legacy output".to_string()),
             ..Default::default()
         };
         let json = serde_json::to_string(&surface).unwrap();
         assert!(
             !json.contains("scrollback"),
-            "None scrollback should be omitted from JSON"
+            "scrollback is read-only legacy input and must never be written"
         );
     }
 
@@ -2167,6 +2185,7 @@ mod tests {
             active_workspace: 0,
             workspace_grid_page: 0,
             workspaces: vec![WorkspaceSession {
+                id: 1,
                 title: "main".to_string(),
                 cwd: "/home/user".to_string(),
                 layout: Some(LayoutNode::Pane {

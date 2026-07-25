@@ -315,15 +315,21 @@ function Assert-SessionSnapshot {
     )
 
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw "会话文件不存在：$Path" }
-    $session = Get-Content -Raw -Encoding utf8 -LiteralPath $Path | ConvertFrom-Json
+    $rawSession = Get-Content -Raw -Encoding utf8 -LiteralPath $Path
+    $session = $rawSession | ConvertFrom-Json
     $titles = @($session.workspaces | ForEach-Object { [string]$_.title })
+    $workspaceIds = @($session.workspaces | ForEach-Object { [uint64]$_.id })
     $cwdMismatch = @($session.workspaces | Where-Object { [IO.Path]::GetFullPath([string]$_.cwd) -ne $repoRoot })
-    if ([int]$session.version -ne 1) { throw "会话版本应为 1，实际为 $($session.version)。" }
+    if ([int]$session.version -ne 2) { throw "metadata-only 会话版本应为 2，实际为 $($session.version)。" }
     if ($session.workspaces.Count -ne $WorkspaceCount) { throw "会话工作区数量应为 $WorkspaceCount，实际为 $($session.workspaces.Count)。" }
+    if (@($workspaceIds | Where-Object { $_ -eq 0 }).Count -ne 0) { throw '会话存在无效的 0 窗口 ID。' }
+    if (@($workspaceIds | Sort-Object -Unique).Count -ne $WorkspaceCount) { throw '会话窗口 ID 不唯一。' }
     if (($titles -join "`n") -ne ($ExpectedTitles -join "`n")) { throw '会话工作区标题或顺序不一致。' }
     if ($cwdMismatch.Count -ne 0) { throw "存在 $($cwdMismatch.Count) 个工作目录未恢复到绑定目录。" }
     if ([int]$session.active_workspace -ne ($WorkspaceCount - 1)) { throw "活动工作区应为最后一项，实际为 $($session.active_workspace)。" }
     if ([int]$session.workspace_grid_page -ne $ExpectedPage) { throw "矩阵页码应为 $ExpectedPage，实际为 $($session.workspace_grid_page)。" }
+    if ($rawSession -match '"scrollback"\s*:') { throw '新会话不应包含终端 scrollback。' }
+    if ($rawSession -match '"agent"\s*:') { throw '新会话不应包含已结束 Agent 进程状态。' }
     return $session
 }
 
@@ -402,6 +408,11 @@ try {
     if ($secondClose.Remaining.Count -ne 0) { throw '第二次正常退出后仍有残留进程。' }
     Copy-Item -LiteralPath $actualSessionPath -Destination $restoredSessionPath -Force
     $restoredSession = Assert-SessionSnapshot -Path $restoredSessionPath -ExpectedTitles $expectedTitles -ExpectedPage 1
+    $savedWorkspaceIds = @($savedSession.workspaces | ForEach-Object { [uint64]$_.id })
+    $restoredWorkspaceIds = @($restoredSession.workspaces | ForEach-Object { [uint64]$_.id })
+    if (($savedWorkspaceIds -join ',') -ne ($restoredWorkspaceIds -join ',')) {
+        throw '重启前后的稳定窗口 ID 映射不一致。'
+    }
 
     $result = [ordered]@{
         RunId = "真实重启-$timestamp"
@@ -412,8 +423,13 @@ try {
         ExpectedTitles = $expectedTitles
         SavedActiveWorkspace = [int]$savedSession.active_workspace
         SavedWorkspaceGridPage = [int]$savedSession.workspace_grid_page
+        SavedWorkspaceIds = $savedWorkspaceIds
         RestoredActiveWorkspace = [int]$restoredSession.active_workspace
         RestoredWorkspaceGridPage = [int]$restoredSession.workspace_grid_page
+        RestoredWorkspaceIds = $restoredWorkspaceIds
+        StableWorkspaceIdsPreserved = $true
+        MetadataOnlySchemaVersion = [int]$restoredSession.version
+        TerminalRuntimeStateOmitted = $true
         FirstPowerShellProcesses = $firstPowerShell
         RestoredPowerShellProcesses = $afterPowerShell
         PowerShellPidsFullyReplaced = $true

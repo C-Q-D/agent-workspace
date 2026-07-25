@@ -1,8 +1,7 @@
-//! Session persistence for `PaneFlowApp` - save/restore workspace layouts
-//! and their per-pane CWD + scrollback so relaunching rebuilds exactly
-//! what the user had open.
+//! AgentWorkspace 会话持久化：保存/恢复稳定窗口 ID、workspaceRoot、布局和用户选择。
 //!
-//! Extracted from `main.rs` per US-017 of the src-app refactor PRD.
+//! 终端缓冲、PID、句柄和已结束进程状态不属于可恢复元数据；重启只重建新的
+//! PowerShell/ConPTY，不伪装延续旧进程。
 
 use std::collections::VecDeque;
 use std::path::{Component, Path, PathBuf};
@@ -19,7 +18,7 @@ use crate::layout::{LayoutTree, MAX_PANES};
 use crate::limits::MAX_SESSION_SIZE_BYTES;
 use crate::pane::Pane;
 use crate::terminal::TerminalView;
-use crate::workspace::{MAX_WORKSPACES, Workspace, next_workspace_id};
+use crate::workspace::{MAX_WORKSPACES, Workspace, reserve_workspace_id};
 
 /// Cap on the number of `session.json.corrupted-*` backup files retained
 /// alongside the live session. Beyond this, the oldest are deleted on
@@ -73,17 +72,13 @@ pub(crate) struct SessionCorruptionInfo {
 }
 
 impl PaneFlowApp {
-    /// Build the [`SessionState`] snapshot from live app state.
+    /// 从运行态构造只含可恢复元数据的 [`SessionState`]。
     ///
-    /// `terms` selects the scrollback strategy: `Some(vec)` defers the drain
-    /// (terminal handles are collected into `vec` in surface-emission order for
-    /// an off-thread drain - see [`save_session`]); `None` drains inline on the
-    /// calling thread (see [`save_session_blocking`]).
-    fn build_session_state(
-        &self,
-        cx: &App,
-        terms: &mut Option<Vec<crate::terminal::types::SharedTerm>>,
-    ) -> paneflow_config::schema::SessionState {
+    /// 布局序列化使用延迟缓冲入口，但丢弃收集到的终端句柄，并在写盘前清除旧
+    /// Agent 状态。这样保存过程不锁定终端缓冲，也不会把进程退出前的内容或状态
+    /// 当成跨重启会话。
+    fn build_session_state(&self, cx: &App) -> paneflow_config::schema::SessionState {
+        let mut omitted_terminal_handles = Vec::new();
         paneflow_config::schema::SessionState {
             version: paneflow_config::schema::SESSION_SCHEMA_VERSION,
             active_workspace: self.active_idx,
@@ -94,12 +89,12 @@ impl PaneFlowApp {
                 .workspaces
                 .iter()
                 .map(|ws| paneflow_config::schema::WorkspaceSession {
+                    id: ws.id,
                     title: ws.title.clone(),
                     cwd: ws.cwd.clone(),
-                    layout: match terms {
-                        Some(terms) => ws.serialize_layout_deferred(cx, terms),
-                        None => ws.serialize_layout(cx),
-                    },
+                    layout: ws
+                        .serialize_layout_deferred(cx, &mut omitted_terminal_handles)
+                        .map(strip_terminal_runtime_state),
                     custom_buttons: ws.custom_buttons.clone(),
                     // US-007: store expanded dirs relative to the workspace
                     // root. A path that can't be made relative (symlinked
@@ -151,22 +146,18 @@ impl PaneFlowApp {
         }
     }
 
-    /// US-011: persist the session WITHOUT blocking the GPUI main thread.
+    /// 在不阻塞 GPUI 主线程的情况下保存 metadata-only 会话。
     ///
     /// The lightweight metadata snapshot is built here (render thread, cheap),
-    /// terminal handles collected, then the heavy work - per-pane scrollback
-    /// drain, JSON serialize, atomic write - runs on a background task. A burst
+    /// then JSON serialization and atomic write run on a background task. A burst
     /// of saves (e.g. closing 20 workspaces) is coalesced into a single write
-    /// via a monotonic token + short debounce, so the most-recent snapshot
-    /// wins and the render thread never drains scrollback.
+    /// via a monotonic token + short debounce, so the most-recent snapshot wins.
     ///
     /// The quit / pre-update-install paths must use [`save_session_blocking`]
     /// instead - there the write has to land before the process exits or is
     /// replaced, so a deferred task would be lost.
     pub(crate) fn save_session(&self, cx: &App) {
-        let mut terms = Some(Vec::new());
-        let state = self.build_session_state(cx, &mut terms);
-        let terms = terms.unwrap_or_default();
+        let state = self.build_session_state(cx);
         let Some(path) = paneflow_config::loader::session_path() else {
             return;
         };
@@ -184,26 +175,10 @@ impl PaneFlowApp {
                 // latest state; skip this redundant write.
                 return;
             }
-            // `smol::unblock` keeps the scrollback drain + serialize + write off
-            // the background executor's async threads too.
+            // `smol::unblock` keeps serialize + write off the background
+            // executor's async threads too.
             smol::unblock(move || {
-                let mut state = state;
-                let mut terms = terms.into_iter();
-                for ws in state.workspaces.iter_mut() {
-                    if let Some(layout) = ws.layout.as_mut() {
-                        crate::layout::fill_scrollback(layout, &mut terms);
-                    }
-                }
-                // Re-check the token AFTER the (potentially slow) drain, right
-                // before the write. The debounce check above only covers the
-                // sleep window; the drain itself takes real time, during which a
-                // quit-path `save_session_blocking` (or a newer deferred save)
-                // can bump `save_seq`. Without this second check the older
-                // snapshot would `rename` over the final write - the exact
-                // resurrection bug US-011 (c80eba5) set out to close, left open
-                // for the drain sub-window. Both writers also share the
-                // `session.json.tmp` path, so skipping here avoids a concurrent
-                // temp-file clobber too.
+                // 在实际写盘前再次检查令牌，防止退出时的同步快照被较旧后台任务覆盖。
                 write_session_json_if_current(&path, &state, &save_seq, seq);
             })
             .await;
@@ -213,8 +188,7 @@ impl PaneFlowApp {
 
     /// US-011: synchronous session save for the quit / pre-update-install
     /// paths, where a deferred background write would be lost when the process
-    /// exits or is replaced. Drains scrollback inline on the calling thread -
-    /// acceptable because these paths are terminal and rare (one final save).
+    /// exits or is replaced.
     pub(crate) fn save_session_blocking(&self, cx: &App) {
         // Cancel any in-flight deferred save: bump the coalescing token so a
         // background task still sleeping in its debounce wakes to a stale `seq`
@@ -223,7 +197,7 @@ impl PaneFlowApp {
         // resurrecting pre-quit state (e.g. a just-closed workspace).
         self.save_seq
             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        let state = self.build_session_state(cx, &mut None);
+        let state = self.build_session_state(cx);
         let Some(path) = paneflow_config::loader::session_path() else {
             return;
         };
@@ -318,8 +292,13 @@ impl PaneFlowApp {
         };
 
         match serde_json::from_str::<paneflow_config::schema::SessionState>(&data) {
-            Ok(state) if state.version == paneflow_config::schema::SESSION_SCHEMA_VERSION => {
-                (Some(state), None)
+            Ok(state)
+                if matches!(
+                    state.version,
+                    1 | paneflow_config::schema::SESSION_SCHEMA_VERSION
+                ) =>
+            {
+                (Some(migrate_session_state(state)), None)
             }
             Ok(state) => {
                 log::warn!(
@@ -409,7 +388,8 @@ impl PaneFlowApp {
             };
             let cwd = restored_root.workspace_root;
             let title = restored_root.title;
-            let ws_id = next_workspace_id();
+            let ws_id = ws_session.id;
+            reserve_workspace_id(ws_id);
 
             // US-009 AC2 / US-011: `validate_layout` best-effort-caps the leaf
             // budget, but its ">= 2 children" padding re-introduces a bounded
@@ -552,32 +532,10 @@ impl PaneFlowApp {
                         )
                     });
 
-                    if let Some(ref scrollback) = surface.scrollback {
-                        t.read(cx).restore_scrollback(scrollback);
-                    }
                     // US-013: re-apply the persisted custom name.
                     if let Some(ref custom) = surface.custom_name {
                         t.update(cx, |view, _cx| {
                             view.terminal.custom_name = Some(custom.clone());
-                        });
-                    }
-                    // EP-005 US-013: restore the identity pill as a dimmed
-                    // "last known" value. Ingress whitelist: `from_tag` is an
-                    // exact match against the known agent tags, so an
-                    // unknown, oversized, or control-char value from a
-                    // hand-edited session.json maps to `None` and no pill is
-                    // rendered (parity with the US-057/EP-010 invariant -
-                    // session.json is local-only but validated anyway). The
-                    // first scan (0/2 s burst on restore activity) then
-                    // confirms or clears it.
-                    if let Some(agent) = surface
-                        .agent
-                        .as_deref()
-                        .and_then(crate::agent_launcher::TerminalAgent::from_tag)
-                    {
-                        t.update(cx, |view, _cx| {
-                            view.terminal.detected_agent = Some(agent);
-                            view.terminal.agent_confirmed = false;
                         });
                     }
                     // EP-006 US-019: restore the per-pane font zoom through
@@ -614,6 +572,60 @@ impl PaneFlowApp {
 // ---------------------------------------------------------------------------
 // EP-003 ingress-bound helpers (free functions, free of `&self`)
 // ---------------------------------------------------------------------------
+
+/// 清除布局中不能跨进程恢复的终端运行态并返回可落盘布局。
+fn strip_terminal_runtime_state(mut node: LayoutNode) -> LayoutNode {
+    clear_terminal_runtime_state(&mut node);
+    node
+}
+
+/// 递归清除旧版终端缓冲与最后检测进程标签。
+///
+/// 其他字段只描述可重建的布局、目录、标签名和显示偏好，可以继续参与恢复。
+fn clear_terminal_runtime_state(node: &mut LayoutNode) {
+    match node {
+        LayoutNode::Pane { surfaces } => {
+            for surface in surfaces {
+                surface.scrollback = None;
+                surface.agent = None;
+            }
+        }
+        LayoutNode::Split { children, .. } => {
+            for child in children {
+                clear_terminal_runtime_state(child);
+            }
+        }
+    }
+}
+
+/// 把可读取的 v1/v2 会话归一化为当前 metadata-only schema。
+///
+/// v1 没有稳定窗口 ID，因此按磁盘顺序补充最小可用正整数；v2 中手工编辑产生的
+/// 0 或重复 ID 也使用同一规则修复。目录可以重复，因为同一仓库同时运行多个 CLI
+/// 是合法产品行为。
+fn migrate_session_state(
+    mut state: paneflow_config::schema::SessionState,
+) -> paneflow_config::schema::SessionState {
+    let mut used_ids = std::collections::HashSet::new();
+    let mut next_candidate = 1_u64;
+
+    for workspace in &mut state.workspaces {
+        if workspace.id == 0 || !used_ids.insert(workspace.id) {
+            while used_ids.contains(&next_candidate) {
+                next_candidate = next_candidate.saturating_add(1);
+            }
+            workspace.id = next_candidate;
+            used_ids.insert(next_candidate);
+        }
+        next_candidate = next_candidate.max(workspace.id.saturating_add(1));
+
+        if let Some(layout) = workspace.layout.as_mut() {
+            clear_terminal_runtime_state(layout);
+        }
+    }
+    state.version = paneflow_config::schema::SESSION_SCHEMA_VERSION;
+    state
+}
 
 #[derive(Debug, PartialEq, Eq)]
 enum SessionRead {
@@ -1091,6 +1103,125 @@ mod tests {
         );
     }
 
+    /// v1 会话必须无损迁移可恢复元数据，同时丢弃终端缓冲和已结束进程标签。
+    #[test]
+    fn legacy_session_migrates_to_metadata_only_schema() {
+        let tmp = tempfile::tempdir().expect("应能创建临时目录");
+        let session_path = tmp.path().join("workspaces.json");
+        let shared_root = tmp.path().join("shared-repo");
+        let contents = serde_json::json!({
+            "version": 1,
+            "active_workspace": 1,
+            "workspaces": [
+                {
+                    "title": "Codex",
+                    "cwd": shared_root,
+                    "reference_format": "common",
+                    "layout": {
+                        "type": "split",
+                        "direction": "horizontal",
+                        "children": [
+                            {
+                                "type": "pane",
+                                "surfaces": [{
+                                    "surface_type": "terminal",
+                                    "cwd": shared_root,
+                                    "scrollback": "secret terminal output",
+                                    "agent": "codex"
+                                }]
+                            },
+                            {
+                                "type": "pane",
+                                "surfaces": [{"surface_type": "terminal", "cwd": shared_root}]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "title": "Claude",
+                    "cwd": shared_root,
+                    "reference_format": "claude",
+                    "layout": null
+                }
+            ]
+        });
+        std::fs::write(
+            &session_path,
+            serde_json::to_vec_pretty(&contents).expect("应能生成旧会话"),
+        )
+        .expect("应能写入旧会话");
+
+        let (state, corruption) = PaneFlowApp::load_session_at(&session_path);
+
+        assert!(corruption.is_none(), "受支持的 v1 迁移不是损坏");
+        let state = state.expect("v1 应迁移为当前会话");
+        assert_eq!(
+            state.version,
+            paneflow_config::schema::SESSION_SCHEMA_VERSION
+        );
+        assert_eq!(state.active_workspace, 1);
+        assert_eq!(state.workspaces.len(), 2);
+        assert_ne!(state.workspaces[0].id, 0);
+        assert_ne!(state.workspaces[0].id, state.workspaces[1].id);
+        assert_eq!(
+            state.workspaces[0].cwd, state.workspaces[1].cwd,
+            "同一仓库允许保留多个独立 CLI 窗口"
+        );
+        assert_eq!(state.workspaces[0].reference_format, "common");
+        assert_eq!(state.workspaces[1].reference_format, "claude");
+        let layout = state.workspaces[0].layout.as_ref().expect("布局应保留");
+        assert_eq!(layout.leaf_count(), 2);
+        let LayoutNode::Split { children, .. } = layout else {
+            panic!("应保留双窗格布局");
+        };
+        let LayoutNode::Pane { surfaces } = &children[0] else {
+            panic!("首个子节点应为终端窗格");
+        };
+        assert!(surfaces[0].scrollback.is_none());
+        assert!(surfaces[0].agent.is_none());
+    }
+
+    /// v2 的有效 ID 必须保持，缺失或重复 ID 只修复冲突条目。
+    #[test]
+    fn current_session_preserves_ids_and_repairs_invalid_entries() {
+        let tmp = tempfile::tempdir().expect("应能创建临时目录");
+        let session_path = tmp.path().join("workspaces.json");
+        let contents = serde_json::json!({
+            "version": paneflow_config::schema::SESSION_SCHEMA_VERSION,
+            "active_workspace": 0,
+            "workspaces": [
+                {"id": 41, "title": "A", "cwd": "C:\\repo", "layout": null},
+                {"id": 41, "title": "B", "cwd": "C:\\repo", "layout": null},
+                {"id": 0, "title": "C", "cwd": "C:\\repo", "layout": null}
+            ]
+        });
+        std::fs::write(
+            &session_path,
+            serde_json::to_vec_pretty(&contents).expect("应能生成当前会话"),
+        )
+        .expect("应能写入当前会话");
+
+        let (state, corruption) = PaneFlowApp::load_session_at(&session_path);
+
+        assert!(corruption.is_none());
+        let ids: Vec<u64> = state
+            .expect("当前会话应可读取")
+            .workspaces
+            .into_iter()
+            .map(|workspace| workspace.id)
+            .collect();
+        assert_eq!(ids[0], 41, "首个有效稳定 ID 不应变化");
+        assert_eq!(
+            ids.iter()
+                .copied()
+                .collect::<std::collections::HashSet<_>>()
+                .len(),
+            3,
+            "恢复边界不得留下重复 ID"
+        );
+        assert!(ids.iter().all(|id| *id != 0));
+    }
+
     #[test]
     fn corruption_backup_names_do_not_collide_within_same_second() {
         let tmp = tempfile::tempdir().expect("tempdir");
@@ -1255,25 +1386,18 @@ mod tests {
         );
     }
 
-    /// Regression guard for the US-011 quit-path race (c80eba5 + the
-    /// drain-window follow-up): a deferred save that passed its debounce check
-    /// must STILL skip its write if `save_session_blocking` bumped the token
-    /// while the scrollback drain was running. Mirrors the re-check now placed
-    /// immediately before `write_session_json` inside the `smol::unblock` body.
+    /// 退出竞态回归：后台保存通过 debounce 后，如果同步退出快照在 JSON
+    /// 序列化或调度窗口内推进令牌，旧快照仍必须在写盘前退出。
     #[test]
-    fn deferred_save_skips_write_when_superseded_during_drain() {
+    fn deferred_save_skips_write_when_superseded_before_disk_write() {
         use std::sync::atomic::{AtomicU64, Ordering::SeqCst};
 
         let save_seq = AtomicU64::new(0);
         // A deferred save is scheduled and passes its post-debounce check.
         let deferred = save_seq.fetch_add(1, SeqCst) + 1;
-        assert_eq!(
-            save_seq.load(SeqCst),
-            deferred,
-            "deferred is latest pre-drain"
-        );
+        assert_eq!(save_seq.load(SeqCst), deferred, "后台保存开始时是最新快照");
 
-        // While it drains, a quit-path `save_session_blocking` bumps the token.
+        // 后台任务真正写盘前，同步退出快照推进令牌。
         save_seq.fetch_add(1, SeqCst);
 
         // The pre-write re-check inside `smol::unblock` must now observe the

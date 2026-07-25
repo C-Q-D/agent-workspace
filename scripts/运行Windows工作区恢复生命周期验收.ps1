@@ -30,8 +30,11 @@ $existingGitRoot = Join-Path $fixtureRoot '已有Git'
 $nonGitRoot = Join-Path $fixtureRoot '非Git'
 $missingRoot = Join-Path $fixtureRoot '已失效'
 $launchRoot = Join-Path $fixtureRoot '启动目录'
-$actualConfigPath = Join-Path ([Environment]::GetFolderPath('ApplicationData')) 'paneflow\paneflow.json'
-$actualSessionPath = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'paneflow\session.json'
+$dataRoot = Join-Path $env:USERPROFILE '.agent-workspace'
+$actualConfigPath = Join-Path $dataRoot 'config\settings.json'
+$actualSessionPath = Join-Path $dataRoot 'sessions\workspaces.json'
+$pipeName = "agent-workspace-lifecycle-$timestamp"
+$pipePath = "\\.\pipe\$pipeName"
 $configBackupPath = Join-Path $stateDirectory '用户配置.json'
 $sessionBackupPath = Join-Path $stateDirectory '用户会话.json'
 $inputSessionPath = Join-Path $runDirectory '混合恢复输入会话.json'
@@ -52,7 +55,7 @@ function Invoke-PaneflowRpc {
     <# 使用生产命名管道协议执行一次真实 JSON-RPC 调用。 #>
     param([Parameter(Mandatory = $true)][string]$Method, [object]$Params = @{})
 
-    $pipe = [IO.Pipes.NamedPipeClientStream]::new('.', 'paneflow', [IO.Pipes.PipeDirection]::InOut)
+    $pipe = [IO.Pipes.NamedPipeClientStream]::new('.', $pipeName, [IO.Pipes.PipeDirection]::InOut)
     try {
         $pipe.Connect(5000)
         $utf8 = [Text.UTF8Encoding]::new($false)
@@ -138,7 +141,7 @@ function Stop-TestApp {
 
 function Initialize-IsolatedState {
     <# 暂存用户真实状态并写入本轮独立配置。 #>
-    if (Get-Process paneflow -ErrorAction SilentlyContinue) { throw '开始验收前仍存在 paneflow 进程。' }
+    if (Get-Process agent-workspace -ErrorAction SilentlyContinue) { throw '开始验收前仍存在 AgentWorkspace 进程。' }
     $script:hadConfig = Test-Path -LiteralPath $actualConfigPath -PathType Leaf
     $script:hadSession = Test-Path -LiteralPath $actualSessionPath -PathType Leaf
     New-Item -ItemType Directory -Force -Path (Split-Path $actualConfigPath -Parent), (Split-Path $actualSessionPath -Parent) | Out-Null
@@ -219,6 +222,7 @@ try {
     Initialize-IsolatedState
     Write-MixedSession
     $env:PANEFLOW_NO_TELEMETRY = '1'
+    $env:PANEFLOW_SOCKET_PATH = $pipePath
     $env:PANEFLOW_IPC_SCRIPTING = '1'
 
     $first = Start-And-AssertRestore
@@ -229,12 +233,20 @@ try {
     Copy-Item -LiteralPath $actualSessionPath -Destination $savedSessionPath -Force
     $saved = Get-Content -LiteralPath $savedSessionPath -Raw -Encoding utf8 | ConvertFrom-Json
     if (@($saved.workspaces).Count -ne 2) { throw '首次退出会话仍包含失效工作区。' }
+    if ([int]$saved.version -ne 2) { throw '旧 v1 会话没有升级为 metadata-only v2。' }
+    $savedIds = @($saved.workspaces | ForEach-Object { [uint64]$_.id })
+    if (@($savedIds | Where-Object { $_ -eq 0 }).Count -ne 0 -or @($savedIds | Sort-Object -Unique).Count -ne 2) {
+        throw '迁移后的稳定窗口 ID 无效或重复。'
+    }
 
     $second = Start-And-AssertRestore
     $secondProcess = $second.Process
     $second.Workspaces | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $secondListPath -Encoding utf8
     $secondTracked = Stop-TestApp -Process $secondProcess
     $secondProcess = $null
+    $secondSaved = Get-Content -LiteralPath $actualSessionPath -Raw -Encoding utf8 | ConvertFrom-Json
+    $secondIds = @($secondSaved.workspaces | ForEach-Object { [uint64]$_.id })
+    if (($savedIds -join ',') -ne ($secondIds -join ',')) { throw '第二次重启没有保持稳定窗口 ID。' }
 
     $origin = (& git -C $existingGitRoot remote get-url origin).Trim()
     $nonGitRemotes = @(& git -C $nonGitRoot remote)
@@ -250,6 +262,8 @@ try {
         RestoredWorkspaceCount = 2
         RestoredTitles = @($second.Workspaces.title)
         ActiveTitle = [string](@($second.Workspaces | Where-Object active)[0].title)
+        MigratedSchemaVersion = [int]$secondSaved.version
+        StableWorkspaceIds = $secondIds
         ExistingGitRoot = $existingGitRoot
         NonGitRoot = $nonGitRoot
         MissingRoot = $missingRoot

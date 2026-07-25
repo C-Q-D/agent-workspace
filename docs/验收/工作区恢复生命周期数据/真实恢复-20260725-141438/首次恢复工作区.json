@@ -1,0 +1,22 @@
+[
+  {
+    "index": 0,
+    "workspace_id": 1,
+    "title": "已有 Git",
+    "cwd": "F:\\AWRestoreLifecycle-20260725-141438\\已有Git",
+    "panes": 1,
+    "terminal_status": "running",
+    "reference_format": "common",
+    "active": false
+  },
+  {
+    "index": 1,
+    "workspace_id": 3,
+    "title": "非 Git",
+    "cwd": "F:\\AWRestoreLifecycle-20260725-141438\\非Git",
+    "panes": 1,
+    "terminal_status": "running",
+    "reference_format": "common",
+    "active": true
+  }
+]
