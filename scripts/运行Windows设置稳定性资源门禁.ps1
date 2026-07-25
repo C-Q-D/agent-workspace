@@ -597,9 +597,18 @@ function Invoke-Scenario {
             -RedirectStandardOutput (Join-Path $ScenarioDirectory '标准输出.txt') `
             -RedirectStandardError (Join-Path $ScenarioDirectory '错误输出.txt') `
             -PassThru
-        Wait-AppReady -Process $Process -PipeName $PipeName
-        $ReadyMilliseconds = [Math]::Round($LaunchClock.Elapsed.TotalMilliseconds, 3)
+        # 冷启动采样必须在 IPC 就绪前开始，否则只能得到“启动后空载”而非启动峰值。
+        $ColdSamplingStartedMilliseconds = [Math]::Round(
+            $LaunchClock.Elapsed.TotalMilliseconds,
+            3
+        )
         $Cold = Measure-ResourcePhase -Process $Process -Phase 'cold-start'
+        Wait-AppReady -Process $Process -PipeName $PipeName
+        # 采样期间不做高频 IPC 探测，因此这里只记录就绪观察上界，不冒充精确启动延迟。
+        $ReadyObservationUpperBoundMilliseconds = [Math]::Round(
+            $LaunchClock.Elapsed.TotalMilliseconds,
+            3
+        )
 
         for ($Index = 1; $Index -le $TerminalCount; $Index++) {
             Invoke-AgentWorkspaceRpc -PipeName $PipeName -Method 'workspace.create' -Params @{
@@ -703,7 +712,9 @@ function Invoke-Scenario {
         $Process = $null
         return [ordered]@{
             terminalCount = $TerminalCount
-            appReadyMilliseconds = $ReadyMilliseconds
+            coldStartSamplingBeganBeforeAppReady = $true
+            coldSamplingStartedMilliseconds = $ColdSamplingStartedMilliseconds
+            appReadyObservationUpperBoundMilliseconds = $ReadyObservationUpperBoundMilliseconds
             restartReadyMilliseconds = $RestartReadyMilliseconds
             settings = [ordered]@{
                 keys = $ExpectedSettings
@@ -773,6 +784,9 @@ $Scenarios = @()
 foreach ($Count in $ExpectedTerminalCounts) {
     $Scenarios += Invoke-Scenario -TerminalCount $Count
 }
+$OperatingSystem = Get-CimInstance Win32_OperatingSystem
+$ComputerSystem = Get-CimInstance Win32_ComputerSystem
+$Processor = @(Get-CimInstance Win32_Processor | Select-Object -First 1)
 $PhaseContractsPassed = @($Scenarios | Where-Object {
     (($_.resources.phases | ForEach-Object { $_.name }) -join ',') -ne
         ($ExpectedPhases -join ',')
@@ -787,6 +801,19 @@ $Summary = [ordered]@{
         sha256 = (Get-FileHash -LiteralPath $Binary -Algorithm SHA256).Hash.ToLowerInvariant()
         version = (& $Binary --version 2>&1 | Out-String).Trim()
     }
+    environment = [ordered]@{
+        osCaption = [string]$OperatingSystem.Caption
+        osVersion = [string]$OperatingSystem.Version
+        osBuildNumber = [string]$OperatingSystem.BuildNumber
+        osArchitecture = [string]$OperatingSystem.OSArchitecture
+        totalPhysicalMemoryGiB = [Math]::Round(
+            [double]$ComputerSystem.TotalPhysicalMemory / 1GB,
+            3
+        )
+        processorName = [string]$Processor.Name
+        logicalProcessorCount = [Environment]::ProcessorCount
+        powershellVersion = $PSVersionTable.PSVersion.ToString()
+    }
     contract = $Contract
     scenarios = $Scenarios
     checks = [ordered]@{
@@ -797,6 +824,9 @@ $Summary = [ordered]@{
         phaseOrderExact = $PhaseContractsPassed
         settingsKeysExact = @($ExpectedSettings | Sort-Object -Unique).Count -eq 10
         hostShellCliSeparated = $true
+        coldStartMeasuredBeforeReady = @($Scenarios | Where-Object {
+            -not $_.coldStartSamplingBeganBeforeAppReady
+        }).Count -eq 0
         allContextLoaded = @($Scenarios | Where-Object {
             -not $_.context.fileExists -or
             -not $_.context.gitRepository -or
