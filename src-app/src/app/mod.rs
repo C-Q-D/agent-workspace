@@ -46,3 +46,7 @@ pub mod workspace_focus;
 pub mod workspace_grid;
 pub mod workspace_lifecycle;
 pub mod workspace_ops;
+
+// A021 的会话所有权契约只在测试构建中存在；生产聚合对象由 A022 引入。
+#[cfg(test)]
+mod window_session_contract;

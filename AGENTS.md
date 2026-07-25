@@ -127,10 +127,10 @@ cargo test -p paneflow-app --test flex_nchild
 cargo fmt --all -- --check
 ```
 
-2026-07-25 的 A020 可重复基线为：
+2026-07-25 的 A021 可重复基线为：
 
 - `paneflow-config`：113 passed。
-- `paneflow-app` unit：1471 passed。
+- `paneflow-app` unit：1476 passed，另有 2 条 A022/A024 目标态红灯显式忽略。
 - `flex_nchild`：5 passed。
 
 该数字只代表基线，不是永久成功标准。每次记录测试结果必须使用当前命令输出，不能复制旧计数。
@@ -185,6 +185,7 @@ fixture 验证错误路径，但 ConPTY、真实 Git、GUI、安装包和 CLI �
 - 项目阶段记录：标准路线阶段与历史。
 - v1 原子任务方案：A001～A142 的唯一执行顺序和完成标准。
 
-当前检查点：A001～A020 已完成；最近三个原子为 A018 `f798aa3`、A019 `04ad7bc` 和
-A020（使用 `git log -1 -- docs/当前开发状态.md` 定位本检查点提交）。展示状态只剩
-`DisplayState` 一个事实源，9/16 矩阵、Review 与 20 工作区恢复总回归通过；下一原子为 A021。
+当前检查点：A001～A021 已完成；最近三个原子为 A019 `04ad7bc`、A020 `a10d234` 和
+A021（使用 `git log -1 -- docs/当前开发状态.md` 定位本检查点提交）。展示状态只剩
+`DisplayState` 一个事实源；WindowSession 的现状契约与 A022/A024 目标态红灯已固化；
+下一原子为 A022。
