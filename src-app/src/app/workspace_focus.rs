@@ -1,19 +1,16 @@
 //! 聚焦工作区上下文。
 //!
-//! 本模块把应用级放大状态、稳定工作区目录、文件引用目标终端以及恢复矩阵时的
-//! 定位目标收敛为一个进程内状态对象。它不负责 UI、文件扫描或进程生命周期，
-//! 只维护这些消费者共同依赖的不变量，避免切换工作区时分别更新多个松散字段。
+//! 本模块把应用级放大状态、稳定会话 ID、文件引用目标终端以及恢复矩阵时的定位
+//! 目标收敛为一个进程内状态对象。稳定目录始终从 ID 对应的 `WindowSession`
+//! 派生；本模块不复制 root，也不负责 UI、文件扫描或进程生命周期。
 
 use crate::{PaneFlowApp, SettingsSection};
-use std::path::{Path, PathBuf};
 
 /// 当前被应用级放大的稳定工作区上下文。
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct FocusedWorkspaceContext {
     /// 创建工作区时分配的稳定 ID；重命名和索引变化不会改变它。
     workspace_id: u64,
-    /// 工作区创建时绑定的稳定目录；不跟随终端内部临时 `cd`。
-    workspace_root: PathBuf,
     /// 文件引用应注入的真实终端 Surface；面板尚未绑定时为空。
     terminal_surface_id: Option<u64>,
 }
@@ -73,8 +70,6 @@ pub(crate) enum DisplayCommand {
     FocusWorkspace {
         /// 目标工作区稳定 ID。
         workspace_id: u64,
-        /// 目标工作区创建时绑定的稳定目录。
-        workspace_root: PathBuf,
     },
     /// 主动返回动态终端矩阵。
     RestoreGrid,
@@ -183,17 +178,13 @@ impl DisplayState {
         command: DisplayCommand,
     ) -> Result<DisplayTransition, DisplayTransitionError> {
         match command {
-            DisplayCommand::FocusWorkspace {
-                workspace_id,
-                workspace_root,
-            } => {
+            DisplayCommand::FocusWorkspace { workspace_id } => {
                 let terminal_surface_id = self
                     .focused_context()
                     .filter(|context| context.workspace_id == workspace_id)
                     .and_then(|context| context.terminal_surface_id);
                 let context = FocusedWorkspaceContext {
                     workspace_id,
-                    workspace_root,
                     terminal_surface_id,
                 };
                 let next = if matches!(self.workspace_state(), WorkspaceDisplayState::Review(_)) {
@@ -301,12 +292,9 @@ impl DisplayState {
     ///
     /// 切换到另一个稳定 ID 时必须清除旧终端 Surface，防止把 B 工作区的文件引用
     /// 注入 A 的 CLI。重复对齐同一工作区时保留 Surface，避免无意义地丢失绑定。
-    pub(crate) fn focus(&mut self, workspace_id: u64, workspace_root: impl Into<PathBuf>) {
-        self.transition(DisplayCommand::FocusWorkspace {
-            workspace_id,
-            workspace_root: workspace_root.into(),
-        })
-        .expect("聚焦命令在工作区表面和 Settings 返回状态中都合法");
+    pub(crate) fn focus(&mut self, workspace_id: u64) {
+        self.transition(DisplayCommand::FocusWorkspace { workspace_id })
+            .expect("聚焦命令在工作区表面和 Settings 返回状态中都合法");
     }
 
     /// 退出聚焦态并记录矩阵应重新显示的稳定工作区。
@@ -395,12 +383,6 @@ impl DisplayState {
         self.focused_context().map(|context| context.workspace_id)
     }
 
-    /// 返回当前聚焦工作区的稳定绑定目录。
-    pub(crate) fn workspace_root(&self) -> Option<&Path> {
-        self.focused_context()
-            .map(|context| context.workspace_root.as_path())
-    }
-
     /// 返回文件引用当前绑定的终端 Surface。
     pub(crate) fn terminal_surface_id(&self) -> Option<u64> {
         self.focused_context()
@@ -428,6 +410,17 @@ impl PaneFlowApp {
     ) -> Result<DisplayTransition, DisplayTransitionError> {
         self.workspace_focus.transition(command)
     }
+
+    /// 返回当前聚焦 ID 对应的唯一 WindowSession 所属工作区。
+    ///
+    /// `active_idx` 只是列表导航位置，不能作为文件/Git 上下文身份；即使短暂重排或
+    /// 异步回调发生，本方法也只按稳定会话 ID 命中目标。
+    pub(crate) fn active_context_workspace(&self) -> Option<&crate::workspace::Workspace> {
+        let workspace_id = self.workspace_focus.workspace_id()?;
+        self.workspaces
+            .iter()
+            .find(|workspace| workspace.id == workspace_id)
+    }
 }
 
 #[cfg(test)]
@@ -436,7 +429,6 @@ mod tests {
         DisplayCommand, DisplayState, DisplaySurface, DisplayTransition, DisplayTransitionError,
     };
     use crate::SettingsSection;
-    use std::path::Path;
 
     /// A015 的第一条红灯在新模型中变为明确拒绝，且失败不改变原状态。
     #[test]
@@ -454,7 +446,7 @@ mod tests {
     #[test]
     fn display_state_must_not_allow_settings_over_review() {
         let mut state = DisplayState::default();
-        state.focus(41, r"C:\repo-a");
+        state.focus(41);
         state.enter_review().expect("聚焦态应能进入 Review");
         state.open_settings(SettingsSection::General);
 
@@ -472,8 +464,8 @@ mod tests {
         let mut right = DisplayState::default();
         assert_eq!(left, right);
 
-        left.focus(41, r"C:\repo-a");
-        right.focus(41, r"C:\repo-a");
+        left.focus(41);
+        right.focus(41);
         assert_eq!(left, right);
         assert_eq!(left.surface(), DisplaySurface::Focused);
 
@@ -501,18 +493,12 @@ mod tests {
                 DisplaySurface::Grid,
             ),
             (
-                DisplayCommand::FocusWorkspace {
-                    workspace_id: 41,
-                    workspace_root: r"C:\repo-a".into(),
-                },
+                DisplayCommand::FocusWorkspace { workspace_id: 41 },
                 DisplayTransition::Changed,
                 DisplaySurface::Focused,
             ),
             (
-                DisplayCommand::FocusWorkspace {
-                    workspace_id: 41,
-                    workspace_root: r"C:\repo-a".into(),
-                },
+                DisplayCommand::FocusWorkspace { workspace_id: 41 },
                 DisplayTransition::Unchanged,
                 DisplaySurface::Focused,
             ),
@@ -527,10 +513,7 @@ mod tests {
                 DisplaySurface::Review,
             ),
             (
-                DisplayCommand::FocusWorkspace {
-                    workspace_id: 72,
-                    workspace_root: r"C:\repo-b".into(),
-                },
+                DisplayCommand::FocusWorkspace { workspace_id: 72 },
                 DisplayTransition::Changed,
                 DisplaySurface::Review,
             ),
@@ -614,28 +597,25 @@ mod tests {
     #[test]
     fn workspace_lifecycle_can_retarget_under_settings_without_closing_overlay() {
         let mut state = DisplayState::default();
-        state.focus(41, r"C:\repo-a");
+        state.focus(41);
         state.open_settings(SettingsSection::General);
 
         assert_eq!(
-            state.transition(DisplayCommand::FocusWorkspace {
-                workspace_id: 72,
-                workspace_root: r"C:\repo-b".into(),
-            }),
+            state.transition(DisplayCommand::FocusWorkspace { workspace_id: 72 }),
             Ok(DisplayTransition::Changed)
         );
         assert_eq!(state.surface(), DisplaySurface::Settings);
         assert_eq!(state.workspace_id(), Some(72));
         assert!(state.close_settings());
         assert_eq!(state.surface(), DisplaySurface::Focused);
-        assert_eq!(state.workspace_root(), Some(Path::new(r"C:\repo-b")));
+        assert_eq!(state.workspace_id(), Some(72));
     }
 
     /// 工作区生命周期清空命令可在设置页内更新返回状态，但不抢走可见设置页。
     #[test]
     fn clearing_workspace_under_settings_keeps_overlay_and_returns_to_grid() {
         let mut state = DisplayState::default();
-        state.focus(41, r"C:\repo-a");
+        state.focus(41);
         state.open_settings(SettingsSection::General);
 
         assert_eq!(
@@ -649,30 +629,26 @@ mod tests {
     }
 
     #[test]
-    fn switching_workspace_replaces_root_and_drops_stale_surface() {
+    fn switching_workspace_replaces_identity_and_drops_stale_surface() {
         let mut state = DisplayState::default();
-        state.focus(41, r"C:\repo-a");
+        state.focus(41);
         state.set_terminal_surface_id(Some(4101));
 
-        state.focus(72, r"C:\repo-b");
+        state.focus(72);
 
         assert_eq!(state.workspace_id(), Some(72));
-        assert_eq!(state.workspace_root(), Some(Path::new(r"C:\repo-b")));
         assert_eq!(state.terminal_surface_id(), None);
     }
 
     #[test]
     fn reconciling_same_workspace_preserves_surface_binding() {
         let mut state = DisplayState::default();
-        state.focus(41, r"C:\repo-a");
+        state.focus(41);
         state.set_terminal_surface_id(Some(4101));
 
-        state.focus(41, r"C:\repo-a-renamed");
+        state.focus(41);
 
-        assert_eq!(
-            state.workspace_root(),
-            Some(Path::new(r"C:\repo-a-renamed"))
-        );
+        assert_eq!(state.workspace_id(), Some(41));
         assert_eq!(state.terminal_surface_id(), Some(4101));
     }
 
@@ -681,7 +657,7 @@ mod tests {
         let mut state = DisplayState::default();
         assert!(!state.restore_grid());
 
-        state.focus(41, r"C:\repo-a");
+        state.focus(41);
         assert!(state.restore_grid());
         assert!(!state.is_focused());
         assert_eq!(state.take_reveal_workspace_id(), Some(41));
@@ -692,13 +668,12 @@ mod tests {
     #[test]
     fn refocusing_after_restore_cancels_stale_grid_reveal() {
         let mut state = DisplayState::default();
-        state.focus(41, r"C:\repo-a");
+        state.focus(41);
         assert!(state.restore_grid());
 
-        state.focus(72, r"C:\repo-b");
+        state.focus(72);
 
         assert_eq!(state.workspace_id(), Some(72));
-        assert_eq!(state.workspace_root(), Some(Path::new(r"C:\repo-b")));
         assert_eq!(state.take_reveal_workspace_id(), None);
     }
 
@@ -706,14 +681,13 @@ mod tests {
     #[test]
     fn clearing_focused_workspace_drops_all_active_context() {
         let mut state = DisplayState::default();
-        state.focus(41, r"C:\repo-a");
+        state.focus(41);
         state.set_terminal_surface_id(Some(4101));
 
         state.clear();
 
         assert!(!state.is_focused());
         assert_eq!(state.workspace_id(), None);
-        assert_eq!(state.workspace_root(), None);
         assert_eq!(state.terminal_surface_id(), None);
         assert_eq!(state.take_reveal_workspace_id(), None);
     }

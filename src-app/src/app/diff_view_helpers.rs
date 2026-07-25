@@ -76,11 +76,11 @@ impl PaneFlowApp {
         worktrees
     }
 
-    /// US-011: the active workspace as a single-element worktree seed (Project
-    /// scope). Empty when there is no active workspace. Pure in-memory read.
+    /// US-011: the focused WindowSession workspace as a single-element worktree
+    /// seed（Project scope）。矩阵态或焦点 ID 已失效时为空；不从 `active_idx`
+    /// 推测右侧审查上下文。
     pub(crate) fn collect_project_worktrees(&self) -> Vec<crate::diff::DiffWorktree> {
-        self.workspaces
-            .get(self.active_idx)
+        self.active_context_workspace()
             .map(|ws| {
                 vec![crate::diff::DiffWorktree {
                     path: ws.worktree_root.clone(),

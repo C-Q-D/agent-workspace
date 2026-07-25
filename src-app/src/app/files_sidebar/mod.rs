@@ -196,15 +196,16 @@ impl PaneFlowApp {
             self.close_files_sidebar(cx);
             return;
         }
-        let Some(ws) = self.workspaces.get(self.active_idx) else {
-            return;
-        };
-        let Some(root) = self.workspace_focus.workspace_root().map(PathBuf::from) else {
+        let Some((root, persisted)) = self.active_context_workspace().map(|workspace| {
+            (
+                workspace.workspace_root().to_path_buf(),
+                workspace.files_expanded.clone(),
+            )
+        }) else {
             return;
         };
         // US-007: restore this workspace's expansion (held on the Workspace,
         // so it survives a previous close within the session and a restart).
-        let persisted = ws.files_expanded.clone();
 
         // Mutual exclusion: only one right column is ever visible.
         if self.agent_sessions.sessions_sidebar_open
@@ -319,10 +320,12 @@ impl PaneFlowApp {
         if !self.files_sidebar_open {
             return;
         }
-        let Some(ws) = self.workspaces.get(self.active_idx) else {
-            return;
-        };
-        let Some(root) = self.workspace_focus.workspace_root().map(PathBuf::from) else {
+        let Some((root, persisted)) = self.active_context_workspace().map(|workspace| {
+            (
+                workspace.workspace_root().to_path_buf(),
+                workspace.files_expanded.clone(),
+            )
+        }) else {
             return;
         };
         if self.files_tree.root == root {
@@ -330,7 +333,6 @@ impl PaneFlowApp {
         }
         // 行选择状态只属于原 workspaceRoot；切换放大目标时不得保留旧文件视图。
         self.files_line_picker = None;
-        let persisted = ws.files_expanded.clone();
         // US-018: re-root off the render thread.
         self.spawn_files_hydration(root, persisted, cx);
     }

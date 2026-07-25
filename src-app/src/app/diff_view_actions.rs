@@ -178,7 +178,7 @@ impl PaneFlowApp {
         self.save_session(cx);
     }
 
-    /// (Re)point the mounted diff host to the active workspace's `repo_root` and
+    /// (Re)point the mounted diff host to the focused WindowSession's `repo_root` and
     /// the active scope. US-016 warm-resume: rather than destroy + cold-rebuild
     /// every time, this parks the currently-displayed host (suspending its
     /// watchers while the cache retains its computed rows), prunes hosts of
@@ -196,8 +196,7 @@ impl PaneFlowApp {
         self.prune_diff_cache();
 
         let repo_root = self
-            .workspaces
-            .get(self.active_idx)
+            .active_context_workspace()
             .and_then(|ws| ws.repo_root.clone());
 
         match self.diff_mode.diff_scope {
@@ -531,8 +530,7 @@ impl PaneFlowApp {
     /// is meaningless (mirrors [`Self::toggle_chosen_worktree`]'s empty guard).
     fn deselect_diff_worktree(&mut self, path: String, cx: &mut Context<Self>) {
         let Some(root) = self
-            .workspaces
-            .get(self.active_idx)
+            .active_context_workspace()
             .and_then(|ws| ws.repo_root.clone())
         else {
             return;

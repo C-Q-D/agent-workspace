@@ -27,26 +27,23 @@ fn created_session_keeps_one_stable_identity_and_workspace_root() {
 #[test]
 fn view_switches_preserve_session_identity_and_workspace_root() {
     let mut state = DisplayState::default();
-    state.focus(41, r"C:\repo-a");
+    state.focus(41);
     state.set_terminal_surface_id(Some(4101));
 
     state.enter_review().expect("聚焦会话应能进入 Review");
     assert_eq!(state.surface(), DisplaySurface::Review);
     assert_eq!(state.workspace_id(), Some(41));
-    assert_eq!(state.workspace_root(), Some(Path::new(r"C:\repo-a")));
     assert_eq!(state.terminal_surface_id(), Some(4101));
 
     state.open_settings(SettingsSection::General);
     assert_eq!(state.surface(), DisplaySurface::Settings);
     assert_eq!(state.workspace_id(), Some(41));
-    assert_eq!(state.workspace_root(), Some(Path::new(r"C:\repo-a")));
     assert_eq!(state.terminal_surface_id(), Some(4101));
 
     assert!(state.close_settings());
     state.exit_review().expect("Review 应返回同一聚焦会话");
     assert_eq!(state.surface(), DisplaySurface::Focused);
     assert_eq!(state.workspace_id(), Some(41));
-    assert_eq!(state.workspace_root(), Some(Path::new(r"C:\repo-a")));
     assert_eq!(state.terminal_surface_id(), Some(4101));
 }
 
@@ -54,12 +51,11 @@ fn view_switches_preserve_session_identity_and_workspace_root() {
 #[test]
 fn focus_switch_and_close_leave_at_most_one_active_context() {
     let mut state = DisplayState::default();
-    state.focus(41, r"C:\repo-a");
+    state.focus(41);
     state.set_terminal_surface_id(Some(4101));
 
-    state.focus(72, r"C:\repo-b");
+    state.focus(72);
     assert_eq!(state.workspace_id(), Some(72));
-    assert_eq!(state.workspace_root(), Some(Path::new(r"C:\repo-b")));
     assert_eq!(
         state.terminal_surface_id(),
         None,
@@ -69,7 +65,6 @@ fn focus_switch_and_close_leave_at_most_one_active_context() {
     state.clear();
     assert_eq!(state.surface(), DisplaySurface::Grid);
     assert_eq!(state.workspace_id(), None);
-    assert_eq!(state.workspace_root(), None);
     assert_eq!(state.terminal_surface_id(), None);
 }
 
@@ -189,16 +184,33 @@ fn create_restart_and_close_use_window_session_lifecycle_entries() {
     );
 }
 
-/// A024 的目标态红灯：活动文件/Git 上下文必须从会话派生，不能再保存第二份 root。
-///
-/// A024 完成后应以真实 ActiveContext API 替换源码检查并移除忽略。
+/// 活动文件/Git 上下文只保存会话 ID，稳定 root 由应用从 WindowSession 派生。
 #[test]
-#[ignore = "A024 将让 ActiveContext 只从当前聚焦 WindowSession 派生"]
 fn active_context_must_not_own_a_duplicate_workspace_root() {
     let focus_source = include_str!("workspace_focus.rs");
+    let files_source = include_str!("files_sidebar/mod.rs");
+    let diff_source = include_str!("diff_view_actions.rs");
+    let diff_helpers_source = include_str!("diff_view_helpers.rs");
 
     assert!(
-        !focus_source.contains("struct FocusedWorkspaceContext {\n    /// 创建工作区时分配的稳定 ID；重命名和索引变化不会改变它。\n    workspace_id: u64,\n    /// 工作区创建时绑定的稳定目录；不跟随终端内部临时 `cd`。\n    workspace_root: PathBuf,"),
-        "当前 FocusedWorkspaceContext 仍复制 workspaceRoot；A024 必须改为按 WindowSession ID 派生"
+        !focus_source.contains("workspace_root: PathBuf"),
+        "FocusedWorkspaceContext 和 DisplayCommand 都不得复制 workspaceRoot"
+    );
+    assert!(focus_source.contains("fn active_context_workspace(&self)"));
+    assert!(focus_source.contains(".find(|workspace| workspace.id == workspace_id)"));
+    assert!(
+        files_source
+            .matches("self.active_context_workspace().map(|workspace|")
+            .count()
+            >= 2,
+        "文件树打开与切换必须从同一聚焦会话同时派生 root 与展开状态"
+    );
+    assert!(
+        diff_source.matches(".active_context_workspace()").count() >= 2,
+        "Git Review 挂载与交互必须从聚焦会话派生仓库"
+    );
+    assert!(
+        diff_helpers_source.contains("self.active_context_workspace()"),
+        "Project scope 不能从 active_idx 推测审查对象"
     );
 }

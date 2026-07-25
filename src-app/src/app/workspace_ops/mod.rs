@@ -233,18 +233,11 @@ impl PaneFlowApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
-        let Some((workspace_id, workspace_root)) = self
-            .workspaces
-            .get(idx)
-            .map(|workspace| (workspace.id, workspace.cwd.clone()))
-        else {
+        let Some(workspace_id) = self.workspaces.get(idx).map(|workspace| workspace.id) else {
             return false;
         };
         if self
-            .transition_display(DisplayCommand::FocusWorkspace {
-                workspace_id,
-                workspace_root: workspace_root.into(),
-            })
+            .transition_display(DisplayCommand::FocusWorkspace { workspace_id })
             .is_err()
         {
             return false;
@@ -284,16 +277,13 @@ impl PaneFlowApp {
         if self.workspace_focus.workspace_id().is_none() {
             return;
         }
-        if let Some((workspace_id, workspace_root)) = self
+        if let Some(workspace_id) = self
             .workspaces
             .get(self.active_idx)
-            .map(|workspace| (workspace.id, workspace.cwd.clone()))
+            .map(|workspace| workspace.id)
         {
-            self.transition_display(DisplayCommand::FocusWorkspace {
-                workspace_id,
-                workspace_root: workspace_root.into(),
-            })
-            .expect("工作区生命周期切换在 Settings 返回状态中同样合法");
+            self.transition_display(DisplayCommand::FocusWorkspace { workspace_id })
+                .expect("工作区生命周期切换在 Settings 返回状态中同样合法");
             // 文件树只服务直接可见的聚焦终端；Review 或 Settings 关闭后再恢复。
             if matches!(self.workspace_focus.surface(), DisplaySurface::Focused) {
                 self.retarget_files_sidebar_without_window(cx);
@@ -362,10 +352,8 @@ impl PaneFlowApp {
         self.dismiss_transient_surfaces();
         self.active_idx = idx;
         if self.workspace_focus.workspace_id().is_some() {
-            let workspace = &self.workspaces[idx];
             self.transition_display(DisplayCommand::FocusWorkspace {
-                workspace_id: workspace.id,
-                workspace_root: workspace.cwd.clone().into(),
+                workspace_id: self.workspaces[idx].id,
             })
             .expect("活动工作区切换在 Settings 返回状态中同样合法");
         }
