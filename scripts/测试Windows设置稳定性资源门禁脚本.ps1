@@ -71,6 +71,9 @@ foreach ($Required in @(
     'powershellPidsStable',
     'threadCount',
     'handleCount',
+    'workspaceIdsRestored',
+    'powershellPidsRecreatedAcrossRestart',
+    'gracefulExitBothRuns',
     'residueCount'
 )) {
     if (-not $Source.Contains($Required)) { throw "门禁缺少关键契约：$Required" }

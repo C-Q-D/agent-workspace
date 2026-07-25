@@ -633,11 +633,63 @@ function Invoke-Scenario {
             }
         }
         if (-not $FinalConfig.future_setting.preserved) { throw '设置 watcher 丢失未知字段。' }
-        $Close = Stop-AppGracefully -Process $Process
+        $OriginalWorkspaceIds = @(
+            $After.workspaces |
+                ForEach-Object { [uint64]$_.workspace_id }
+        )
+        $FirstClose = Stop-AppGracefully -Process $Process
+        $Process = $null
+        $SessionPath = Join-Path $DataRoot 'sessions\workspaces.json'
+        if (-not (Test-Path -LiteralPath $SessionPath -PathType Leaf)) {
+            throw '第一次正常退出后没有保存工作区会话。'
+        }
+
+        # 使用同一隔离用户、配置、会话和管道重新启动；工作区身份必须恢复，真实 PTY
+        # 进程应重新创建。该步骤与另一个终端数量场景相互独立，不能互相冒充重启。
+        $RestartClock = [Diagnostics.Stopwatch]::StartNew()
+        $Process = Start-Process `
+            -FilePath $Binary `
+            -WorkingDirectory $RepositoryRoot `
+            -WindowStyle Normal `
+            -RedirectStandardOutput (Join-Path $ScenarioDirectory '重启标准输出.txt') `
+            -RedirectStandardError (Join-Path $ScenarioDirectory '重启错误输出.txt') `
+            -PassThru
+        Wait-AppReady -Process $Process -PipeName $PipeName
+        $Restored = Wait-MatrixReady `
+            -Process $Process `
+            -PipeName $PipeName `
+            -TerminalCount $TerminalCount
+        $RestartReadyMilliseconds = [Math]::Round($RestartClock.Elapsed.TotalMilliseconds, 3)
+        $RestoredWorkspaceIds = @(
+            $Restored.workspaces |
+                ForEach-Object { [uint64]$_.workspace_id }
+        )
+        $RestoredPowerShellIds = @(
+            $Restored.powershell |
+                ForEach-Object { [int]$_.id } |
+                Sort-Object
+        )
+        if (($OriginalWorkspaceIds -join ',') -ne ($RestoredWorkspaceIds -join ',')) {
+            throw '重启恢复改变了稳定 workspace ID。'
+        }
+        if (($PowerShellIds -join ',') -eq ($RestoredPowerShellIds -join ',')) {
+            throw '重启恢复错误复用了原 PowerShell PID，没有创建新 PTY。'
+        }
+        $RestartedConfig = Get-Content -Raw -LiteralPath $ConfigPath | ConvertFrom-Json
+        foreach ($Key in $ExpectedSettings) {
+            if ($null -eq $RestartedConfig.PSObject.Properties[$Key]) {
+                throw "重启恢复配置缺少稳定设置键：$Key"
+            }
+        }
+        if (-not $RestartedConfig.future_setting.preserved) {
+            throw '重启恢复后未知配置字段丢失。'
+        }
+        $RestartClose = Stop-AppGracefully -Process $Process
         $Process = $null
         return [ordered]@{
             terminalCount = $TerminalCount
             appReadyMilliseconds = $ReadyMilliseconds
+            restartReadyMilliseconds = $RestartReadyMilliseconds
             settings = [ordered]@{
                 keys = $ExpectedSettings
                 writeCount = 2
@@ -652,6 +704,11 @@ function Invoke-Scenario {
                 powershellProcesses = $After.powershell.Count
                 surfaceIdsStable = $true
                 powershellPidsStable = $true
+                restoredWorkspaces = $Restored.workspaces.Count
+                restoredSurfaces = $Restored.surfaces.Count
+                restoredPowerShellProcesses = $Restored.powershell.Count
+                workspaceIdsRestored = $true
+                powershellPidsRecreatedAcrossRestart = $true
             }
             context = [ordered]@{
                 workspaceRoot = $WorkspaceRoot
@@ -669,9 +726,10 @@ function Invoke-Scenario {
                 phases = @($Cold, $Idle, $Active, $Focused)
             }
             process = [ordered]@{
-                gracefulExit = $true
-                tracked = $Close.tracked
-                residueCount = $Close.remaining.Count
+                gracefulExitBothRuns = $true
+                firstTracked = $FirstClose.tracked
+                restartTracked = $RestartClose.tracked
+                residueCount = $FirstClose.remaining.Count + $RestartClose.remaining.Count
             }
             result = 'passed'
         }
@@ -730,7 +788,10 @@ $Summary = [ordered]@{
             -not $_.context.gitHasUncommittedChange
         }).Count -eq 0
         allProcessesStable = @($Scenarios | Where-Object {
-            -not $_.matrix.surfaceIdsStable -or -not $_.matrix.powershellPidsStable
+            -not $_.matrix.surfaceIdsStable -or
+            -not $_.matrix.powershellPidsStable -or
+            -not $_.matrix.workspaceIdsRestored -or
+            -not $_.matrix.powershellPidsRecreatedAcrossRestart
         }).Count -eq 0
         zeroResidue = @($Scenarios | Where-Object { $_.process.residueCount -ne 0 }).Count -eq 0
     }
