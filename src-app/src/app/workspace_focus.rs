@@ -5,7 +5,6 @@
 //! 只维护这些消费者共同依赖的不变量，避免切换工作区时分别更新多个松散字段。
 
 use crate::{PaneFlowApp, SettingsSection};
-use paneflow_config::schema::AppMode;
 use std::path::{Path, PathBuf};
 
 /// 当前被应用级放大的稳定工作区上下文。
@@ -118,9 +117,7 @@ pub(crate) enum DisplayTransitionError {
 
 /// 应用级展示状态的单一模型。
 ///
-/// 现有矩阵与放大调用方暂时继续使用 [`WorkspaceFocusState`] 别名，但它们实际写入
-/// 的已经是本模型。`AppMode` 和 `settings_section` 的旧调用方会在 A017～A019
-/// 逐步迁移；兼容期间只能通过只读投影观察本模型，不能直接修改其内部枚举。
+/// 矩阵、聚焦、Review 与 Settings 只通过本模型读取和转换，不维护平行模式字段。
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct DisplayState {
     /// 当前唯一可见表面；内部枚举私有，外部无法拼装非法组合。
@@ -138,11 +135,7 @@ impl Default for DisplayState {
     }
 }
 
-/// A016 迁移期兼容名称；旧聚焦调用方实际持有并写入 [`DisplayState`]。
-pub(crate) type WorkspaceFocusState = DisplayState;
-
-// A017 已集中全部纯状态写入；Review、Settings 和只读投影会在 A018～A019
-// 接入生产调用方，因此部分兼容方法当前允许暂时只由测试使用。
+// 部分便利方法只用于状态单元测试；生产路径统一使用 `transition` 命令表。
 #[allow(dead_code)]
 impl DisplayState {
     /// 返回设置覆盖页之下的工作区状态。
@@ -379,15 +372,17 @@ impl DisplayState {
         }
     }
 
-    /// 为尚未迁移的 `AppMode` 读取方提供只读投影。
-    pub(crate) fn legacy_mode(&self) -> AppMode {
-        match self.workspace_state() {
-            WorkspaceDisplayState::Review(_) => AppMode::Diff,
-            WorkspaceDisplayState::Grid | WorkspaceDisplayState::Focused(_) => AppMode::Cli,
-        }
+    /// 返回当前是否直接显示终端矩阵或聚焦终端。
+    ///
+    /// Review 与 Settings 都会遮盖终端交互，因此终端专属浮层和动作必须拒绝这两种表面。
+    pub(crate) fn terminal_workspace_visible(&self) -> bool {
+        matches!(
+            self.surface(),
+            DisplaySurface::Grid | DisplaySurface::Focused
+        )
     }
 
-    /// 为尚未迁移的设置读取方提供只读投影。
+    /// 返回当前 Settings 分区；其他可见表面返回 `None`。
     pub(crate) fn settings_section(&self) -> Option<SettingsSection> {
         match self.visible {
             VisibleDisplayState::Settings { section, .. } => Some(section),
@@ -426,55 +421,45 @@ impl DisplayState {
 }
 
 impl PaneFlowApp {
-    /// 执行单一展示状态命令，并刷新 A020 删除前的旧只读投影。
-    ///
-    /// `mode` 与 `settings_section` 在本阶段不再接受业务路径直接写入；它们只服务
-    /// 尚未迁移的渲染和持久化读取。A020 删除这两个镜像后，本方法只保留命令转发。
+    /// 执行单一展示状态命令；调用方随后直接读取同一个状态对象。
     pub(crate) fn transition_display(
         &mut self,
         command: DisplayCommand,
     ) -> Result<DisplayTransition, DisplayTransitionError> {
-        let result = self.workspace_focus.transition(command)?;
-        self.mode = self.workspace_focus.legacy_mode();
-        self.settings_section = self.workspace_focus.settings_section();
-        Ok(result)
+        self.workspace_focus.transition(command)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        DisplayCommand, DisplaySurface, DisplayTransition, DisplayTransitionError,
-        WorkspaceFocusState,
+        DisplayCommand, DisplayState, DisplaySurface, DisplayTransition, DisplayTransitionError,
     };
     use crate::SettingsSection;
-    use paneflow_config::schema::AppMode;
     use std::path::Path;
 
     /// A015 的第一条红灯在新模型中变为明确拒绝，且失败不改变原状态。
     #[test]
     fn display_state_must_not_allow_review_without_focus() {
-        let mut state = WorkspaceFocusState::default();
+        let mut state = DisplayState::default();
 
         assert_eq!(
             state.enter_review(),
             Err(DisplayTransitionError::ReviewRequiresFocusedWorkspace)
         );
         assert_eq!(state.surface(), DisplaySurface::Grid);
-        assert_eq!(state.legacy_mode(), AppMode::Cli);
     }
 
     /// A015 的第二条红灯由互斥可见表面消除，关闭设置后恢复确定的 Review。
     #[test]
     fn display_state_must_not_allow_settings_over_review() {
-        let mut state = WorkspaceFocusState::default();
+        let mut state = DisplayState::default();
         state.focus(41, r"C:\repo-a");
         state.enter_review().expect("聚焦态应能进入 Review");
         state.open_settings(SettingsSection::General);
 
         assert_eq!(state.surface(), DisplaySurface::Settings);
         assert_eq!(state.settings_section(), Some(SettingsSection::General));
-        assert_eq!(state.legacy_mode(), AppMode::Diff);
         assert!(state.close_settings());
         assert_eq!(state.surface(), DisplaySurface::Review);
         assert_eq!(state.workspace_id(), Some(41));
@@ -483,8 +468,8 @@ mod tests {
     /// 基础转换和相等性只由一个模型决定，不依赖调用顺序同步平行字段。
     #[test]
     fn display_state_has_deterministic_equality_and_basic_transitions() {
-        let mut left = WorkspaceFocusState::default();
-        let mut right = WorkspaceFocusState::default();
+        let mut left = DisplayState::default();
+        let mut right = DisplayState::default();
         assert_eq!(left, right);
 
         left.focus(41, r"C:\repo-a");
@@ -508,7 +493,7 @@ mod tests {
     /// 表驱动覆盖所有合法命令、幂等结果以及 Review 内切换工作区。
     #[test]
     fn display_transition_table_covers_legal_and_idempotent_paths() {
-        let mut state = WorkspaceFocusState::default();
+        let mut state = DisplayState::default();
         let cases = [
             (
                 DisplayCommand::RestoreGrid,
@@ -591,7 +576,7 @@ mod tests {
     /// 非法命令必须返回稳定错误并完整保留调用前状态。
     #[test]
     fn display_transition_table_rejects_illegal_paths_without_mutation() {
-        let mut state = WorkspaceFocusState::default();
+        let mut state = DisplayState::default();
 
         for (command, expected_error) in [
             (
@@ -628,7 +613,7 @@ mod tests {
     /// 设置可见时，外部生命周期仍可安全切换底层工作区，关闭后显露最新目标。
     #[test]
     fn workspace_lifecycle_can_retarget_under_settings_without_closing_overlay() {
-        let mut state = WorkspaceFocusState::default();
+        let mut state = DisplayState::default();
         state.focus(41, r"C:\repo-a");
         state.open_settings(SettingsSection::General);
 
@@ -649,7 +634,7 @@ mod tests {
     /// 工作区生命周期清空命令可在设置页内更新返回状态，但不抢走可见设置页。
     #[test]
     fn clearing_workspace_under_settings_keeps_overlay_and_returns_to_grid() {
-        let mut state = WorkspaceFocusState::default();
+        let mut state = DisplayState::default();
         state.focus(41, r"C:\repo-a");
         state.open_settings(SettingsSection::General);
 
@@ -665,7 +650,7 @@ mod tests {
 
     #[test]
     fn switching_workspace_replaces_root_and_drops_stale_surface() {
-        let mut state = WorkspaceFocusState::default();
+        let mut state = DisplayState::default();
         state.focus(41, r"C:\repo-a");
         state.set_terminal_surface_id(Some(4101));
 
@@ -678,7 +663,7 @@ mod tests {
 
     #[test]
     fn reconciling_same_workspace_preserves_surface_binding() {
-        let mut state = WorkspaceFocusState::default();
+        let mut state = DisplayState::default();
         state.focus(41, r"C:\repo-a");
         state.set_terminal_surface_id(Some(4101));
 
@@ -693,7 +678,7 @@ mod tests {
 
     #[test]
     fn restoring_grid_is_explicit_and_reveal_is_one_shot() {
-        let mut state = WorkspaceFocusState::default();
+        let mut state = DisplayState::default();
         assert!(!state.restore_grid());
 
         state.focus(41, r"C:\repo-a");
@@ -706,7 +691,7 @@ mod tests {
     /// 用户恢复矩阵后若立即从左栏选择其他工作区，新聚焦必须取消旧矩阵定位请求。
     #[test]
     fn refocusing_after_restore_cancels_stale_grid_reveal() {
-        let mut state = WorkspaceFocusState::default();
+        let mut state = DisplayState::default();
         state.focus(41, r"C:\repo-a");
         assert!(state.restore_grid());
 
@@ -720,7 +705,7 @@ mod tests {
     /// 最后一个工作区关闭或恢复结果为空时，清理操作必须释放全部活动上下文。
     #[test]
     fn clearing_focused_workspace_drops_all_active_context() {
-        let mut state = WorkspaceFocusState::default();
+        let mut state = DisplayState::default();
         state.focus(41, r"C:\repo-a");
         state.set_terminal_surface_id(Some(4101));
 

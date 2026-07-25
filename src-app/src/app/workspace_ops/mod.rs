@@ -294,8 +294,8 @@ impl PaneFlowApp {
                 workspace_root: workspace_root.into(),
             })
             .expect("工作区生命周期切换在 Settings 返回状态中同样合法");
-            // Diff 模式的可见上下文只能是当前仓库改动；文件树等返回 CLI 后再恢复。
-            if matches!(self.mode, paneflow_config::schema::AppMode::Cli) {
+            // 文件树只服务直接可见的聚焦终端；Review 或 Settings 关闭后再恢复。
+            if matches!(self.workspace_focus.surface(), DisplaySurface::Focused) {
                 self.retarget_files_sidebar_without_window(cx);
             }
         } else {
@@ -399,9 +399,7 @@ impl PaneFlowApp {
                         None => self.close_sessions_sidebar(cx),
                     }
                 }
-                if matches!(self.workspace_focus.surface(), DisplaySurface::Focused)
-                    && matches!(self.mode, paneflow_config::schema::AppMode::Cli)
-                {
+                if matches!(self.workspace_focus.surface(), DisplaySurface::Focused) {
                     self.open_files_sidebar_for_maximized_workspace(window, cx);
                 }
             }
@@ -409,9 +407,7 @@ impl PaneFlowApp {
                 if self.agent_sessions.sessions_sidebar_open {
                     self.close_sessions_sidebar(cx);
                 }
-                if matches!(self.workspace_focus.surface(), DisplaySurface::Focused)
-                    && matches!(self.mode, paneflow_config::schema::AppMode::Cli)
-                {
+                if matches!(self.workspace_focus.surface(), DisplaySurface::Focused) {
                     self.retarget_files_sidebar_without_window(cx);
                 }
             }
@@ -448,7 +444,7 @@ impl PaneFlowApp {
     /// the rebuild (which mounts a fresh entity) never runs inside a
     /// render/callback. No-op outside Diff mode.
     pub(crate) fn reconcile_diff_after_workspace_change(&mut self, cx: &mut Context<Self>) {
-        if !matches!(self.mode, paneflow_config::schema::AppMode::Diff) {
+        if !matches!(self.workspace_focus.surface(), DisplaySurface::Review) {
             return;
         }
 
@@ -1244,6 +1240,7 @@ pub(crate) fn reveal_in_file_manager(path: &std::path::Path) -> Result<(), Strin
 /// actions where Windows packaged launches can reject `cmd /C start`-style
 /// dispatch with `ERROR_NOT_SUPPORTED`.
 #[allow(clippy::needless_return)]
+#[allow(dead_code)]
 pub(crate) fn open_folder_in_file_manager(path: &std::path::Path) -> Result<(), String> {
     #[cfg(target_os = "linux")]
     {

@@ -1,14 +1,8 @@
 //! Action handler + lifecycle helpers + render branch entry points for
 //! the Agents view.
 //!
-//! [`paneflow_config::schema::AppMode`] is the source of truth for which
-//! top-level screen renders; `self.mode` decides whether the Agents view
-//! is currently visible. The main area is terminal-only: a selected
-//! thread renders its PTY, and the no-thread state renders the agent
-//! picker for the active project (the home/empty state).
-//!
-//! 第一版公开界面不再注册 Agents 入口；本模块暂时保留为后续迁移时可逐步裁剪的
-//! 历史实现。公开启动、导航、快捷键、Rosetta 和 IPC 均不能进入该模式。
+//! A020 已把本模块从 `DisplayState`、主渲染树和动作注册中断开。源码暂时只作为
+//! 上游遗留实现保留，A027 将依据模块处置决策完成默认产品面隔离。
 
 use crate::{AgentsBranchMenuState, PaneFlowApp};
 use gpui::{
@@ -16,14 +10,10 @@ use gpui::{
     IntoElement, MouseButton, ParentElement, SharedString, StatefulInteractiveElement, Styled,
     Window, deferred, div, prelude::FluentBuilder, px, rgb, svg,
 };
-use paneflow_config::schema::{AppMode, TerminalSurfaceProfile};
+use paneflow_config::schema::TerminalSurfaceProfile;
 use serde_json::Value;
 
-/// Sidebar width when in [`AppMode::Agents`]. Slightly wider than the
-/// CLI sidebar (220 px) because thread rows carry more metadata
-/// (agent icon, status dot, relative timestamp) than workspace rows.
-/// US-009 surfaces this constant to the title bar so the resize edge
-/// snaps to the right slot on mode toggle.
+/// 旧 Agents 侧栏宽度；当前主渲染树不再读取该值。
 pub(crate) const AGENTS_SIDEBAR_WIDTH: f32 = 280.0;
 
 const AGENTS_ENVIRONMENT_PANEL_WIDTH: f32 = 300.0;
@@ -114,7 +104,7 @@ impl PaneFlowApp {
         .detach();
     }
 
-    /// Main-content render branch for [`AppMode::Agents`].
+    /// 旧 Agents 主内容渲染分支；A020 后不再挂入应用主渲染树。
     ///
     /// Priority order:
     /// 1. The Skills page, if open.
@@ -1193,48 +1183,6 @@ impl PaneFlowApp {
         }
     }
 
-    /// US-011: handle the title-bar `⋯` dispatch. Resolves the current
-    /// thread/chat target and opens the shared context menu anchored just
-    /// below the title bar. A no-op outside Agents mode or when nothing is
-    /// selected (the button only renders with a live target, but guard
-    /// anyway). The menu reuses `agents_menu_open` so click-outside-to-close
-    /// and the deferred render path are shared with the right-click menus.
-    pub(crate) fn handle_open_agents_thread_menu(
-        &mut self,
-        _: &crate::OpenAgentsThreadMenu,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        if !matches!(self.mode, AppMode::Agents) {
-            return;
-        }
-        let Some(target) = self.agents_target else {
-            return;
-        };
-        if self.thread_for_target(target).is_none() {
-            return;
-        }
-        // Anchor below the title bar near the brand slot. `render_open_agents_menu`
-        // clamps to the window bounds if it would overflow the bottom.
-        let position = gpui::point(px(12.), px(40.));
-        let menu = match target {
-            crate::project::AgentsTarget::Thread {
-                project_idx,
-                thread_idx,
-            } => crate::app::agents_sidebar::AgentsContextMenu::Thread {
-                project_idx,
-                thread_idx,
-                position,
-            },
-            crate::project::AgentsTarget::Chat { chat_idx } => {
-                crate::app::agents_sidebar::AgentsContextMenu::Chat { chat_idx, position }
-            }
-        };
-        self.cancel_agents_rename(cx);
-        self.agents_view.agents_menu_open = Some(menu);
-        cx.notify();
-    }
-
     /// React to an OSC-driven title update from the PTY backing a
     /// Terminal Thread. Updates the matching sidebar row's title and
     /// persists the session so the new label survives a restart.
@@ -1318,9 +1266,7 @@ impl PaneFlowApp {
         .detach();
     }
 
-    // Sidebar render branch for [`AppMode::Agents`] now lives in
-    // [`crate::app::agents_sidebar`] -- US-010 replaced the
-    // placeholder shipped here in US-008.
+    // 旧 Agents 侧栏实现位于 [`crate::app::agents_sidebar`]，当前不再挂入主渲染树。
 }
 
 /// Dispatch a cwd-scoped session scan to the matching on-disk reader.

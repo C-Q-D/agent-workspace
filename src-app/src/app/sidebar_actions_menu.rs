@@ -212,11 +212,9 @@ impl PaneFlowApp {
         items: Vec<SidebarMenuItem>,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        use paneflow_config::schema::AppMode;
-
         let ui = crate::theme::ui_colors();
         let settings_open = self.agents_view.sidebar_actions_menu_open;
-        let mode = self.mode;
+        let surface = self.workspace_focus.surface();
 
         let settings_trigger = div()
             .id("sidebar-settings-trigger")
@@ -351,14 +349,18 @@ impl PaneFlowApp {
                 "sidebar-mode-cli",
                 "CLI",
                 "icons/terminal.svg",
-                matches!(mode, AppMode::Cli),
+                matches!(
+                    surface,
+                    crate::app::workspace_focus::DisplaySurface::Grid
+                        | crate::app::workspace_focus::DisplaySurface::Focused
+                ),
                 Box::new(|this, window, cx| this.enter_cli_mode(window, cx)),
             ))
             .child(mode_button(
                 "sidebar-mode-diff",
                 "Review",
                 "icons/git-pull-request.svg",
-                matches!(mode, AppMode::Diff),
+                matches!(surface, crate::app::workspace_focus::DisplaySurface::Review),
                 Box::new(|this, _window, cx| this.enter_diff_mode(cx)),
             ))
             .child(settings_trigger)

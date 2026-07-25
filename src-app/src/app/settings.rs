@@ -51,7 +51,7 @@ impl PaneFlowApp {
 
     pub(crate) fn close_settings(&mut self, cx: &mut Context<Self>) {
         // 关闭 AI Agent 设置页等同于离开该页，需要提交仍停留在输入框中的有效值。
-        if self.settings_section == Some(SettingsSection::AiAgent) {
+        if self.workspace_focus.settings_section() == Some(SettingsSection::AiAgent) {
             self.commit_ai_agent_command_inputs(cx);
         }
         if self
@@ -339,7 +339,7 @@ impl PaneFlowApp {
         }
 
         // Shortcut recording (only on the Shortcuts page).
-        if self.settings_section == Some(SettingsSection::Shortcuts) {
+        if self.workspace_focus.settings_section() == Some(SettingsSection::Shortcuts) {
             self.handle_shortcut_recording(event, window, cx);
         }
     }

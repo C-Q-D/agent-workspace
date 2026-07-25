@@ -1323,15 +1323,10 @@ fn sanitize_ratios(mut ratios: Vec<f64>, n: usize) -> Vec<f64> {
     ratios
 }
 
-/// Top-level UI mode (US-007/US-008 of `prd-agents-view.md`;
-/// `Diff` added by US-001 of `prd-git-diff-mode-2026-Q3.md`).
+/// 旧会话中的顶层 UI 模式。
 ///
-/// `Cli` is the traditional terminal-multiplexer view. `Diff` is the
-/// dedicated git/worktree diff surface (left git panel + diff area).
-/// `Agents` is the Agents view (project + thread sidebar + chat thread).
-/// Default is `Cli` so existing users see no behaviour change on first
-/// launch after upgrading. Variant order mirrors the on-screen segment
-/// order (CLI / Diff / Agents) in `render_mode_toggle`.
+/// 该枚举只用于读取历史 `mode` 字段并在应用启动边界归一化。当前展示状态由应用内
+/// `DisplayState` 管理，新会话不再写出此值。
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum AppMode {
@@ -1358,10 +1353,8 @@ pub enum AgentsTargetSession {
 
 /// 写入 `~/.agent-workspace/sessions/workspaces.json` 的持久工作区会话状态。
 ///
-/// Backward-compat note: the three Agents-view fields (`projects`,
-/// `active_project`, `mode`) all carry `#[serde(default)]`. Loading a
-/// session.json written by a pre-US-007 build deserialises cleanly --
-/// the missing keys resolve to an empty project list and `AppMode::Cli`.
+/// 旧 Agents 字段仍可读取，缺失字段按默认值恢复；其中 `mode` 只作为一次性迁移输入，
+/// 序列化新会话时不会再次写出。
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SessionState {
     /// Schema version for forward-compatible migrations.
@@ -1399,9 +1392,10 @@ pub struct SessionState {
     /// chat lists.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agents_target: Option<AgentsTargetSession>,
-    /// Last UI mode the user was in. The bootstrap reads this to
-    /// reopen the Agents view if it was active at quit time (US-009).
-    #[serde(default)]
+    /// 历史会话的 UI 模式，只供 bootstrap 归一化为安全 Grid。
+    ///
+    /// `skip_serializing` 保证旧值不会从当前版本继续传播；缺失时默认 `Cli`。
+    #[serde(default, skip_serializing)]
     pub mode: AppMode,
     /// US-015 (prd-git-diff-mode-2026-Q3.md): the Git Diff view scope at save
     /// time, snake_case (`"project"` / `"multi_project"` / `"worktree"`),

@@ -1,6 +1,5 @@
-# 只读核对 A012 展示状态与会话所有权审查依赖的关键源码锚点。
-# 本脚本不推断设计是否正确，也不修改应用；它只保证审查覆盖的启动恢复、聚焦、
-# 模式、设置、关闭和活动上下文路径没有在后续修改中静默消失。
+# 只读核对 A020 单一展示状态及历史会话迁移依赖的关键源码锚点。
+# 本脚本不修改应用；它同时保证新入口存在、旧双写入口消失。
 [CmdletBinding()]
 param(
     # 可选 JSON 输出路径；未提供时只把结果写到标准输出。
@@ -45,17 +44,52 @@ $Contracts = @(
     [ordered]@{
         id = "session-save"
         path = "src-app/src/app/session.rs"
-        markers = @("fn build_session_state(", "mode: self.mode,", "diff_scope: Some(self.diff_mode.diff_scope.as_persisted().to_string())")
+        markers = @("fn build_session_state(", "mode: paneflow_config::schema::AppMode::Cli,", "diff_scope: Some(self.diff_mode.diff_scope.as_persisted().to_string())")
     },
     [ordered]@{
-        id = "single-write-bridge"
+        id = "single-display-state"
         path = "src-app/src/app/workspace_focus.rs"
-        markers = @("pub(crate) fn transition_display(", "self.mode = self.workspace_focus.legacy_mode();", "self.settings_section = self.workspace_focus.settings_section();")
+        markers = @("pub(crate) fn transition_display(", "self.workspace_focus.transition(command)", "pub(crate) fn terminal_workspace_visible(")
     },
     [ordered]@{
         id = "active-context"
         path = "src-app/src/app/workspace_focus.rs"
         markers = @("pub(crate) struct DisplayState", "pub(crate) enum DisplayCommand", "workspace_root: PathBuf", "terminal_surface_id: Option<u64>", "reveal_workspace_id: Option<u64>")
+    }
+)
+
+# A020 的退出条件不仅要求新入口存在，还要求旧双写事实源彻底消失。
+# 使用精确源码片段避免把 Diff 内部 ViewMode 或兼容 JSON 字段误判为展示双写。
+$ForbiddenMarkers = @(
+    [ordered]@{
+        id = "app-mode-field"
+        path = "src-app/src/main.rs"
+        marker = "pub(crate) mode: paneflow_config::schema::AppMode"
+    },
+    [ordered]@{
+        id = "settings-section-field"
+        path = "src-app/src/main.rs"
+        marker = "settings_section: Option<SettingsSection>"
+    },
+    [ordered]@{
+        id = "legacy-mode-projection"
+        path = "src-app/src/app/workspace_focus.rs"
+        marker = "pub(crate) fn legacy_mode("
+    },
+    [ordered]@{
+        id = "mode-double-write"
+        path = "src-app/src/app/workspace_focus.rs"
+        marker = "self.mode = self.workspace_focus.legacy_mode();"
+    },
+    [ordered]@{
+        id = "settings-double-write"
+        path = "src-app/src/app/workspace_focus.rs"
+        marker = "self.settings_section = self.workspace_focus.settings_section();"
+    },
+    [ordered]@{
+        id = "session-mode-double-read"
+        path = "src-app/src/app/session.rs"
+        marker = "mode: self.mode,"
     }
 )
 
@@ -90,12 +124,30 @@ $Results = foreach ($Contract in $Contracts) {
     }
 }
 
+$ForbiddenResults = foreach ($Forbidden in $ForbiddenMarkers) {
+    $FullPath = Join-Path $RepositoryRoot $Forbidden.path
+    if (-not (Test-Path -LiteralPath $FullPath -PathType Leaf)) {
+        throw "展示状态所有权禁用项文件不存在：$($Forbidden.path)"
+    }
+    $Content = Get-Content -LiteralPath $FullPath -Raw
+    if ($Content.IndexOf($Forbidden.marker, [StringComparison]::Ordinal) -ge 0) {
+        throw "展示状态旧双写仍存在：$($Forbidden.path) -> $($Forbidden.marker)"
+    }
+    [ordered]@{
+        id = $Forbidden.id
+        path = $Forbidden.path
+        forbidden = $Forbidden.marker
+    }
+}
+
 $Report = [ordered]@{
     schemaVersion = 1
     repositoryRoot = $RepositoryRoot
     contractCount = $Results.Count
+    forbiddenCount = $ForbiddenResults.Count
     result = "passed"
     contracts = @($Results)
+    forbidden = @($ForbiddenResults)
 }
 $Json = $Report | ConvertTo-Json -Depth 8
 
@@ -109,4 +161,4 @@ if (-not [string]::IsNullOrWhiteSpace($OutputPath)) {
 }
 
 Write-Output $Json
-Write-Output "A012 展示状态所有权检查通过：$($Results.Count) 组场景"
+Write-Output "A020 单一展示状态检查通过：$($Results.Count) 组场景，$($ForbiddenResults.Count) 个旧入口已消失"

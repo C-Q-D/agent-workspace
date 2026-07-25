@@ -5,11 +5,10 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::time::{Duration, Instant};
 
 use gpui::{
-    Animation, AnimationExt, AnyElement, ClickEvent, Context, Focusable as _, InteractiveElement,
-    IntoElement, KeyDownEvent, MouseButton, ParentElement, SharedString, Styled, Transformation,
-    Window, deferred, div, percentage, prelude::*, px, rgb, svg,
+    Animation, AnimationExt, AnyElement, ClickEvent, Context, InteractiveElement, IntoElement,
+    KeyDownEvent, MouseButton, ParentElement, SharedString, Styled, Transformation, Window,
+    deferred, div, percentage, prelude::*, px, rgb, svg,
 };
-use paneflow_config::schema::AppMode;
 
 use crate::agent_launcher::TerminalAgent;
 use crate::ai_types::{AgentSession, AgentState};
@@ -1148,28 +1147,8 @@ impl crate::PaneFlowApp {
     }
 
     fn restore_rosetta_focus(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        match self.mode {
-            AppMode::Cli | AppMode::Diff => {
-                if let Some(ws) = self.workspaces.get_mut(self.active_idx) {
-                    ws.focus_first(window, cx);
-                }
-            }
-            AppMode::Agents => {
-                let Some(target) = self.current_thread_view_target() else {
-                    return;
-                };
-                let Some(thread_id) = self.thread_for_target(target).map(|thread| thread.id) else {
-                    return;
-                };
-                if let Some(view) = self
-                    .agents_view
-                    .agents_terminal_view_cache
-                    .get(&thread_id)
-                    .cloned()
-                {
-                    view.read(cx).focus_handle(cx).focus(window, cx);
-                }
-            }
+        if let Some(ws) = self.workspaces.get_mut(self.active_idx) {
+            ws.focus_first(window, cx);
         }
     }
 
@@ -1222,13 +1201,11 @@ impl crate::PaneFlowApp {
     }
 
     pub(crate) fn rosetta_surface_allowed(&self) -> bool {
-        self.cached_config.rosetta_enabled()
-            && self.settings_section.is_none()
-            && self.rosetta_mode_enabled()
+        self.cached_config.rosetta_enabled() && self.rosetta_mode_enabled()
     }
 
     fn rosetta_mode_enabled(&self) -> bool {
-        matches!(self.mode, AppMode::Cli | AppMode::Agents)
+        self.workspace_focus.terminal_workspace_visible()
     }
 
     pub(crate) fn reset_rosetta_surface_state(&mut self) {

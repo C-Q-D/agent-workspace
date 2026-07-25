@@ -4,9 +4,14 @@
 
 pub mod about_dialog;
 pub mod actions;
+// A020 后这些旧产品面不再可达；A027 将依据模块处置清单完成公开路径隔离。
+#[allow(dead_code)]
 pub mod agents_bottom_panel;
+#[allow(dead_code)]
 pub mod agents_diff;
+#[allow(dead_code)]
 pub mod agents_sidebar;
+#[allow(dead_code)]
 pub mod agents_view_actions;
 pub mod attention_queue;
 pub mod bootstrap;

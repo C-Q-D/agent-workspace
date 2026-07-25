@@ -121,10 +121,7 @@ impl PaneFlowApp {
                         .collect(),
                 })
                 .collect(),
-            // US-007 (prd-agents-view.md): persist project + thread
-            // snapshots and the active project index. US-009 will
-            // additionally persist the actual `AppMode` once
-            // `PaneFlowApp` carries it.
+            // 旧 Agents 项目与线程快照暂按原 schema 保存；它们不再决定当前展示表面。
             projects: self
                 .projects
                 .iter()
@@ -145,10 +142,9 @@ impl PaneFlowApp {
                 &self.projects,
                 &self.chats,
             ),
-            // US-008 (prd-agents-view.md): persist the live UI mode
-            // so US-009's restore branch can reopen Paneflow in the
-            // same screen the user left.
-            mode: self.mode,
+            // `mode` 仅为读取旧会话保留，schema 已禁止序列化。构造时固定为默认值，
+            // 避免当前运行态通过兼容字段形成第二份持久化事实源。
+            mode: paneflow_config::schema::AppMode::Cli,
             // US-015 (prd-git-diff-mode-2026-Q3.md): persist the diff scope so
             // a session that quit in Diff mode reopens on the same scope.
             diff_scope: Some(self.diff_mode.diff_scope.as_persisted().to_string()),

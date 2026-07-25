@@ -1082,7 +1082,10 @@ impl PaneFlowApp {
                     let mut terminal_info = info.clone();
                     terminal_info.is_frontend = false;
                     if merge_service_label(&mut ws.service_labels, terminal_info)
-                        && self.settings_section.is_none()
+                        && !matches!(
+                            self.workspace_focus.surface(),
+                            crate::app::workspace_focus::DisplaySurface::Settings
+                        )
                     {
                         cx.notify();
                     }

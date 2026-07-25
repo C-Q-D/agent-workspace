@@ -183,8 +183,6 @@ impl PaneFlowApp {
         // 顶层模式必须在构造应用前完成公开范围归一化。这样旧 Agents 会话不会
         // 产生隐藏界面的首帧或终端挂载，Review 也继续遵守“先放大、后审查”。
         let restored_display_state = restored_display_state(saved_session.as_ref().map(|s| s.mode));
-        let restored_mode = restored_display_state.legacy_mode();
-        let restored_settings_section = restored_display_state.settings_section();
         // 先保留会话页码，再消费 saved_session 恢复工作区。这里只做与工作区硬上限
         // 相关的防御性夹紧；首帧矩阵规划会按真实视口进一步夹紧到有效页。
         let restored_workspace_grid_page = clamped_restored_workspace_grid_page(
@@ -898,7 +896,6 @@ impl PaneFlowApp {
             git_event_rx,
             git_watch_counts,
             git_preparations: Default::default(),
-            settings_section: restored_settings_section,
             settings_scroll: gpui::ScrollHandle::new(),
             settings_drag: None,
             settings_search_input,
@@ -1059,7 +1056,6 @@ impl PaneFlowApp {
                 diff_file_filter,
             },
             // 这里只接收已经归一化的公开启动模式，禁止构造阶段短暂进入隐藏模式。
-            mode: restored_mode,
             // US-007 + US-009 (prd-agents-view.md): rehydrate project
             // metadata from session.json. Empty for users on first
             // launch and for legacy session.json (the `#[serde(default)]`
@@ -1452,7 +1448,6 @@ mod agent_workspace_tests {
         ] {
             let state = restored_display_state(saved_mode);
             assert_eq!(state.surface(), DisplaySurface::Grid);
-            assert_eq!(state.legacy_mode(), AppMode::Cli);
             assert_eq!(state.settings_section(), None);
             assert_eq!(state.workspace_id(), None);
         }

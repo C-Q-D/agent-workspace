@@ -20,6 +20,8 @@
 mod agent_launcher;
 mod agent_sessions;
 mod agents;
+// A020 已切断旧 Agents 展示分支；A027 会按模块处置决策移出默认产品面。
+#[allow(dead_code)]
 mod agents_view;
 mod ai_hooks;
 mod ai_types;
@@ -325,15 +327,16 @@ impl StartupSplashView {
 }
 
 fn native_backdrop_material_active(
-    mode: paneflow_config::schema::AppMode,
-    settings_open: bool,
+    surface: app::workspace_focus::DisplaySurface,
     terminal_material_active: bool,
     chrome_material_active: bool,
 ) -> bool {
     chrome_material_active
-        || (!settings_open
-            && matches!(mode, paneflow_config::schema::AppMode::Cli)
-            && terminal_material_active)
+        || (matches!(
+            surface,
+            app::workspace_focus::DisplaySurface::Grid
+                | app::workspace_focus::DisplaySurface::Focused
+        ) && terminal_material_active)
 }
 
 fn should_load_login_shell_env_for_startup(
@@ -364,7 +367,7 @@ mod native_material_tests {
         STARTUP_SPLASH_TEXT, native_backdrop_material_active, should_extract_mcp_bridge_for_cli,
         should_load_login_shell_env_for_startup,
     };
-    use paneflow_config::schema::AppMode;
+    use crate::app::workspace_focus::DisplaySurface;
 
     fn args(parts: &[&str]) -> Vec<String> {
         parts.iter().map(|part| (*part).to_string()).collect()
@@ -373,8 +376,7 @@ mod native_material_tests {
     #[test]
     fn terminal_material_can_activate_backdrop_without_chrome_material() {
         assert!(native_backdrop_material_active(
-            AppMode::Cli,
-            false,
+            DisplaySurface::Grid,
             true,
             false
         ));
@@ -383,21 +385,18 @@ mod native_material_tests {
     #[test]
     fn terminal_material_only_applies_to_visible_cli_terminal() {
         assert!(!native_backdrop_material_active(
-            AppMode::Cli,
-            true,
-            true,
-            false
-        ));
-        assert!(!native_backdrop_material_active(
-            AppMode::Diff,
-            false,
+            DisplaySurface::Settings,
             true,
             false
         ));
         assert!(!native_backdrop_material_active(
-            AppMode::Agents,
-            false,
+            DisplaySurface::Review,
             true,
+            false
+        ));
+        assert!(!native_backdrop_material_active(
+            DisplaySurface::Focused,
+            false,
             false
         ));
     }
@@ -405,8 +404,7 @@ mod native_material_tests {
     #[test]
     fn chrome_material_activates_backdrop_independently() {
         assert!(native_backdrop_material_active(
-            AppMode::Diff,
-            true,
+            DisplaySurface::Review,
             false,
             true
         ));
@@ -679,7 +677,7 @@ struct AgentSessionsState {
 /// extracted from the `PaneFlowApp` god-struct.
 struct DiffModeState {
     /// US-005 (prd-git-diff-mode-2026-Q3.md): the mounted Git Diff mode
-    /// view, when `mode == AppMode::Diff`. Lazily (re)built by
+    /// view, when [`app::workspace_focus::DisplaySurface::Review`] is visible. Lazily (re)built by
     /// `rebuild_diff_view` on mode entry and on workspace switch;
     /// `None` when no git repo backs the active workspace. Dropping it
     /// releases the DiffView's filesystem watchers.
@@ -777,6 +775,7 @@ pub(crate) struct AgentsGitState {
 /// US-053: Agents-view sidebar state extracted from the `PaneFlowApp`
 /// god-struct (terminal-only Agents view: rename, context menu, skills
 /// page, search filter, and the per-thread terminal cache).
+#[allow(dead_code)]
 struct AgentsViewState {
     /// US-011 (prd-agents-view.md): which sidebar row is currently in
     /// inline-rename mode (mirrors [`PaneFlowApp::renaming_workspace_id`] but for the
@@ -915,6 +914,7 @@ struct AgentsViewState {
 }
 
 #[derive(Clone)]
+#[allow(dead_code)]
 pub(crate) struct AgentsBranchMenuState {
     pub(crate) cwd: String,
     pub(crate) current: String,
@@ -929,6 +929,7 @@ pub(crate) struct AgentsBranchMenuState {
 /// One shell terminal hosted as a tab in the Agents bottom dock. The `view`
 /// entity owns the PTY; dropping this struct (tab close / app shutdown) tears
 /// the shell down via [`crate::terminal::view::TerminalView`]'s `Drop`.
+#[allow(dead_code)]
 pub(crate) struct BottomTerminal {
     /// Stable id: the tab's identity and the seed for its PTY env id.
     pub(crate) id: u64,
@@ -989,8 +990,6 @@ struct PaneFlowApp {
     git_watch_counts: std::collections::HashMap<std::path::PathBuf, usize>,
     /// 正在进行的工作区 Git 准备批次；同一路径的并发创建共享一个后台任务。
     git_preparations: app::event_handlers::GitPreparationRegistry,
-    /// Active settings section, or `None` if settings is closed.
-    settings_section: Option<SettingsSection>,
     /// Scroll state for the inline settings page.
     settings_scroll: gpui::ScrollHandle,
     settings_drag: Option<crate::widgets::scrollbar::ScrollDragState>,
@@ -1127,7 +1126,7 @@ struct PaneFlowApp {
     /// 动态终端矩阵的当前页；窗口数量或尺寸变化时由布局计划自动夹紧。
     workspace_grid_page: usize,
     /// 应用级聚焦的唯一上下文；统一稳定 ID、绑定目录、终端 Surface 与矩阵恢复目标。
-    workspace_focus: app::workspace_focus::WorkspaceFocusState,
+    workspace_focus: app::workspace_focus::DisplayState,
     /// Whether the command-palette-style theme picker is visible.
     show_theme_picker: bool,
     /// Typeahead filter for the theme picker (case-insensitive substring).
@@ -1223,9 +1222,6 @@ struct PaneFlowApp {
     theme_changed: std::sync::Arc<std::sync::atomic::AtomicBool>,
     /// US-053: Git Diff mode state (see `DiffModeState`).
     diff_mode: DiffModeState,
-    /// 顶层界面模式。第一版公开入口只允许 `Cli` 与 `Diff`；`Agents` 仅为读取
-    /// 旧会话和后续源码迁移保留，启动恢复与公开交互都不能进入该分支。
-    pub(crate) mode: paneflow_config::schema::AppMode,
     /// US-007 (prd-agents-view.md): in-memory list of Agents-view
     /// projects, persisted to `session.json` via [`save_session`].
     /// Empty until the user creates their first project (US-011).
@@ -1273,22 +1269,22 @@ pub static SWAP_MODE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicB
 
 impl PaneFlowApp {
     fn primary_sidebar_expanded_width(&self) -> f32 {
-        if self.settings_section.is_some() {
+        if matches!(
+            self.workspace_focus.surface(),
+            app::workspace_focus::DisplaySurface::Settings
+        ) {
             crate::settings::chrome::SETTINGS_NAV_WIDTH
         } else {
-            match self.mode {
-                paneflow_config::schema::AppMode::Agents => {
-                    crate::app::agents_view_actions::AGENTS_SIDEBAR_WIDTH
-                }
-                // Review 与 CLI 共享稳定工作区窗口栏，避免模式切换后丢失导航。
-                paneflow_config::schema::AppMode::Diff => SIDEBAR_WIDTH,
-                paneflow_config::schema::AppMode::Cli => SIDEBAR_WIDTH,
-            }
+            // Review 与终端表面共享稳定工作区窗口栏，避免切换后丢失导航。
+            SIDEBAR_WIDTH
         }
     }
 
     fn primary_sidebar_width_at(&self, now: std::time::Instant) -> f32 {
-        if self.settings_section.is_some() {
+        if matches!(
+            self.workspace_focus.surface(),
+            app::workspace_focus::DisplaySurface::Settings
+        ) {
             return crate::settings::chrome::SETTINGS_NAV_WIDTH;
         }
         if let Some(animation) = self.primary_sidebar_animation {
@@ -1301,7 +1297,10 @@ impl PaneFlowApp {
     }
 
     fn rendered_primary_sidebar_width(&mut self, window: &mut Window) -> f32 {
-        if self.settings_section.is_some() {
+        if matches!(
+            self.workspace_focus.surface(),
+            app::workspace_focus::DisplaySurface::Settings
+        ) {
             self.primary_sidebar_animation = None;
             return crate::settings::chrome::SETTINGS_NAV_WIDTH;
         }
@@ -1327,7 +1326,10 @@ impl PaneFlowApp {
         let from_width = self.primary_sidebar_width_at(now);
         self.primary_sidebar_visible = !self.primary_sidebar_visible;
 
-        if self.settings_section.is_some() {
+        if matches!(
+            self.workspace_focus.surface(),
+            app::workspace_focus::DisplaySurface::Settings
+        ) {
             self.primary_sidebar_animation = None;
             cx.notify();
             return;
@@ -1486,7 +1488,11 @@ impl Render for PaneFlowApp {
         // title bar floats above the full window and the right panel reserves
         // a matching strip so content clears window controls.
         let title_bar_h = (1.75 * window.rem_size()).max(px(34.));
-        let settings_open = self.settings_section.is_some();
+        let display_surface = self.workspace_focus.surface();
+        let settings_open = matches!(
+            display_surface,
+            app::workspace_focus::DisplaySurface::Settings
+        );
         let sessions_sidebar_width = self.rendered_sessions_sidebar_width(window);
         let sessions_sidebar_mounted = self.agent_sessions.sessions_sidebar_open
             || self.agent_sessions.sessions_sidebar_animation.is_some();
@@ -1499,8 +1505,10 @@ impl Render for PaneFlowApp {
         let files_sidebar_opacity = (files_sidebar_width
             / crate::app::files_sidebar::FILES_SIDEBAR_WIDTH.max(1.))
         .clamp(0., 1.);
-        let review_sidebar_mounted = self.settings_section.is_none()
-            && matches!(self.mode, paneflow_config::schema::AppMode::Diff);
+        let review_sidebar_mounted = matches!(
+            display_surface,
+            app::workspace_focus::DisplaySurface::Review
+        );
         // Every mode now renders the right area as ONE top-rounded clipped panel
         // (`panel_bg` fill + 16px rail-side top radius + 5px inset), replacing the
         // old Cli/Diff corner-mask trick. GPUI clips the panel's bg fill to the
@@ -1515,22 +1523,21 @@ impl Render for PaneFlowApp {
         let terminal_material_active = self.cached_config.windows_terminal_material_enabled();
         let chrome_material_active = self.cached_config.cockpit_chrome_material_enabled();
         let native_material_active = native_backdrop_material_active(
-            self.mode,
-            settings_open,
+            display_surface,
             terminal_material_active,
             chrome_material_active,
         );
-        let panel_bg = if settings_open {
-            ui.base
-        } else {
-            match self.mode {
-                paneflow_config::schema::AppMode::Cli if terminal_material_active => {
-                    gpui::transparent_black()
-                }
-                paneflow_config::schema::AppMode::Cli => theme.background,
-                paneflow_config::schema::AppMode::Diff
-                | paneflow_config::schema::AppMode::Agents => ui.base,
+        let panel_bg = match display_surface {
+            app::workspace_focus::DisplaySurface::Grid
+            | app::workspace_focus::DisplaySurface::Focused
+                if terminal_material_active =>
+            {
+                gpui::transparent_black()
             }
+            app::workspace_focus::DisplaySurface::Grid
+            | app::workspace_focus::DisplaySurface::Focused => theme.background,
+            app::workspace_focus::DisplaySurface::Review
+            | app::workspace_focus::DisplaySurface::Settings => ui.base,
         };
         let panel_border =
             crate::app::constants::right_panel_border_color(theme.background, ui.border);
@@ -1541,10 +1548,10 @@ impl Render for PaneFlowApp {
         );
         let panel_top = title_bar_h;
         let primary_sidebar_width = self.rendered_primary_sidebar_width(window);
-        let primary_sidebar_mounted = self.settings_section.is_some()
+        let primary_sidebar_mounted = settings_open
             || self.primary_sidebar_visible
             || self.primary_sidebar_animation.is_some();
-        let primary_sidebar_opacity = if self.settings_section.is_some() {
+        let primary_sidebar_opacity = if settings_open {
             1.
         } else {
             (primary_sidebar_width / self.primary_sidebar_expanded_width().max(1.)).clamp(0., 1.)
@@ -1585,19 +1592,16 @@ impl Render for PaneFlowApp {
         if let Some(pane) = self.pending_pane_focus.take() {
             pane.read(cx).focus_handle(cx).focus(window, cx);
         }
-        let main_content = if self.settings_section.is_some() {
+        let main_content = if settings_open {
             // Embedded settings take precedence over the mode screen: the left
             // rail becomes the settings nav (below) and this panel shows the
             // active section body. Checked first so Settings opens correctly
             // from Agents/Diff mode too.
             self.render_settings_content_panel(cx).into_any_element()
-        } else if matches!(self.mode, paneflow_config::schema::AppMode::Agents) {
-            // US-008 (prd-agents-view.md): mode is the source of truth
-            // for which screen renders. The Agents view is terminal-only
-            // - `render_agents_main` shows the selected thread's PTY, the
-            // agent picker, or an empty state.
-            self.render_agents_main(window, cx)
-        } else if matches!(self.mode, paneflow_config::schema::AppMode::Diff) {
+        } else if matches!(
+            display_surface,
+            app::workspace_focus::DisplaySurface::Review
+        ) {
             // US-003 (prd-git-diff-mode-2026-Q3.md). NOTE: this site is
             // an `if matches!`, not a `match`, so the compiler does NOT
             // force a Diff arm - it must be added by hand or the diff
@@ -1703,9 +1707,7 @@ impl Render for PaneFlowApp {
         // mode the brand slot carries the thread/chat context instead, so the
         // center workspace breadcrumb is suppressed (a CLI workspace name is
         // meaningless in the Agents view). Cli/Diff keep it (diff visuel nul).
-        let ws_name = if self.settings_section.is_some()
-            || matches!(self.mode, paneflow_config::schema::AppMode::Agents)
-        {
+        let ws_name = if settings_open {
             // Settings open: the title-bar center is left empty (the section
             // title lives in the content panel), matching the Codex reference.
             None
@@ -1714,13 +1716,8 @@ impl Render for PaneFlowApp {
         };
         // US-010/US-011: brand labels + overflow flag, computed only on the
         // Agents arm and reset to `None`/`false` otherwise so `TitleBar` never
-        // reads `AppMode` (push-only contract; Cli/Diff render identically).
-        let (agents_thread_title, agents_context_label, agents_overflow) =
-            if matches!(self.mode, paneflow_config::schema::AppMode::Agents) {
-                self.agents_titlebar_labels()
-            } else {
-                (None, None, false)
-            };
+        // 读取展示状态（push-only contract；终端与 Review 的品牌区渲染一致）。
+        let (agents_thread_title, agents_context_label, agents_overflow) = (None, None, false);
         // Update CTA state - extracted to `update_pill_info()` so the Cli/
         // Agents sidebar banner and the Diff title-bar pill share one source.
         let update_info = self.update_pill_info();
@@ -1739,10 +1736,9 @@ impl Render for PaneFlowApp {
             tb.agents_thread_title = agents_thread_title;
             tb.agents_context_label = agents_context_label;
             tb.agents_overflow = agents_overflow;
-            tb.is_agents = matches!(self.mode, paneflow_config::schema::AppMode::Agents);
-            // Cockpit chrome (#141414 + no divider) for Cli AND Diff; Agents
-            // paints nothing (is_agents wins).
-            tb.cockpit = !matches!(self.mode, paneflow_config::schema::AppMode::Agents);
+            tb.is_agents = false;
+            // Windows v1 的终端、Review 与 Settings 均使用统一工作台边框。
+            tb.cockpit = true;
             tb.cockpit_material_active = chrome_material_active;
         });
 
@@ -1846,8 +1842,6 @@ impl Render for PaneFlowApp {
             .on_action(cx.listener(Self::handle_dismiss_update))
             .on_action(cx.listener(Self::handle_toggle_rosetta_surface))
             .on_action(cx.listener(Self::handle_toggle_files_sidebar))
-            // US-011: title-bar `⋯` overflow menu for the current Agents thread.
-            .on_action(cx.listener(Self::handle_open_agents_thread_menu))
             // EP-001 (cli-cockpit): Composer + broadcast groups.
             .on_action(cx.listener(Self::handle_open_composer))
             .on_action(cx.listener(Self::handle_toggle_broadcast_member))
@@ -1892,7 +1886,7 @@ impl Render for PaneFlowApp {
                     // settings nav (kept visible even if the user had hidden the
                     // primary rail, so the back button is always reachable).
                     .when(primary_sidebar_mounted, |row| {
-                        if self.settings_section.is_some() {
+                        if settings_open {
                             return row.child(
                                 div()
                                     .flex()
@@ -1908,8 +1902,8 @@ impl Render for PaneFlowApp {
                                     .into_any_element(),
                             );
                         }
-                        row.child(match self.mode {
-                            paneflow_config::schema::AppMode::Agents => div()
+                        row.child(
+                            div()
                                 .flex()
                                 .flex_col()
                                 .h_full()
@@ -1917,39 +1911,11 @@ impl Render for PaneFlowApp {
                                 .flex_shrink_0()
                                 .overflow_hidden()
                                 .opacity(primary_sidebar_opacity)
-                                // Clear the transparent title-bar overlay so the
-                                // first rail row sits below the floating controls.
-                                .pt(title_bar_h)
-                                .child(self.render_agents_sidebar(window, cx))
-                                .into_any_element(),
-                            paneflow_config::schema::AppMode::Diff => div()
-                                .flex()
-                                .flex_col()
-                                .h_full()
-                                .w(px(primary_sidebar_width))
-                                .flex_shrink_0()
-                                .overflow_hidden()
-                                .opacity(primary_sidebar_opacity)
-                                // Review 继续显示相同的工作区窗口列表，点击即可直接
-                                // 重定向当前审查对象。
+                                // 终端与 Review 始终复用同一工作区窗口栏。
                                 .pt(title_bar_h)
                                 .child(self.render_sidebar(window, cx))
                                 .into_any_element(),
-                            paneflow_config::schema::AppMode::Cli => div()
-                                .flex()
-                                .flex_col()
-                                .h_full()
-                                .w(px(primary_sidebar_width))
-                                .flex_shrink_0()
-                                .overflow_hidden()
-                                .opacity(primary_sidebar_opacity)
-                                // Clear the transparent title-bar overlay so the
-                                // first workspace card sits below the floating
-                                // window controls (mirrors the Agents rail).
-                                .pt(title_bar_h)
-                                .child(self.render_sidebar(window, cx))
-                                .into_any_element(),
-                        })
+                        )
                     })
                     .child(
                         div()
@@ -2145,7 +2111,11 @@ impl Render for PaneFlowApp {
         // Mode-gated (review R3): a mode switch while a launch runs in the
         // background must not paint cockpit chrome over Agents/Diff - the
         // modal reappears (or finishes) back in Cli mode.
-        let in_cli_mode = matches!(self.mode, paneflow_config::schema::AppMode::Cli);
+        let in_cli_mode = matches!(
+            display_surface,
+            app::workspace_focus::DisplaySurface::Grid
+                | app::workspace_focus::DisplaySurface::Focused
+        );
         if self.attention_queue_open && in_cli_mode {
             app_content = app_content.child(self.render_attention_queue(cx));
         }
@@ -2474,11 +2444,17 @@ fn mount_paneflow_app(window: &mut Window, cx: &mut App) -> Entity<PaneFlowApp> 
         let subscription = cx.observe_window_bounds(window, |this, window, cx| {
             #[cfg(target_os = "linux")]
             crate::window_chrome::linux_backdrop::refresh_blur_region(window);
-            if this.settings_section.is_some() {
+            if matches!(
+                this.workspace_focus.surface(),
+                app::workspace_focus::DisplaySurface::Settings
+            ) {
                 this.reset_settings_scroll();
                 cx.notify();
                 cx.on_next_frame(window, |this, _window, cx| {
-                    if this.settings_section.is_some() {
+                    if matches!(
+                        this.workspace_focus.surface(),
+                        app::workspace_focus::DisplaySurface::Settings
+                    ) {
                         cx.notify();
                     }
                 });

@@ -2201,14 +2201,14 @@ mod tests {
             active_project: 0,
             chats: Vec::new(),
             agents_target: None,
-            mode: AppMode::Agents,
+            mode: AppMode::Cli,
             diff_scope: None,
         };
         let json = serde_json::to_string_pretty(&state).unwrap();
         let restored: SessionState = serde_json::from_str(&json).unwrap();
         assert_eq!(state, restored);
         assert_eq!(restored.projects[0].threads[0].agent, "claude_code");
-        assert_eq!(restored.mode, AppMode::Agents);
+        assert_eq!(restored.mode, AppMode::Cli);
     }
 
     // US-001/US-002 (prd-agents-ui-codex-redesign-2026-Q3.md): the
@@ -2260,7 +2260,7 @@ mod tests {
                 title_user_set: false,
             }],
             agents_target: None,
-            mode: AppMode::Agents,
+            mode: AppMode::Cli,
             diff_scope: None,
         };
         let json = serde_json::to_string_pretty(&state).unwrap();
@@ -2351,10 +2351,8 @@ mod tests {
     }
 
     #[test]
-    fn test_app_mode_diff_round_trips() {
-        // US-001 (prd-git-diff-mode-2026-Q3.md): `Diff` survives a
-        // serialize -> deserialize cycle and a session.json carrying it
-        // restores into `AppMode::Diff` (not the `Cli` default).
+    fn test_legacy_app_mode_is_read_once_and_not_rewritten() {
+        // 旧枚举本身仍能解析，保证历史 session.json 可以进入 bootstrap 迁移边界。
         let json = serde_json::to_string(&AppMode::Diff).unwrap();
         let back: AppMode = serde_json::from_str(&json).unwrap();
         assert_eq!(back, AppMode::Diff);
@@ -2367,6 +2365,11 @@ mod tests {
         }"#;
         let restored: SessionState = serde_json::from_str(session).unwrap();
         assert_eq!(restored.mode, AppMode::Diff);
+        let rewritten = serde_json::to_string(&restored).unwrap();
+        assert!(
+            !rewritten.contains("\"mode\""),
+            "当前会话不得继续写出旧展示模式"
+        );
     }
 
     #[test]

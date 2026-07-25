@@ -214,7 +214,10 @@ impl PaneFlowApp {
     ) -> impl IntoElement {
         let ui = crate::theme::ui_colors();
         let theme = crate::theme::active_theme();
-        let active = self.settings_section.unwrap_or(SettingsSection::General);
+        let active = self
+            .workspace_focus
+            .settings_section()
+            .unwrap_or(SettingsSection::General);
         let query = self.settings_search_input.read(cx).value().to_lowercase();
 
         // ── Back-to-app row ─────────────────────────────────────────────
@@ -438,7 +441,10 @@ impl PaneFlowApp {
     /// The right content panel: the section H1 title + the scrollable body.
     pub(crate) fn render_settings_content_panel(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let ui = crate::theme::ui_colors();
-        let section = self.settings_section.unwrap_or(SettingsSection::General);
+        let section = self
+            .workspace_focus
+            .settings_section()
+            .unwrap_or(SettingsSection::General);
 
         let body = match section {
             SettingsSection::General => self.render_general_content(cx).into_any_element(),
@@ -589,7 +595,7 @@ impl PaneFlowApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let previous_section = self.settings_section;
+        let previous_section = self.workspace_focus.settings_section();
         // 离开 AI Agent 页面时提交尚未通过回车或失焦保存的命令输入。
         if previous_section == Some(SettingsSection::AiAgent) && section != SettingsSection::AiAgent
         {

@@ -3,10 +3,10 @@
 运行 AgentWorkspace 第一版真实会话、终端矩阵页码与 PTY 重建验收。
 
 .DESCRIPTION
-脚本隔离当前用户的 Paneflow 配置和会话，启动真实 Release 应用并创建 20 个
+脚本隔离当前用户的 AgentWorkspace 配置和会话，启动真实 Release 应用并创建 20 个
 PowerShell 工作区，通过真实鼠标点击切换到矩阵第二页，再正常关闭应用。随后检查
 session.json 的顺序、活动项和页码，重启应用并核对工作区恢复以及 PowerShell PID
-全部替换。finally 始终恢复用户原有状态；验收期间不要同时启动其他 Paneflow 实例。
+全部替换。finally 始终恢复用户原有状态；验收期间不要同时启动其他 AgentWorkspace 实例。
 #>
 [CmdletBinding()]
 param(
@@ -35,21 +35,24 @@ $savedSessionPath = Join-Path $runDirectory '首次退出会话.json'
 $restoredSessionPath = Join-Path $runDirectory '重启退出会话.json'
 $resultPath = Join-Path $runDirectory '运行结果.json'
 $stateDirectory = Join-Path $runDirectory '状态备份'
-$actualConfigPath = Join-Path ([Environment]::GetFolderPath('ApplicationData')) 'paneflow\paneflow.json'
-$actualSessionPath = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'paneflow\session.json'
+$dataRoot = Join-Path $env:USERPROFILE '.agent-workspace'
+$actualConfigPath = Join-Path $dataRoot 'config\settings.json'
+$actualSessionPath = Join-Path $dataRoot 'sessions\workspaces.json'
+$pipeName = "agent-workspace-session-$timestamp"
+$pipePath = "\\.\pipe\$pipeName"
 $configBackupPath = Join-Path $stateDirectory '用户配置.json'
 $sessionBackupPath = Join-Path $stateDirectory '用户会话.json'
 
 New-Item -ItemType Directory -Force -Path $runDirectory, $stateDirectory | Out-Null
 
 function Invoke-PaneflowRpc {
-    <# 通过一次一连接协议调用真实 Paneflow JSON-RPC。 #>
+    <# 通过一次一连接协议调用真实 AgentWorkspace JSON-RPC。 #>
     param(
         [Parameter(Mandatory = $true)][string]$Method,
         [Parameter(Mandatory = $true)][object]$Params
     )
 
-    $pipe = [IO.Pipes.NamedPipeClientStream]::new('.', 'paneflow', [IO.Pipes.PipeDirection]::InOut)
+    $pipe = [IO.Pipes.NamedPipeClientStream]::new('.', $pipeName, [IO.Pipes.PipeDirection]::InOut)
     try {
         $pipe.Connect(5000)
         $utf8 = [Text.UTF8Encoding]::new($false)
@@ -65,14 +68,14 @@ function Invoke-PaneflowRpc {
         $writer.WriteLine($request)
         $line = $reader.ReadLine()
         if ([string]::IsNullOrWhiteSpace($line)) {
-            throw "Paneflow IPC 对 $Method 返回空响应。"
+            throw "AgentWorkspace IPC 对 $Method 返回空响应。"
         }
         $response = $line | ConvertFrom-Json
         if ($response.PSObject.Properties.Name -contains 'error') {
-            throw "Paneflow IPC $Method 失败：$($response.error | ConvertTo-Json -Compress)"
+            throw "AgentWorkspace IPC $Method 失败：$($response.error | ConvertTo-Json -Compress)"
         }
         if ($response.PSObject.Properties.Name -notcontains 'result') {
-            throw "Paneflow IPC $Method 响应缺少 result。"
+            throw "AgentWorkspace IPC $Method 响应缺少 result。"
         }
         return $response.result
     }
@@ -93,13 +96,13 @@ function Wait-PaneflowReady {
         }
         Start-Sleep -Milliseconds 500
     }
-    throw 'Paneflow IPC 在 30 秒内未就绪。'
+    throw 'AgentWorkspace IPC 在 30 秒内未就绪。'
 }
 
 function Initialize-IsolatedState {
     <# 暂存真实用户状态，保证验收从单个空白工作区开始。 #>
-    if (Get-Process paneflow -ErrorAction SilentlyContinue) {
-        throw '开始验收前仍存在 Paneflow 进程。'
+    if (Get-Process agent-workspace -ErrorAction SilentlyContinue) {
+        throw '开始验收前仍存在 AgentWorkspace 进程。'
     }
     $script:hadConfig = Test-Path -LiteralPath $actualConfigPath -PathType Leaf
     $script:hadSession = Test-Path -LiteralPath $actualSessionPath -PathType Leaf
@@ -212,7 +215,7 @@ function Prepare-Window {
         }
         Start-Sleep -Milliseconds 250
     }
-    if ($handle -eq [IntPtr]::Zero) { throw 'Paneflow 真实主窗口在 15 秒内未达到最小尺寸。' }
+    if ($handle -eq [IntPtr]::Zero) { throw 'AgentWorkspace 真实主窗口在 15 秒内未达到最小尺寸。' }
     [AgentWorkspaceSessionInput]::ShowWindow($handle, 9) | Out-Null
     # 仅切换置顶关系，不移动或缩放产品默认的 1200×800 窗口。
     [AgentWorkspaceSessionInput]::SetWindowPos($handle, [IntPtr](-1), 0, 0, 0, 0, 0x0003) | Out-Null
@@ -227,7 +230,7 @@ function Save-WindowScreenshot {
 
     $rect = New-Object AgentWorkspaceSessionInput+RECT
     if (-not [AgentWorkspaceSessionInput]::GetWindowRect($Handle, [ref]$rect)) {
-        throw '无法读取 Paneflow 主窗口坐标。'
+        throw '无法读取 AgentWorkspace 主窗口坐标。'
     }
     $width = $rect.Right - $rect.Left
     $height = $rect.Bottom - $rect.Top
@@ -253,7 +256,7 @@ function Select-NextGridPage {
     $handle = Prepare-Window -Process $Process
     $rect = New-Object AgentWorkspaceSessionInput+RECT
     if (-not [AgentWorkspaceSessionInput]::GetWindowRect($handle, [ref]$rect)) {
-        throw '无法读取 Paneflow 主窗口坐标。'
+        throw '无法读取 AgentWorkspace 主窗口坐标。'
     }
     $windowWidth = $rect.Right - $rect.Left
     # CLI 左栏固定约 248px；分页器位于剩余主区域中心，Next 中心在页码右侧约 55px。
@@ -334,6 +337,7 @@ Initialize-WindowAutomation
 try {
     Initialize-IsolatedState
     $env:PANEFLOW_NO_TELEMETRY = '1'
+    $env:PANEFLOW_SOCKET_PATH = $pipePath
     $env:PANEFLOW_IPC_SCRIPTING = '1'
 
     $firstProcess = Start-Process -FilePath $binary -WorkingDirectory $repoRoot -WindowStyle Normal -PassThru
