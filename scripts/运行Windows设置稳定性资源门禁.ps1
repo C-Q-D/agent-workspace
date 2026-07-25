@@ -283,6 +283,12 @@ function Measure-ResourcePhase {
                     [double](($Members | Measure-Object PrivateMemorySize64 -Sum).Sum) / 1MB,
                     3
                 )
+                threadCount = [int]((
+                    $Members |
+                        ForEach-Object { $_.Threads.Count } |
+                        Measure-Object -Sum
+                ).Sum)
+                handleCount = [int](($Members | Measure-Object HandleCount -Sum).Sum)
             }
         }
         $Rows.Add([ordered]@{

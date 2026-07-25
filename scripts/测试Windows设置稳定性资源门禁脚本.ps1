@@ -69,6 +69,8 @@ foreach ($Required in @(
     'gitHasUncommittedChange',
     'surfaceIdsStable',
     'powershellPidsStable',
+    'threadCount',
+    'handleCount',
     'residueCount'
 )) {
     if (-not $Source.Contains($Required)) { throw "门禁缺少关键契约：$Required" }
