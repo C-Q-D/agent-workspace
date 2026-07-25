@@ -35,8 +35,8 @@ enum WorkspaceDisplayState {
 
 /// 当前唯一可见的应用级展示状态。
 ///
-/// A016 先建立模型，Settings 分支从 A017 开始接入生产转换，因此本原子允许该
-/// 分支暂时只由模型测试构造。
+/// A016 先建立模型，A017 已建立集中命令；Settings 的 UI 调用方会在 A019 接入，
+/// 因此当前允许该分支暂时只由模型测试构造。
 #[allow(dead_code)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum VisibleDisplayState {
@@ -53,7 +53,7 @@ enum VisibleDisplayState {
 
 /// 用于只读判断当前渲染分支的稳定枚举。
 ///
-/// A017～A019 会逐步把渲染读取迁入该投影。
+/// A018～A019 会逐步把渲染读取迁入该投影。
 #[allow(dead_code)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum DisplaySurface {
@@ -67,14 +67,53 @@ pub(crate) enum DisplaySurface {
     Settings,
 }
 
+/// 所有展示状态写入都必须表达为一个命令。
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum DisplayCommand {
+    /// 放大或切换到稳定工作区；Review 中切换时继续停留在 Review。
+    FocusWorkspace {
+        /// 目标工作区稳定 ID。
+        workspace_id: u64,
+        /// 目标工作区创建时绑定的稳定目录。
+        workspace_root: PathBuf,
+    },
+    /// 主动返回动态终端矩阵。
+    RestoreGrid,
+    /// 进入当前放大工作区的只读 Git 审查。
+    EnterReview,
+    /// 从 Review 返回同一工作区的放大终端。
+    ExitReview,
+    /// 打开设置或切换设置分区。
+    OpenSettings(SettingsSection),
+    /// 关闭设置并恢复打开前的工作区表面。
+    CloseSettings,
+    /// 最后一个工作区消失时清空活动展示上下文。
+    ClearWorkspace,
+}
+
+/// 一次受控展示转换是否实际改变了状态。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum DisplayTransition {
+    /// 状态发生变化，调用方需要处理相应副作用并重绘。
+    Changed,
+    /// 命令与当前状态等价，不需要重复执行副作用。
+    Unchanged,
+}
+
 /// 展示状态转换被拒绝的确定原因。
 ///
-/// A017 会把集中转换命令接到该错误；A016 先由模型测试验证错误边界。
+/// A017 的集中转换命令通过该错误返回稳定的拒绝原因。
 #[allow(dead_code)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum DisplayTransitionError {
     /// Review 只能从一个已放大的稳定工作区进入。
     ReviewRequiresFocusedWorkspace,
+    /// 当前并不在 Review，不能执行退出 Review。
+    ReviewNotOpen,
+    /// 当前并未打开设置页，不能执行关闭设置。
+    SettingsNotOpen,
+    /// Settings 是互斥覆盖页，必须先关闭才能进入或退出不可见的 Review。
+    SettingsMustCloseFirst,
 }
 
 /// 应用级展示状态的单一模型。
@@ -102,8 +141,8 @@ impl Default for DisplayState {
 /// A016 迁移期兼容名称；旧聚焦调用方实际持有并写入 [`DisplayState`]。
 pub(crate) type WorkspaceFocusState = DisplayState;
 
-// A016 只迁移既有矩阵/聚焦写入口；Review、Settings 和只读投影会在
-// A017～A019 接入生产调用方，因此这些方法在本原子允许暂时只由测试使用。
+// A017 已集中全部纯状态写入；Review、Settings 和只读投影会在 A018～A019
+// 接入生产调用方，因此部分兼容方法当前允许暂时只由测试使用。
 #[allow(dead_code)]
 impl DisplayState {
     /// 返回设置覆盖页之下的工作区状态。
@@ -142,109 +181,183 @@ impl DisplayState {
         }
     }
 
+    /// 执行唯一的展示状态写入命令。
+    ///
+    /// 该函数只改变纯状态，不执行文件扫描、Git、PTY 或 UI 副作用。调用方可以先
+    /// 根据返回值决定是否执行外部动作；非法转换保留原状态并返回可测试错误。
+    pub(crate) fn transition(
+        &mut self,
+        command: DisplayCommand,
+    ) -> Result<DisplayTransition, DisplayTransitionError> {
+        match command {
+            DisplayCommand::FocusWorkspace {
+                workspace_id,
+                workspace_root,
+            } => {
+                let terminal_surface_id = self
+                    .focused_context()
+                    .filter(|context| context.workspace_id == workspace_id)
+                    .and_then(|context| context.terminal_surface_id);
+                let context = FocusedWorkspaceContext {
+                    workspace_id,
+                    workspace_root,
+                    terminal_surface_id,
+                };
+                let next = if matches!(self.workspace_state(), WorkspaceDisplayState::Review(_)) {
+                    WorkspaceDisplayState::Review(context)
+                } else {
+                    WorkspaceDisplayState::Focused(context)
+                };
+                if self.workspace_state() == &next {
+                    return Ok(DisplayTransition::Unchanged);
+                }
+                *self.workspace_state_mut() = next;
+                self.reveal_workspace_id = None;
+                Ok(DisplayTransition::Changed)
+            }
+            DisplayCommand::RestoreGrid => {
+                let workspace_id = match self.workspace_state() {
+                    WorkspaceDisplayState::Grid => return Ok(DisplayTransition::Unchanged),
+                    WorkspaceDisplayState::Focused(context)
+                    | WorkspaceDisplayState::Review(context) => context.workspace_id,
+                };
+                *self.workspace_state_mut() = WorkspaceDisplayState::Grid;
+                self.reveal_workspace_id = Some(workspace_id);
+                Ok(DisplayTransition::Changed)
+            }
+            DisplayCommand::EnterReview => {
+                if matches!(self.visible, VisibleDisplayState::Settings { .. }) {
+                    return Err(DisplayTransitionError::SettingsMustCloseFirst);
+                }
+                let next = match self.workspace_state().clone() {
+                    WorkspaceDisplayState::Focused(context) => {
+                        WorkspaceDisplayState::Review(context)
+                    }
+                    WorkspaceDisplayState::Review(_) => return Ok(DisplayTransition::Unchanged),
+                    WorkspaceDisplayState::Grid => {
+                        return Err(DisplayTransitionError::ReviewRequiresFocusedWorkspace);
+                    }
+                };
+                *self.workspace_state_mut() = next;
+                Ok(DisplayTransition::Changed)
+            }
+            DisplayCommand::ExitReview => {
+                if matches!(self.visible, VisibleDisplayState::Settings { .. }) {
+                    return Err(DisplayTransitionError::SettingsMustCloseFirst);
+                }
+                let next = match self.workspace_state().clone() {
+                    WorkspaceDisplayState::Review(context) => {
+                        WorkspaceDisplayState::Focused(context)
+                    }
+                    WorkspaceDisplayState::Grid | WorkspaceDisplayState::Focused(_) => {
+                        return Err(DisplayTransitionError::ReviewNotOpen);
+                    }
+                };
+                *self.workspace_state_mut() = next;
+                Ok(DisplayTransition::Changed)
+            }
+            DisplayCommand::OpenSettings(section) => match &mut self.visible {
+                VisibleDisplayState::Settings {
+                    section: current, ..
+                } if *current == section => Ok(DisplayTransition::Unchanged),
+                VisibleDisplayState::Settings {
+                    section: current, ..
+                } => {
+                    *current = section;
+                    Ok(DisplayTransition::Changed)
+                }
+                VisibleDisplayState::Workspace(_) => {
+                    let VisibleDisplayState::Workspace(return_to) = std::mem::replace(
+                        &mut self.visible,
+                        VisibleDisplayState::Workspace(WorkspaceDisplayState::Grid),
+                    ) else {
+                        unreachable!("替换前已经匹配 Workspace 分支");
+                    };
+                    self.visible = VisibleDisplayState::Settings { section, return_to };
+                    Ok(DisplayTransition::Changed)
+                }
+            },
+            DisplayCommand::CloseSettings => {
+                let VisibleDisplayState::Settings { .. } = self.visible else {
+                    return Err(DisplayTransitionError::SettingsNotOpen);
+                };
+                let VisibleDisplayState::Settings { return_to, .. } = std::mem::replace(
+                    &mut self.visible,
+                    VisibleDisplayState::Workspace(WorkspaceDisplayState::Grid),
+                ) else {
+                    unreachable!("设置分支已在替换前确认");
+                };
+                self.visible = VisibleDisplayState::Workspace(return_to);
+                Ok(DisplayTransition::Changed)
+            }
+            DisplayCommand::ClearWorkspace => {
+                let changed = !matches!(self.workspace_state(), WorkspaceDisplayState::Grid)
+                    || self.reveal_workspace_id.is_some();
+                *self.workspace_state_mut() = WorkspaceDisplayState::Grid;
+                self.reveal_workspace_id = None;
+                Ok(if changed {
+                    DisplayTransition::Changed
+                } else {
+                    DisplayTransition::Unchanged
+                })
+            }
+        }
+    }
+
     /// 进入或重定向聚焦工作区。
     ///
     /// 切换到另一个稳定 ID 时必须清除旧终端 Surface，防止把 B 工作区的文件引用
     /// 注入 A 的 CLI。重复对齐同一工作区时保留 Surface，避免无意义地丢失绑定。
     pub(crate) fn focus(&mut self, workspace_id: u64, workspace_root: impl Into<PathBuf>) {
-        let workspace_root = workspace_root.into();
-        let terminal_surface_id = self
-            .focused_context()
-            .filter(|context| context.workspace_id == workspace_id)
-            .and_then(|context| context.terminal_surface_id);
-        let context = FocusedWorkspaceContext {
+        self.transition(DisplayCommand::FocusWorkspace {
             workspace_id,
-            workspace_root,
-            terminal_surface_id,
-        };
-        let state = self.workspace_state_mut();
-        *state = if matches!(state, WorkspaceDisplayState::Review(_)) {
-            WorkspaceDisplayState::Review(context)
-        } else {
-            WorkspaceDisplayState::Focused(context)
-        };
-        self.reveal_workspace_id = None;
+            workspace_root: workspace_root.into(),
+        })
+        .expect("聚焦命令在工作区表面和 Settings 返回状态中都合法");
     }
 
     /// 退出聚焦态并记录矩阵应重新显示的稳定工作区。
     ///
     /// 返回 `false` 表示调用前已经处于矩阵态，调用方无需触发额外关闭或重绘。
     pub(crate) fn restore_grid(&mut self) -> bool {
-        let workspace_id = match self.workspace_state() {
-            WorkspaceDisplayState::Grid => return false,
-            WorkspaceDisplayState::Focused(context) | WorkspaceDisplayState::Review(context) => {
-                context.workspace_id
-            }
-        };
-        *self.workspace_state_mut() = WorkspaceDisplayState::Grid;
-        self.reveal_workspace_id = Some(workspace_id);
-        true
+        matches!(
+            self.transition(DisplayCommand::RestoreGrid),
+            Ok(DisplayTransition::Changed)
+        )
     }
 
     /// 从已放大的工作区进入只读 Review。
     ///
     /// Grid 和 Settings→Grid 都会被明确拒绝；调用失败时状态保持不变。
     pub(crate) fn enter_review(&mut self) -> Result<(), DisplayTransitionError> {
-        let next = match self.workspace_state().clone() {
-            WorkspaceDisplayState::Focused(context) | WorkspaceDisplayState::Review(context) => {
-                WorkspaceDisplayState::Review(context)
-            }
-            WorkspaceDisplayState::Grid => {
-                return Err(DisplayTransitionError::ReviewRequiresFocusedWorkspace);
-            }
-        };
-        *self.workspace_state_mut() = next;
-        Ok(())
+        self.transition(DisplayCommand::EnterReview).map(|_| ())
     }
 
-    /// 从 Review 返回同一工作区的放大终端；其他状态保持不变。
-    pub(crate) fn exit_review(&mut self) {
-        let next = match self.workspace_state().clone() {
-            WorkspaceDisplayState::Review(context) => WorkspaceDisplayState::Focused(context),
-            state => state,
-        };
-        *self.workspace_state_mut() = next;
+    /// 从 Review 返回同一工作区的放大终端。
+    pub(crate) fn exit_review(&mut self) -> Result<(), DisplayTransitionError> {
+        self.transition(DisplayCommand::ExitReview).map(|_| ())
     }
 
     /// 打开或切换设置分区，并保存关闭后要恢复的唯一有效工作区表面。
     pub(crate) fn open_settings(&mut self, section: SettingsSection) {
-        match &mut self.visible {
-            VisibleDisplayState::Settings {
-                section: current, ..
-            } => *current = section,
-            VisibleDisplayState::Workspace(_) => {
-                let VisibleDisplayState::Workspace(return_to) = std::mem::replace(
-                    &mut self.visible,
-                    VisibleDisplayState::Workspace(WorkspaceDisplayState::Grid),
-                ) else {
-                    unreachable!("替换前已经匹配 Workspace 分支");
-                };
-                self.visible = VisibleDisplayState::Settings { section, return_to };
-            }
-        }
+        self.transition(DisplayCommand::OpenSettings(section))
+            .expect("打开设置对所有工作区表面都合法");
     }
 
     /// 关闭设置并恢复打开前的确定工作区表面。
     ///
     /// 返回 `false` 表示设置原本未打开，调用方不需要额外重绘。
     pub(crate) fn close_settings(&mut self) -> bool {
-        let VisibleDisplayState::Settings { .. } = self.visible else {
-            return false;
-        };
-        let VisibleDisplayState::Settings { return_to, .. } = std::mem::replace(
-            &mut self.visible,
-            VisibleDisplayState::Workspace(WorkspaceDisplayState::Grid),
-        ) else {
-            unreachable!("设置分支已在替换前确认");
-        };
-        self.visible = VisibleDisplayState::Workspace(return_to);
-        true
+        matches!(
+            self.transition(DisplayCommand::CloseSettings),
+            Ok(DisplayTransition::Changed)
+        )
     }
 
     /// 工作区集合变化且已无活动项时清空聚焦与恢复目标。
     pub(crate) fn clear(&mut self) {
-        *self.workspace_state_mut() = WorkspaceDisplayState::Grid;
-        self.reveal_workspace_id = None;
+        self.transition(DisplayCommand::ClearWorkspace)
+            .expect("清空工作区上下文在所有展示表面都合法");
     }
 
     /// 返回当前是否处于应用级聚焦态。
@@ -314,7 +427,10 @@ impl DisplayState {
 
 #[cfg(test)]
 mod tests {
-    use super::{DisplaySurface, DisplayTransitionError, WorkspaceFocusState};
+    use super::{
+        DisplayCommand, DisplaySurface, DisplayTransition, DisplayTransitionError,
+        WorkspaceFocusState,
+    };
     use crate::SettingsSection;
     use paneflow_config::schema::AppMode;
     use std::path::Path;
@@ -362,7 +478,7 @@ mod tests {
 
         left.enter_review().expect("聚焦态应能进入 Review");
         assert_ne!(left, right);
-        left.exit_review();
+        left.exit_review().expect("Review 应能返回聚焦终端");
         assert_eq!(left, right);
 
         left.open_settings(SettingsSection::Appearance);
@@ -371,6 +487,164 @@ mod tests {
         assert!(left.close_settings());
         assert!(!left.close_settings());
         assert_eq!(left, right);
+    }
+
+    /// 表驱动覆盖所有合法命令、幂等结果以及 Review 内切换工作区。
+    #[test]
+    fn display_transition_table_covers_legal_and_idempotent_paths() {
+        let mut state = WorkspaceFocusState::default();
+        let cases = [
+            (
+                DisplayCommand::RestoreGrid,
+                DisplayTransition::Unchanged,
+                DisplaySurface::Grid,
+            ),
+            (
+                DisplayCommand::FocusWorkspace {
+                    workspace_id: 41,
+                    workspace_root: r"C:\repo-a".into(),
+                },
+                DisplayTransition::Changed,
+                DisplaySurface::Focused,
+            ),
+            (
+                DisplayCommand::FocusWorkspace {
+                    workspace_id: 41,
+                    workspace_root: r"C:\repo-a".into(),
+                },
+                DisplayTransition::Unchanged,
+                DisplaySurface::Focused,
+            ),
+            (
+                DisplayCommand::EnterReview,
+                DisplayTransition::Changed,
+                DisplaySurface::Review,
+            ),
+            (
+                DisplayCommand::EnterReview,
+                DisplayTransition::Unchanged,
+                DisplaySurface::Review,
+            ),
+            (
+                DisplayCommand::FocusWorkspace {
+                    workspace_id: 72,
+                    workspace_root: r"C:\repo-b".into(),
+                },
+                DisplayTransition::Changed,
+                DisplaySurface::Review,
+            ),
+            (
+                DisplayCommand::ExitReview,
+                DisplayTransition::Changed,
+                DisplaySurface::Focused,
+            ),
+            (
+                DisplayCommand::OpenSettings(SettingsSection::General),
+                DisplayTransition::Changed,
+                DisplaySurface::Settings,
+            ),
+            (
+                DisplayCommand::OpenSettings(SettingsSection::General),
+                DisplayTransition::Unchanged,
+                DisplaySurface::Settings,
+            ),
+            (
+                DisplayCommand::OpenSettings(SettingsSection::Terminal),
+                DisplayTransition::Changed,
+                DisplaySurface::Settings,
+            ),
+            (
+                DisplayCommand::CloseSettings,
+                DisplayTransition::Changed,
+                DisplaySurface::Focused,
+            ),
+            (
+                DisplayCommand::RestoreGrid,
+                DisplayTransition::Changed,
+                DisplaySurface::Grid,
+            ),
+        ];
+
+        for (command, expected_result, expected_surface) in cases {
+            assert_eq!(state.transition(command), Ok(expected_result));
+            assert_eq!(state.surface(), expected_surface);
+        }
+        assert_eq!(state.take_reveal_workspace_id(), Some(72));
+    }
+
+    /// 非法命令必须返回稳定错误并完整保留调用前状态。
+    #[test]
+    fn display_transition_table_rejects_illegal_paths_without_mutation() {
+        let mut state = WorkspaceFocusState::default();
+
+        for (command, expected_error) in [
+            (
+                DisplayCommand::EnterReview,
+                DisplayTransitionError::ReviewRequiresFocusedWorkspace,
+            ),
+            (
+                DisplayCommand::ExitReview,
+                DisplayTransitionError::ReviewNotOpen,
+            ),
+            (
+                DisplayCommand::CloseSettings,
+                DisplayTransitionError::SettingsNotOpen,
+            ),
+        ] {
+            let before = state.clone();
+            assert_eq!(state.transition(command), Err(expected_error));
+            assert_eq!(state, before);
+        }
+
+        state
+            .transition(DisplayCommand::OpenSettings(SettingsSection::General))
+            .expect("Grid 应能打开设置");
+        for command in [DisplayCommand::EnterReview, DisplayCommand::ExitReview] {
+            let before = state.clone();
+            assert_eq!(
+                state.transition(command),
+                Err(DisplayTransitionError::SettingsMustCloseFirst)
+            );
+            assert_eq!(state, before);
+        }
+    }
+
+    /// 设置可见时，外部生命周期仍可安全切换底层工作区，关闭后显露最新目标。
+    #[test]
+    fn workspace_lifecycle_can_retarget_under_settings_without_closing_overlay() {
+        let mut state = WorkspaceFocusState::default();
+        state.focus(41, r"C:\repo-a");
+        state.open_settings(SettingsSection::General);
+
+        assert_eq!(
+            state.transition(DisplayCommand::FocusWorkspace {
+                workspace_id: 72,
+                workspace_root: r"C:\repo-b".into(),
+            }),
+            Ok(DisplayTransition::Changed)
+        );
+        assert_eq!(state.surface(), DisplaySurface::Settings);
+        assert_eq!(state.workspace_id(), Some(72));
+        assert!(state.close_settings());
+        assert_eq!(state.surface(), DisplaySurface::Focused);
+        assert_eq!(state.workspace_root(), Some(Path::new(r"C:\repo-b")));
+    }
+
+    /// 工作区生命周期清空命令可在设置页内更新返回状态，但不抢走可见设置页。
+    #[test]
+    fn clearing_workspace_under_settings_keeps_overlay_and_returns_to_grid() {
+        let mut state = WorkspaceFocusState::default();
+        state.focus(41, r"C:\repo-a");
+        state.open_settings(SettingsSection::General);
+
+        assert_eq!(
+            state.transition(DisplayCommand::ClearWorkspace),
+            Ok(DisplayTransition::Changed)
+        );
+        assert_eq!(state.surface(), DisplaySurface::Settings);
+        assert!(state.close_settings());
+        assert_eq!(state.surface(), DisplaySurface::Grid);
+        assert_eq!(state.workspace_id(), None);
     }
 
     #[test]
