@@ -38,6 +38,13 @@ $SelfCheck = ($SelfCheckOutput -join "`n") | ConvertFrom-Json
 if ($SelfCheck.result -ne 'self-check-passed') { throw '自检结果不是 self-check-passed。' }
 if (@($SelfCheck.expectedKeys).Count -ne 10) { throw '自检没有报告十个设置键。' }
 if ($SelfCheck.interactionRule -notlike '*设置页*') { throw '自检缺少真实设置页交互边界。' }
+if ($SelfCheck.roundOne.theme_mode -ne 'dark' -or $SelfCheck.roundOne.theme -ne 'One Dark') {
+    throw '第一轮主题必须是设置页可达的 Dark 默认主题组合。'
+}
+if ($SelfCheck.roundTwo.theme_mode -ne 'light' -or
+    $SelfCheck.roundTwo.theme -ne 'AgentWorkspace Light') {
+    throw '第二轮主题必须是设置页可达的 Light 默认主题组合。'
+}
 
 $Pwsh = (Get-Process -Id $PID).Path
 $MissingBinary = Join-Path $env:TEMP "不存在-$([Guid]::NewGuid()).exe"

@@ -72,7 +72,7 @@ $ExpectedKeys = @(
 # 后续启动；引用格式与 Git 策略只影响后续创建的工作区。
 $RoundOneExpected = [ordered]@{
     theme_mode = 'dark'
-    theme = 'Claude'
+    theme = 'One Dark'
     font_family = 'Consolas'
     font_size = 14.0
     default_shell = 'powershell.exe'
@@ -84,7 +84,7 @@ $RoundOneExpected = [ordered]@{
 }
 $RoundTwoExpected = [ordered]@{
     theme_mode = 'light'
-    theme = 'Cursor'
+    theme = 'AgentWorkspace Light'
     font_family = 'Cascadia Mono'
     font_size = 15.0
     default_shell = 'pwsh.exe'
