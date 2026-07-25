@@ -144,4 +144,34 @@ mod tests {
         assert_eq!(state.take_reveal_workspace_id(), Some(41));
         assert_eq!(state.take_reveal_workspace_id(), None);
     }
+
+    /// 用户恢复矩阵后若立即从左栏选择其他工作区，新聚焦必须取消旧矩阵定位请求。
+    #[test]
+    fn refocusing_after_restore_cancels_stale_grid_reveal() {
+        let mut state = WorkspaceFocusState::default();
+        state.focus(41, r"C:\repo-a");
+        assert!(state.restore_grid());
+
+        state.focus(72, r"C:\repo-b");
+
+        assert_eq!(state.workspace_id(), Some(72));
+        assert_eq!(state.workspace_root(), Some(Path::new(r"C:\repo-b")));
+        assert_eq!(state.take_reveal_workspace_id(), None);
+    }
+
+    /// 最后一个工作区关闭或恢复结果为空时，清理操作必须释放全部活动上下文。
+    #[test]
+    fn clearing_focused_workspace_drops_all_active_context() {
+        let mut state = WorkspaceFocusState::default();
+        state.focus(41, r"C:\repo-a");
+        state.set_terminal_surface_id(Some(4101));
+
+        state.clear();
+
+        assert!(!state.is_focused());
+        assert_eq!(state.workspace_id(), None);
+        assert_eq!(state.workspace_root(), None);
+        assert_eq!(state.terminal_surface_id(), None);
+        assert_eq!(state.take_reveal_workspace_id(), None);
+    }
 }
