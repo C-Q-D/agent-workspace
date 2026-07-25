@@ -127,10 +127,10 @@ cargo test -p paneflow-app --test flex_nchild
 cargo fmt --all -- --check
 ```
 
-2026-07-25 的 A001 可重复基线为：
+2026-07-25 的 A006 可重复基线为：
 
 - `paneflow-config`：113 passed。
-- `paneflow-app` unit：1460 passed。
+- `paneflow-app` unit：1461 passed。
 - `flex_nchild`：5 passed。
 
 该数字只代表基线，不是永久成功标准。每次记录测试结果必须使用当前命令输出，不能复制旧计数。
@@ -184,3 +184,6 @@ fixture 验证错误路径，但 ConPTY、真实 Git、GUI、安装包和 CLI �
 - 项目工作台：当前停点和跨上下文恢复。
 - 项目阶段记录：标准路线阶段与历史。
 - v1 原子任务方案：A001～A142 的唯一执行顺序和完成标准。
+
+当前检查点：A001～A006 已完成并推送；A005 包含修复提交 `6891821`、`335f841` 和
+最终真实验收提交 `69ffcd2`。下一原子为 A007。
