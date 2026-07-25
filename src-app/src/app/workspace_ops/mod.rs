@@ -241,8 +241,7 @@ impl PaneFlowApp {
             return false;
         };
         if self
-            .workspace_focus
-            .transition(DisplayCommand::FocusWorkspace {
+            .transition_display(DisplayCommand::FocusWorkspace {
                 workspace_id,
                 workspace_root: workspace_root.into(),
             })
@@ -266,7 +265,7 @@ impl PaneFlowApp {
     /// 仅由放大视图的恢复按钮退出应用级放大，并标记活动工作区所在矩阵页。
     pub(crate) fn restore_workspace_grid(&mut self, cx: &mut Context<Self>) {
         if !matches!(
-            self.workspace_focus.transition(DisplayCommand::RestoreGrid),
+            self.transition_display(DisplayCommand::RestoreGrid),
             Ok(DisplayTransition::Changed)
         ) {
             return;
@@ -290,19 +289,17 @@ impl PaneFlowApp {
             .get(self.active_idx)
             .map(|workspace| (workspace.id, workspace.cwd.clone()))
         {
-            self.workspace_focus
-                .transition(DisplayCommand::FocusWorkspace {
-                    workspace_id,
-                    workspace_root: workspace_root.into(),
-                })
-                .expect("工作区生命周期切换在 Settings 返回状态中同样合法");
+            self.transition_display(DisplayCommand::FocusWorkspace {
+                workspace_id,
+                workspace_root: workspace_root.into(),
+            })
+            .expect("工作区生命周期切换在 Settings 返回状态中同样合法");
             // Diff 模式的可见上下文只能是当前仓库改动；文件树等返回 CLI 后再恢复。
             if matches!(self.mode, paneflow_config::schema::AppMode::Cli) {
                 self.retarget_files_sidebar_without_window(cx);
             }
         } else {
-            self.workspace_focus
-                .transition(DisplayCommand::ClearWorkspace)
+            self.transition_display(DisplayCommand::ClearWorkspace)
                 .expect("清空工作区展示上下文对所有表面都合法");
             if self.files_sidebar_open {
                 self.close_files_sidebar(cx);
@@ -366,12 +363,11 @@ impl PaneFlowApp {
         self.active_idx = idx;
         if self.workspace_focus.workspace_id().is_some() {
             let workspace = &self.workspaces[idx];
-            self.workspace_focus
-                .transition(DisplayCommand::FocusWorkspace {
-                    workspace_id: workspace.id,
-                    workspace_root: workspace.cwd.clone().into(),
-                })
-                .expect("活动工作区切换在 Settings 返回状态中同样合法");
+            self.transition_display(DisplayCommand::FocusWorkspace {
+                workspace_id: workspace.id,
+                workspace_root: workspace.cwd.clone().into(),
+            })
+            .expect("活动工作区切换在 Settings 返回状态中同样合法");
         }
         Some(changed)
     }
@@ -466,7 +462,8 @@ impl PaneFlowApp {
         ) {
             // 最后一个工作区关闭后审查已经没有合法归属，立即退回 CLI 并释放监听器。
             self.park_displayed_diff(cx);
-            self.mode = paneflow_config::schema::AppMode::Cli;
+            self.transition_display(DisplayCommand::ClearWorkspace)
+                .expect("最后工作区关闭后的展示清理对所有表面都合法");
             self.save_session(cx);
             cx.notify();
             return;

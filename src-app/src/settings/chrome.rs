@@ -21,6 +21,7 @@ use gpui::{
     Styled, Window, div, prelude::*, px, svg,
 };
 
+use crate::app::workspace_focus::DisplayCommand;
 use crate::widgets::scrollbar;
 use crate::{PaneFlowApp, SettingsSection};
 
@@ -594,7 +595,8 @@ impl PaneFlowApp {
         {
             self.commit_ai_agent_command_inputs(cx);
         }
-        self.settings_section = Some(section);
+        self.transition_display(DisplayCommand::OpenSettings(section))
+            .expect("切换设置分区只改变已打开的 Settings 表面");
         self.reset_settings_scroll();
         self.font_dropdown_open = false;
         self.font_search.clear();

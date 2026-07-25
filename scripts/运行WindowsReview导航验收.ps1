@@ -35,18 +35,21 @@ $wideAPath = Join-Path $runDirectory '宽屏-工作区A.png'
 $wideBPath = Join-Path $runDirectory '宽屏-工作区B.png'
 $narrowBPath = Join-Path $runDirectory '窄屏-工作区B.png'
 $returnAPath = Join-Path $runDirectory '返回-工作区A.png'
-$actualConfigPath = Join-Path ([Environment]::GetFolderPath('ApplicationData')) 'paneflow\paneflow.json'
-$actualSessionPath = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'paneflow\session.json'
+$dataRoot = Join-Path $env:USERPROFILE '.agent-workspace'
+$actualConfigPath = Join-Path $dataRoot 'config\settings.json'
+$actualSessionPath = Join-Path $dataRoot 'sessions\workspaces.json'
+$pipeName = "agent-workspace-review-$timestamp"
+$pipePath = "\\.\pipe\$pipeName"
 $configBackupPath = Join-Path $stateDirectory '用户配置.json'
 $sessionBackupPath = Join-Path $stateDirectory '用户会话.json'
 
 New-Item -ItemType Directory -Force -Path $runDirectory, $stateDirectory, $repoA, $repoB | Out-Null
 
 function Invoke-PaneflowRpc {
-    <# 通过一次一连接协议调用真实 Paneflow JSON-RPC。 #>
+    <# 通过一次一连接协议调用真实 AgentWorkspace JSON-RPC。 #>
     param([Parameter(Mandatory = $true)][string]$Method, [Parameter(Mandatory = $true)][object]$Params)
 
-    $pipe = [IO.Pipes.NamedPipeClientStream]::new('.', 'paneflow', [IO.Pipes.PipeDirection]::InOut)
+    $pipe = [IO.Pipes.NamedPipeClientStream]::new('.', $pipeName, [IO.Pipes.PipeDirection]::InOut)
     try {
         $pipe.Connect(5000)
         $utf8 = [Text.UTF8Encoding]::new($false)
@@ -55,12 +58,12 @@ function Invoke-PaneflowRpc {
         $writer.AutoFlush = $true
         $writer.WriteLine(([ordered]@{ jsonrpc = '2.0'; method = $Method; params = $Params; id = 1 } | ConvertTo-Json -Depth 12 -Compress))
         $line = $reader.ReadLine()
-        if ([string]::IsNullOrWhiteSpace($line)) { throw "Paneflow IPC 对 $Method 返回空响应。" }
+        if ([string]::IsNullOrWhiteSpace($line)) { throw "AgentWorkspace IPC 对 $Method 返回空响应。" }
         $response = $line | ConvertFrom-Json
         if ($response.PSObject.Properties.Name -contains 'error') {
-            throw "Paneflow IPC $Method 失败：$($response.error | ConvertTo-Json -Compress)"
+            throw "AgentWorkspace IPC $Method 失败：$($response.error | ConvertTo-Json -Compress)"
         }
-        if ($response.PSObject.Properties.Name -notcontains 'result') { throw "Paneflow IPC $Method 缺少 result。" }
+        if ($response.PSObject.Properties.Name -notcontains 'result') { throw "AgentWorkspace IPC $Method 缺少 result。" }
         return $response.result
     }
     finally {
@@ -79,12 +82,12 @@ function Wait-PaneflowReady {
         }
         Start-Sleep -Milliseconds 500
     }
-    throw 'Paneflow IPC 在 30 秒内未就绪。'
+    throw 'AgentWorkspace IPC 在 30 秒内未就绪。'
 }
 
 function Initialize-IsolatedState {
     <# 暂存真实用户状态，保证验收不会污染日常会话。 #>
-    if (Get-Process paneflow -ErrorAction SilentlyContinue) { throw '开始验收前仍存在 Paneflow 进程。' }
+    if (Get-Process agent-workspace -ErrorAction SilentlyContinue) { throw '开始验收前仍存在 AgentWorkspace 进程。' }
     $script:hadConfig = Test-Path -LiteralPath $actualConfigPath -PathType Leaf
     $script:hadSession = Test-Path -LiteralPath $actualSessionPath -PathType Leaf
     New-Item -ItemType Directory -Force -Path (Split-Path $actualConfigPath -Parent), (Split-Path $actualSessionPath -Parent) | Out-Null
@@ -327,6 +330,7 @@ try {
     Initialize-ReviewRepository -Path $repoB -FileName 'ONLY_B.txt'
     Initialize-IsolatedState
     $env:PANEFLOW_NO_TELEMETRY = '1'
+    $env:PANEFLOW_SOCKET_PATH = $pipePath
     $env:PANEFLOW_IPC_SCRIPTING = '1'
     $process = Start-Process -FilePath $binary -WorkingDirectory $repoRoot -WindowStyle Normal -PassThru
     Wait-PaneflowReady

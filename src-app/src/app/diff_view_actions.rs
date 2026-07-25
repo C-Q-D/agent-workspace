@@ -1,5 +1,5 @@
 //! EP-001 (prd-git-diff-mode-2026-Q3.md): lifecycle + main-area entry
-//! point for the dedicated Git Diff mode ([`AppMode::Diff`]).
+//! point for the dedicated Git Diff mode ([`paneflow_config::schema::AppMode::Diff`]).
 //!
 //! This mirrors `agents_view_actions.rs`: the mode owns the full main
 //! area plus its own left sidebar, entered via the CLI / Diff / Agents
@@ -8,12 +8,12 @@
 //! renders a placeholder. EP-002 (US-004/US-005) mounts the reused
 //! `diff::DiffView` engine here; EP-005 adds the scope selector.
 
+use crate::app::workspace_focus::{DisplayCommand, DisplaySurface};
 use crate::diff::{DiffScope, DiffView, DiffViewEvent, DiffWorktree, RepoGroup};
 use crate::{OpenDiffView, PaneFlowApp};
 use gpui::{
     AnyElement, AppContext, Context, Entity, IntoElement, ParentElement, Styled, Window, div, px,
 };
-use paneflow_config::schema::AppMode;
 use std::path::{Path, PathBuf};
 
 /// US-016: max retained single-repo diff hosts. Each holds only suspended rows
@@ -137,9 +137,11 @@ impl PaneFlowApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        match self.mode {
-            AppMode::Diff => self.enter_cli_mode(window, cx),
-            AppMode::Cli | AppMode::Agents => self.enter_diff_mode(cx),
+        match self.workspace_focus.surface() {
+            DisplaySurface::Review => self.enter_cli_mode(window, cx),
+            DisplaySurface::Grid | DisplaySurface::Focused | DisplaySurface::Settings => {
+                self.enter_diff_mode(cx)
+            }
         }
     }
 
@@ -157,6 +159,13 @@ impl PaneFlowApp {
             self.show_toast("Maximize a workspace before reviewing changes", cx);
             return;
         }
+        if self
+            .transition_display(DisplayCommand::EnterReview)
+            .is_err()
+        {
+            self.show_toast("Close settings before reviewing changes", cx);
+            return;
+        }
 
         self.diff_mode.diff_scope = DiffScope::Project;
         self.diff_mode.diff_scope_picker_open = false;
@@ -164,7 +173,6 @@ impl PaneFlowApp {
         self.diff_mode.diff_worktree_picker_open = false;
         self.close_files_sidebar_immediate(cx);
         self.close_sessions_sidebar_immediate(cx);
-        self.mode = AppMode::Diff;
         // `rebuild_diff_view` mounts the entity and calls `cx.notify()`.
         self.rebuild_diff_view(cx);
         self.save_session(cx);
@@ -400,7 +408,8 @@ impl PaneFlowApp {
                 this.update(cx, |app, cx| {
                     let owns_discovery =
                         app.diff_mode.diff_discovering_root.as_deref() == Some(root.as_path());
-                    let still_current_worktree_view = app.mode == AppMode::Diff
+                    let still_current_worktree_view = app.workspace_focus.surface()
+                        == DisplaySurface::Review
                         && app.diff_mode.diff_scope == crate::diff::DiffScope::Worktree
                         && app.diff_mode.diff_view_key.as_ref().is_some_and(|key| {
                             key.repo_root == root && key.scope == crate::diff::DiffScope::Worktree
@@ -552,13 +561,13 @@ impl PaneFlowApp {
         self.rebuild_diff_view(cx);
     }
 
-    /// Return to [`AppMode::Cli`] from any non-CLI mode. Idempotent
+    /// Return to [`paneflow_config::schema::AppMode::Cli`] from any non-CLI mode. Idempotent
     /// when already in CLI. Tears down whichever non-CLI surface is
     /// mounted (Agents today; the `DiffView` entity once EP-002 adds
     /// the field) and restores keyboard focus to the active
     /// workspace's first pane, matching `exit_agents_mode`'s contract.
     pub(crate) fn enter_cli_mode(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.mode == AppMode::Cli {
+        if self.workspace_focus.surface() != DisplaySurface::Review {
             return;
         }
         // US-016 warm-resume: suspend (don't destroy) the mounted diff host.
@@ -567,7 +576,8 @@ impl PaneFlowApp {
         // rows, so a return to Diff mode shows the diff in one frame instead of
         // recomputing it. Also closes the prior `multi_diff_view` watcher leak.
         self.park_displayed_diff(cx);
-        self.mode = AppMode::Cli;
+        self.transition_display(DisplayCommand::ExitReview)
+            .expect("Review 退出只能从当前 Review 表面触发");
         // Focus contract: hand the keyboard back to the terminal the
         // user left. PTYs are detached, so the process is still alive.
         if let Some(ws) = self.workspaces.get_mut(self.active_idx) {
@@ -586,7 +596,7 @@ impl PaneFlowApp {
         cx.notify();
     }
 
-    /// Main-content render branch for [`AppMode::Diff`].
+    /// Main-content render branch for [`paneflow_config::schema::AppMode::Diff`].
     ///
     /// Renders the mounted `diff::DiffView` (the reused multi-worktree
     /// engine) when the active workspace backs a git repo, else the

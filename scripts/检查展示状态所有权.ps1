@@ -15,12 +15,12 @@ $Contracts = @(
     [ordered]@{
         id = "startup-restore"
         path = "src-app/src/app/bootstrap.rs"
-        markers = @("fn restored_public_mode(", "let restored_mode = restored_public_mode(", "workspace_focus: crate::app::workspace_focus::WorkspaceFocusState::default()")
+        markers = @("fn restored_public_mode(", "fn restored_display_state(", "let restored_display_state =", "workspace_focus: restored_display_state")
     },
     [ordered]@{
         id = "grid-to-focus"
         path = "src-app/src/app/workspace_ops/mod.rs"
-        markers = @("pub(crate) fn maximize_workspace_at(", ".transition(DisplayCommand::FocusWorkspace", "pub(crate) fn restore_workspace_grid(", ".transition(DisplayCommand::RestoreGrid)")
+        markers = @("pub(crate) fn maximize_workspace_at(", ".transition_display(DisplayCommand::FocusWorkspace", "pub(crate) fn restore_workspace_grid(", ".transition_display(DisplayCommand::RestoreGrid)")
     },
     [ordered]@{
         id = "focused-switch"
@@ -30,22 +30,27 @@ $Contracts = @(
     [ordered]@{
         id = "diff-enter-exit"
         path = "src-app/src/app/diff_view_actions.rs"
-        markers = @("pub(crate) fn enter_diff_mode(", "self.mode = AppMode::Diff;", "pub(crate) fn enter_cli_mode(")
+        markers = @("pub(crate) fn enter_diff_mode(", ".transition_display(DisplayCommand::EnterReview)", "pub(crate) fn enter_cli_mode(", ".transition_display(DisplayCommand::ExitReview)")
     },
     [ordered]@{
         id = "settings-overlay"
         path = "src-app/src/app/settings.rs"
-        markers = @("pub(crate) fn open_settings_window(", "self.settings_section = Some(SettingsSection::General);", "pub(crate) fn close_settings(", "self.settings_section = None;")
+        markers = @("pub(crate) fn open_settings_window(", ".transition_display(DisplayCommand::OpenSettings", "pub(crate) fn close_settings(", ".transition_display(DisplayCommand::CloseSettings)")
     },
     [ordered]@{
         id = "close-focused-workspace"
         path = "src-app/src/app/workspace_ops/mod.rs"
-        markers = @("pub(crate) fn reconcile_maximized_workspace_after_change(", ".transition(DisplayCommand::ClearWorkspace)", "self.close_files_sidebar(cx);")
+        markers = @("pub(crate) fn reconcile_maximized_workspace_after_change(", ".transition_display(DisplayCommand::ClearWorkspace)", "self.close_files_sidebar(cx);")
     },
     [ordered]@{
         id = "session-save"
         path = "src-app/src/app/session.rs"
         markers = @("fn build_session_state(", "mode: self.mode,", "diff_scope: Some(self.diff_mode.diff_scope.as_persisted().to_string())")
+    },
+    [ordered]@{
+        id = "single-write-bridge"
+        path = "src-app/src/app/workspace_focus.rs"
+        markers = @("pub(crate) fn transition_display(", "self.mode = self.workspace_focus.legacy_mode();", "self.settings_section = self.workspace_focus.settings_section();")
     },
     [ordered]@{
         id = "active-context"

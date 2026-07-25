@@ -4,7 +4,7 @@
 //! 定位目标收敛为一个进程内状态对象。它不负责 UI、文件扫描或进程生命周期，
 //! 只维护这些消费者共同依赖的不变量，避免切换工作区时分别更新多个松散字段。
 
-use crate::SettingsSection;
+use crate::{PaneFlowApp, SettingsSection};
 use paneflow_config::schema::AppMode;
 use std::path::{Path, PathBuf};
 
@@ -422,6 +422,22 @@ impl DisplayState {
     /// 取出一次性的矩阵恢复目标，保证后续普通重绘不会反复翻页。
     pub(crate) fn take_reveal_workspace_id(&mut self) -> Option<u64> {
         self.reveal_workspace_id.take()
+    }
+}
+
+impl PaneFlowApp {
+    /// 执行单一展示状态命令，并刷新 A020 删除前的旧只读投影。
+    ///
+    /// `mode` 与 `settings_section` 在本阶段不再接受业务路径直接写入；它们只服务
+    /// 尚未迁移的渲染和持久化读取。A020 删除这两个镜像后，本方法只保留命令转发。
+    pub(crate) fn transition_display(
+        &mut self,
+        command: DisplayCommand,
+    ) -> Result<DisplayTransition, DisplayTransitionError> {
+        let result = self.workspace_focus.transition(command)?;
+        self.mode = self.workspace_focus.legacy_mode();
+        self.settings_section = self.workspace_focus.settings_section();
+        Ok(result)
     }
 }
 

@@ -1,0 +1,17 @@
+A019 首次真实 Review 导航验收未进入交互阶段。
+
+最小失败：
+- Release 应用已启动并创建 `.agent-workspace/bin/paneflow-mcp.exe` 与
+  `.agent-workspace/sessions/workspaces.json`。
+- 验收脚本在 30 秒有界等待后报告“Paneflow IPC 未就绪”。
+
+根因：
+- 当前 Release 默认 IPC 命名管道已经是 `agent-workspace`。
+- 旧验收脚本仍硬编码连接 `paneflow`，并继续读取旧 AppData 数据目录及旧进程名。
+- 因此应用正常启动，但脚本始终连接错误端点；这不是展示状态机或 Review 生产路径失败。
+
+处理：
+- 不修改生产代码、不延长等待时间、不降低断言。
+- 仅把验收脚本迁移到 `.agent-workspace` 数据布局、独立
+  `agent-workspace-review-*` 管道和 `agent-workspace` 进程身份。
+- 修正后的完整复验见相邻目录 `真实Review导航-20260725-122329`。

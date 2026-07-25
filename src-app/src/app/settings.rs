@@ -13,6 +13,7 @@
 
 use gpui::{Context, KeyDownEvent, ScrollHandle, Window};
 
+use crate::app::workspace_focus::DisplayCommand;
 use crate::{PaneFlowApp, SettingsSection, config_writer, keybindings};
 
 impl PaneFlowApp {
@@ -26,7 +27,8 @@ impl PaneFlowApp {
         self.profile_menu_open = None;
         self.agents_view.sidebar_actions_menu_open = false;
         self.agents_view.sidebar_mode_picker_open = false;
-        self.settings_section = Some(SettingsSection::General);
+        self.transition_display(DisplayCommand::OpenSettings(SettingsSection::General))
+            .expect("打开设置对全部工作区表面都合法");
         self.reset_settings_scroll();
         self.terminal_dropdown = None;
         self.general_dropdown = None;
@@ -52,7 +54,12 @@ impl PaneFlowApp {
         if self.settings_section == Some(SettingsSection::AiAgent) {
             self.commit_ai_agent_command_inputs(cx);
         }
-        self.settings_section = None;
+        if self
+            .transition_display(DisplayCommand::CloseSettings)
+            .is_err()
+        {
+            return;
+        }
         self.profile_menu_open = None;
         self.font_dropdown_open = false;
         self.font_search.clear();

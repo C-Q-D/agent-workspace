@@ -43,6 +43,22 @@ fn restored_public_mode(
     }
 }
 
+/// 把旧会话模式一次性迁移成可直接渲染的单一展示状态。
+///
+/// v1 启动不恢复 Review、Settings 或已退出公开面的 Agents，因此无论旧值为何，
+/// 结果都必须是无活动上下文的 Grid。旧枚举只在这个加载边界读取一次。
+fn restored_display_state(
+    saved_mode: Option<paneflow_config::schema::AppMode>,
+) -> crate::app::workspace_focus::DisplayState {
+    let normalized = restored_public_mode(saved_mode);
+    debug_assert_eq!(
+        normalized,
+        paneflow_config::schema::AppMode::Cli,
+        "公开恢复边界只能生成 CLI/Grid 初始状态"
+    );
+    crate::app::workspace_focus::DisplayState::default()
+}
+
 impl PaneFlowApp {
     pub(crate) fn spawn_telemetry_flusher(
         telemetry: std::sync::Arc<telemetry::client::TelemetryClient>,
@@ -166,7 +182,9 @@ impl PaneFlowApp {
 
         // 顶层模式必须在构造应用前完成公开范围归一化。这样旧 Agents 会话不会
         // 产生隐藏界面的首帧或终端挂载，Review 也继续遵守“先放大、后审查”。
-        let restored_mode = restored_public_mode(saved_session.as_ref().map(|s| s.mode));
+        let restored_display_state = restored_display_state(saved_session.as_ref().map(|s| s.mode));
+        let restored_mode = restored_display_state.legacy_mode();
+        let restored_settings_section = restored_display_state.settings_section();
         // 先保留会话页码，再消费 saved_session 恢复工作区。这里只做与工作区硬上限
         // 相关的防御性夹紧；首帧矩阵规划会按真实视口进一步夹紧到有效页。
         let restored_workspace_grid_page = clamped_restored_workspace_grid_page(
@@ -880,7 +898,7 @@ impl PaneFlowApp {
             git_event_rx,
             git_watch_counts,
             git_preparations: Default::default(),
-            settings_section: None,
+            settings_section: restored_settings_section,
             settings_scroll: gpui::ScrollHandle::new(),
             settings_drag: None,
             settings_search_input,
@@ -964,7 +982,7 @@ impl PaneFlowApp {
             show_about_dialog: false,
             pending_workspace_close: None,
             workspace_grid_page: restored_workspace_grid_page,
-            workspace_focus: crate::app::workspace_focus::WorkspaceFocusState::default(),
+            workspace_focus: restored_display_state,
             show_theme_picker: false,
             theme_picker_query: String::new(),
             theme_picker_selected_idx: 0,
@@ -1398,7 +1416,10 @@ pub(crate) fn warn_if_legacy_run_install() {
 
 #[cfg(test)]
 mod agent_workspace_tests {
-    use super::{clamped_restored_workspace_grid_page, restored_public_mode};
+    use super::{
+        clamped_restored_workspace_grid_page, restored_display_state, restored_public_mode,
+    };
+    use crate::app::workspace_focus::DisplaySurface;
     use crate::workspace::MAX_WORKSPACES;
     use paneflow_config::schema::AppMode;
 
@@ -1418,5 +1439,22 @@ mod agent_workspace_tests {
         assert_eq!(restored_public_mode(Some(AppMode::Cli)), AppMode::Cli);
         assert_eq!(restored_public_mode(Some(AppMode::Diff)), AppMode::Cli);
         assert_eq!(restored_public_mode(Some(AppMode::Agents)), AppMode::Cli);
+    }
+
+    /// 旧 Review/Agents 会话只能恢复为无上下文 Grid，不能伪造聚焦前置条件。
+    #[test]
+    fn restored_display_state_always_starts_from_grid() {
+        for saved_mode in [
+            None,
+            Some(AppMode::Cli),
+            Some(AppMode::Diff),
+            Some(AppMode::Agents),
+        ] {
+            let state = restored_display_state(saved_mode);
+            assert_eq!(state.surface(), DisplaySurface::Grid);
+            assert_eq!(state.legacy_mode(), AppMode::Cli);
+            assert_eq!(state.settings_section(), None);
+            assert_eq!(state.workspace_id(), None);
+        }
     }
 }
