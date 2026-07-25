@@ -112,7 +112,7 @@ pub(crate) use app::bootstrap::{system_package_update_command, warn_if_legacy_ru
 /// left rail, the section body on the right). `General` is the landing page.
 /// One source of truth - replaces the old 2-variant inline enum *and* the
 /// standalone window's copy, now that settings render inline (`settings::chrome`).
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum SettingsSection {
     General,
     Appearance,
