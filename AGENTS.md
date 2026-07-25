@@ -187,4 +187,4 @@ fixture 验证错误路径，但 ConPTY、真实 Git、GUI、安装包和 CLI �
 
 当前检查点：A001～A024 已完成；最近三个原子为 A022 `e50ef09`、A023 `3b622d1`
 （证据清理 `ea0a648`）和 A024（使用 `git log -1 -- docs/当前开发状态.md` 定位）。
-ActiveContext 已从聚焦 `WindowSession` 单源派生；下一原子为 A025。
+ActiveContext 已从聚焦 `WindowSession` 单源派生；下一原子为 A025 统一会话持久化与恢复。
