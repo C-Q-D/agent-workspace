@@ -45,6 +45,20 @@ pub(crate) struct WorkspaceLifecycleRegistration {
 pub(crate) struct WorkspaceLifecycle;
 
 impl WorkspaceLifecycle {
+    /// 为一个稳定会话创建默认 Shell 终端及其唯一窗格。
+    ///
+    /// 新建窗口、会话恢复和最后窗格关闭后的补建都使用本入口；Shell 配置只在创建
+    /// 新终端时解析，因此主题、密度和字体等显示设置不会重启既有 PTY。
+    pub(crate) fn create_default_terminal_pane(
+        workspace_id: u64,
+        workspace_root: PathBuf,
+        cx: &mut Context<PaneFlowApp>,
+    ) -> Entity<Pane> {
+        let terminal =
+            cx.new(|cx| TerminalView::with_cwd(workspace_id, Some(workspace_root), None, cx));
+        Self::create_terminal_pane(terminal, workspace_id, cx)
+    }
+
     /// 把一条持久化工作区记录规划为可恢复的稳定根目录。
     ///
     /// 只有仍存在的目录可以恢复。缺失路径、普通文件或不可读取为目录的路径均返回

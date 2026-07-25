@@ -1350,14 +1350,9 @@ impl PaneFlowApp {
         let tree = build_up_layout(preset, panes, focus_idx)
             .ok_or_else(|| "could not build layout from panes".to_string())?;
         if let Some(workspace) = self.workspaces.get_mut(target_idx) {
-            workspace.root = Some(tree);
-            workspace.saved_layout = None;
-            if let Some(first_cwd) = launches
-                .iter()
-                .find_map(|(terminal, _, _)| terminal.read(cx).terminal.cwd_now())
-            {
-                workspace.cwd = first_cwd.display().to_string();
-            }
+            // 模板 pane 可以各自使用不同 cwd，但窗口绑定目录必须在整个会话中稳定；
+            // 这里只替换终端布局，禁止用第一个子终端目录重写 workspaceRoot。
+            workspace.replace_terminal_layout(tree);
         }
 
         if self.active_idx != target_idx {

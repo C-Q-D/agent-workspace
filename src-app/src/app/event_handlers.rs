@@ -551,37 +551,16 @@ impl PaneFlowApp {
                     return;
                 };
 
-                let root_contains = self.workspaces[ws_idx]
-                    .root
-                    .as_ref()
-                    .is_some_and(|root| root.contains_leaf(&pane));
-                let saved_contains = self.workspaces[ws_idx]
-                    .saved_layout
-                    .as_ref()
-                    .is_some_and(|saved| saved.contains_leaf(&pane));
-
-                if saved_contains {
-                    if let Some(saved) = self.workspaces[ws_idx].saved_layout.take() {
-                        let (new_saved, _) = saved.remove_pane(&pane);
-                        if root_contains {
-                            self.workspaces[ws_idx].root = new_saved;
-                        } else {
-                            self.workspaces[ws_idx].saved_layout = new_saved;
-                        }
-                    }
-                } else if let Some(root) = self.workspaces[ws_idx].root.take() {
-                    let (new_root, _) = root.remove_pane(&pane);
-                    self.workspaces[ws_idx].root = new_root;
-                }
+                let needs_replacement = self.workspaces[ws_idx].remove_pane(&pane);
 
                 // Never leave a workspace without a pane - respawn at the
                 // workspace's root cwd so the user returns to the right folder.
-                if self.workspaces[ws_idx].root.is_none() {
+                if needs_replacement {
                     let ws_id = self.workspaces[ws_idx].id;
                     let cwd = std::path::PathBuf::from(&self.workspaces[ws_idx].cwd);
-                    let terminal = cx.new(|cx| TerminalView::with_cwd(ws_id, Some(cwd), None, cx));
-                    let new_pane = self.create_pane(terminal, ws_id, cx);
-                    self.workspaces[ws_idx].root = Some(LayoutTree::Leaf(new_pane));
+                    let new_pane = crate::app::workspace_lifecycle::WorkspaceLifecycle::
+                        create_default_terminal_pane(ws_id, cwd, cx);
+                    self.workspaces[ws_idx].install_replacement_pane(new_pane);
                     // The freshly-spawned replacement pane starts with an
                     // empty `custom_buttons` list - push the workspace's
                     // persisted set so the tab bar renders them again.

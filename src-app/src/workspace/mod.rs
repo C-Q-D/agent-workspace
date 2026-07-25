@@ -165,6 +165,98 @@ impl WindowSession {
     pub fn workspace_root(&self) -> &Path {
         Path::new(&self.cwd)
     }
+
+    /// 移除一个属于当前或放大前布局的窗格。
+    ///
+    /// 返回 `true` 表示移除后已没有布局，调用方必须通过统一创建入口补建终端。
+    /// 放大态下同时维护当前叶节点与保存布局，避免旧窗格实体被两棵树重复持有。
+    pub(crate) fn remove_pane(&mut self, pane: &Entity<Pane>) -> bool {
+        let root_contains = self
+            .root
+            .as_ref()
+            .is_some_and(|root| root.contains_leaf(pane));
+        let saved_contains = self
+            .saved_layout
+            .as_ref()
+            .is_some_and(|saved| saved.contains_leaf(pane));
+
+        if saved_contains {
+            if let Some(saved) = self.saved_layout.take() {
+                let (new_saved, _) = saved.remove_pane(pane);
+                if root_contains {
+                    self.root = new_saved;
+                } else {
+                    self.saved_layout = new_saved;
+                }
+            }
+        } else if let Some(root) = self.root.take() {
+            let (new_root, _) = root.remove_pane(pane);
+            self.root = new_root;
+        }
+        self.root.is_none()
+    }
+
+    /// 用一棵新终端布局替换当前与放大前布局，并唯一释放所有旧实体引用。
+    pub(crate) fn replace_terminal_layout(&mut self, root: LayoutTree) {
+        self.saved_layout = None;
+        self.root = Some(root);
+    }
+
+    /// 用单窗格布局恢复一个已经没有可用窗格的会话。
+    pub(crate) fn install_replacement_pane(&mut self, pane: Entity<Pane>) {
+        self.replace_terminal_layout(LayoutTree::Leaf(pane));
+    }
+
+    /// 将恢复的终端窗格插入现有会话布局。
+    ///
+    /// 撤销关闭需要保留原窗格的标签、滚动区和 profile，因此不能使用默认终端工厂；
+    /// 但布局所有权仍必须由 WindowSession 维护，不能由应用层直接改写根节点。
+    pub(crate) fn insert_restored_pane(
+        &mut self,
+        pane: Entity<Pane>,
+        window: &Window,
+        cx: &mut App,
+    ) {
+        if let Some(root) = &mut self.root {
+            if !root.split_at_focused(
+                crate::layout::SplitDirection::Horizontal,
+                pane.clone(),
+                window,
+                cx,
+            ) {
+                root.split_first_leaf(crate::layout::SplitDirection::Horizontal, pane);
+            }
+        } else {
+            self.install_replacement_pane(pane);
+        }
+    }
+
+    /// 关闭当前聚焦窗格并返回建议的新焦点。
+    ///
+    /// 放大态先恢复完整布局再移除原放大窗格；普通态直接使用布局树的聚焦关闭规则。
+    /// 调用方只负责保存撤销记录、聚焦返回实体和在空布局时补建终端。
+    pub(crate) fn close_focused_pane(
+        &mut self,
+        window: &Window,
+        cx: &mut App,
+    ) -> Option<Entity<Pane>> {
+        if self.is_zoomed() {
+            let pane = self.exit_zoom(cx)?;
+            self.remove_pane(&pane);
+            return self.root.as_ref().and_then(LayoutTree::first_leaf);
+        }
+
+        let root = self.root.take()?;
+        let (new_root, _closed, focus_target) = root.close_focused(window, cx);
+        self.root = new_root;
+        focus_target
+    }
+
+    /// 消费并关闭会话，确保当前布局与放大前布局只在一个所有权点释放。
+    pub(crate) fn close(mut self) {
+        drop(self.root.take());
+        drop(self.saved_layout.take());
+    }
 }
 
 /// 工作区界面与仓库元数据外壳。
@@ -279,6 +371,13 @@ impl Workspace {
         self.is_worktree = prepared.is_worktree;
         self.worktree_root = prepared.worktree_root;
         self.git_preparation_status = GitPreparationStatus::Ready;
+    }
+
+    /// 消费工作区并返回需要异步清理的 worktree；终端会话在此唯一关闭。
+    pub(crate) fn close(mut self) -> Vec<worktree::ManagedWorktree> {
+        let worktrees = std::mem::take(&mut self.managed_worktrees);
+        self.session.close();
+        worktrees
     }
 
     /// US-013: shared private factory for the three public constructors (kills

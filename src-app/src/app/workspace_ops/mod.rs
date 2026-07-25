@@ -489,9 +489,8 @@ impl PaneFlowApp {
             return None;
         }
         let ws_id = next_workspace_id();
-        let terminal =
-            cx.new(|cx| TerminalView::with_cwd(ws_id, Some(workspace_root.clone()), None, cx));
-        let pane = self.create_pane(terminal, ws_id, cx);
+        let pane =
+            WorkspaceLifecycle::create_default_terminal_pane(ws_id, workspace_root.clone(), cx);
         let reference_format =
             crate::reference_formatter::ReferenceFormat::from_new_workspace_config(
                 &self.cached_config,
@@ -688,30 +687,11 @@ impl PaneFlowApp {
             }
         }
 
-        if let Some(ws) = self.active_workspace_mut()
-            && ws.is_zoomed()
-        {
-            if let Some(pane) = ws.exit_zoom(cx)
-                && let Some(root) = ws.root.take()
-            {
-                let (new_root, _) = root.remove_pane(&pane);
-                ws.root = new_root;
-            }
-            if let Some(ref root) = ws.root {
+        if let Some(ws) = self.active_workspace_mut() {
+            if let Some(target) = ws.close_focused_pane(window, cx) {
+                target.read(cx).focus_handle(cx).focus(window, cx);
+            } else if let Some(ref root) = ws.root {
                 root.focus_first(window, cx);
-            }
-        } else if let Some(ws) = self.active_workspace_mut()
-            && let Some(root) = ws.root.take()
-        {
-            let (new_root, _closed, focus_target) = root.close_focused(window, cx);
-            ws.root = new_root;
-
-            if ws.root.is_some() {
-                if let Some(target) = focus_target {
-                    target.read(cx).focus_handle(cx).focus(window, cx);
-                } else if let Some(ref root) = ws.root {
-                    root.focus_first(window, cx);
-                }
             }
         }
 
@@ -723,15 +703,9 @@ impl PaneFlowApp {
         {
             let ws_id = ws.id;
             let cwd = std::path::PathBuf::from(&ws.cwd);
-            let terminal = cx.new(|cx| TerminalView::with_cwd(ws_id, Some(cwd), None, cx));
-            // US-028: do NOT subscribe here - `create_pane` already wires
-            // `handle_terminal_event` (main.rs:539). The duplicate subscription
-            // fired every terminal event twice (double toast / port-scan /
-            // mutation) and leaked the extra subscription. `split()` and
-            // `create_workspace` prove the correct pattern (no manual subscribe).
-            let new_pane = self.create_pane(terminal, ws_id, cx);
+            let new_pane = WorkspaceLifecycle::create_default_terminal_pane(ws_id, cwd, cx);
             if let Some(ws) = self.active_workspace_mut() {
-                ws.root = Some(LayoutTree::Leaf(new_pane));
+                ws.install_replacement_pane(new_pane);
             }
             self.workspaces[self.active_idx].focus_first(window, cx);
         }
@@ -774,16 +748,9 @@ impl PaneFlowApp {
 
         let new_pane = self.create_pane_with_existing_tabs(tabs, selected_idx, ws_id, cx);
 
-        // Insert via split from the currently focused pane
+        // 恢复窗格保留原标签与滚动区，但布局插入仍经过 WindowSession 唯一所有权入口。
         let inserted = if let Some(ws) = self.active_workspace_mut() {
-            if let Some(root) = &mut ws.root {
-                if !root.split_at_focused(SplitDirection::Horizontal, new_pane.clone(), window, cx)
-                {
-                    root.split_first_leaf(SplitDirection::Horizontal, new_pane.clone());
-                }
-            } else {
-                ws.root = Some(LayoutTree::Leaf(new_pane.clone()));
-            }
+            ws.insert_restored_pane(new_pane.clone(), window, cx);
             true
         } else {
             false
@@ -904,11 +871,11 @@ impl PaneFlowApp {
         if let Some(dir) = self.workspaces[idx].git_dir.clone() {
             self.unwatch_git_dir(&dir);
         }
-        // US-009: this workspace's managed worktrees are torn down (clean
-        // ones only) in the background once the workspace is gone.
-        let worktrees = std::mem::take(&mut self.workspaces[idx].managed_worktrees);
+        // 先从唯一集合取出，再由 WindowSession 的消费式关闭入口释放布局和 PTY 实体；
+        // 这样 watcher/worktree 元数据与终端资源都不会留在部分关闭状态。
+        let workspace = self.workspaces.remove(idx);
+        let worktrees = workspace.close();
         Self::spawn_worktree_teardown(worktrees, cx);
-        self.workspaces.remove(idx);
         if self.workspaces.is_empty() {
             self.active_idx = 0;
         } else {

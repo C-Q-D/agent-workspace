@@ -28,18 +28,22 @@ $stateDirectory = Join-Path $runDirectory '状态备份'
 $screenshotPath = Join-Path $runDirectory '四种稳定状态.png'
 $resultPath = Join-Path $runDirectory '运行结果.json'
 $invalidShellPath = Join-Path $runDirectory '不可执行终端程序.txt'
-$actualConfigPath = Join-Path ([Environment]::GetFolderPath('ApplicationData')) 'paneflow\paneflow.json'
-$actualSessionPath = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'paneflow\session.json'
+$isolatedUser = Join-Path $runDirectory '隔离用户'
+$dataRoot = Join-Path $isolatedUser '.agent-workspace'
+$actualConfigPath = Join-Path $dataRoot 'config\settings.json'
+$actualSessionPath = Join-Path $dataRoot 'sessions\workspaces.json'
+$pipeName = "agent-workspace-terminal-status-$timestamp"
+$pipePath = "\\.\pipe\$pipeName"
 $configBackupPath = Join-Path $stateDirectory '用户配置.json'
 $sessionBackupPath = Join-Path $stateDirectory '用户会话.json'
 
 New-Item -ItemType Directory -Force -Path $runDirectory, $stateDirectory | Out-Null
 
 function Invoke-PaneflowRpc {
-    <# 通过一次一连接协议调用真实 Paneflow JSON-RPC。 #>
+    <# 通过本轮唯一命名管道和一次一连接协议调用真实 AgentWorkspace JSON-RPC。 #>
     param([Parameter(Mandatory = $true)][string]$Method, [Parameter(Mandatory = $true)][object]$Params)
 
-    $pipe = [IO.Pipes.NamedPipeClientStream]::new('.', 'paneflow', [IO.Pipes.PipeDirection]::InOut)
+    $pipe = [IO.Pipes.NamedPipeClientStream]::new('.', $pipeName, [IO.Pipes.PipeDirection]::InOut)
     try {
         $pipe.Connect(5000)
         $utf8 = [Text.UTF8Encoding]::new($false)
@@ -72,7 +76,7 @@ function Wait-PaneflowReady {
         }
         Start-Sleep -Milliseconds 500
     }
-    throw 'Paneflow IPC 在 30 秒内未就绪。'
+    throw 'AgentWorkspace IPC 在 30 秒内未就绪。'
 }
 
 function Get-WorkspaceList {
@@ -113,7 +117,7 @@ function Set-ExperimentConfig {
 
 function Initialize-IsolatedState {
     <# 暂存用户状态并创建干净实验配置。 #>
-    if (Get-Process paneflow -ErrorAction SilentlyContinue) { throw '开始验收前仍存在 Paneflow 进程。' }
+    if (Get-Process agent-workspace -ErrorAction SilentlyContinue) { throw '开始验收前仍存在 AgentWorkspace 进程。' }
     $script:hadConfig = Test-Path -LiteralPath $actualConfigPath -PathType Leaf
     $script:hadSession = Test-Path -LiteralPath $actualSessionPath -PathType Leaf
     New-Item -ItemType Directory -Force -Path (Split-Path $actualConfigPath -Parent), (Split-Path $actualSessionPath -Parent) | Out-Null
@@ -249,11 +253,21 @@ $process = $null
 $script:statePrepared = $false
 $script:hadConfig = $false
 $script:hadSession = $false
+$previousEnvironment = [ordered]@{
+    USERPROFILE = $env:USERPROFILE
+    HOME = $env:HOME
+    PANEFLOW_SOCKET_PATH = $env:PANEFLOW_SOCKET_PATH
+    PANEFLOW_IPC_SCRIPTING = $env:PANEFLOW_IPC_SCRIPTING
+    PANEFLOW_NO_TELEMETRY = $env:PANEFLOW_NO_TELEMETRY
+}
 Initialize-WindowAutomation
 
 try {
     Initialize-IsolatedState
     Set-Content -LiteralPath $invalidShellPath -Encoding utf8 -Value '这是真实存在但不能由 Windows CreateProcess 执行的文本文件。'
+    $env:USERPROFILE = $isolatedUser
+    $env:HOME = $isolatedUser
+    $env:PANEFLOW_SOCKET_PATH = $pipePath
     $env:PANEFLOW_NO_TELEMETRY = '1'
     $env:PANEFLOW_IPC_SCRIPTING = '1'
     $process = Start-Process -FilePath $binary -WorkingDirectory $repoRoot -WindowStyle Normal -PassThru
@@ -347,6 +361,19 @@ finally {
         }
     }
     finally {
-        Restore-IsolatedState
+        try {
+            Restore-IsolatedState
+        }
+        finally {
+            # 环境变量属于调用进程；必须逐项恢复，避免后续验收误连本轮管道或数据目录。
+            foreach ($entry in $previousEnvironment.GetEnumerator()) {
+                if ($null -eq $entry.Value) {
+                    Remove-Item "Env:$($entry.Key)" -ErrorAction SilentlyContinue
+                }
+                else {
+                    Set-Item "Env:$($entry.Key)" $entry.Value
+                }
+            }
+        }
     }
 }

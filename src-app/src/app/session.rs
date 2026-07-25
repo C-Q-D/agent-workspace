@@ -440,9 +440,7 @@ impl PaneFlowApp {
                 });
                 Workspace::with_layout_and_id(ws_id, title.clone(), cwd, tree, reference_format)
             } else {
-                let terminal =
-                    cx.new(|cx| TerminalView::with_cwd(ws_id, Some(cwd.clone()), None, cx));
-                let pane = WorkspaceLifecycle::create_terminal_pane(terminal, ws_id, cx);
+                let pane = WorkspaceLifecycle::create_default_terminal_pane(ws_id, cwd.clone(), cx);
                 Workspace::with_cwd_and_id(ws_id, title.clone(), cwd, pane, reference_format)
             };
 

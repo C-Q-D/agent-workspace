@@ -150,6 +150,45 @@ fn window_session_identity_rejects_root_rebinding_but_allows_shared_repo() {
     );
 }
 
+/// 模板布局可以改变子终端 cwd，但不能改写窗口创建时绑定的稳定 root。
+#[test]
+fn terminal_layout_replacement_does_not_rebind_workspace_root() {
+    let settings_source = include_str!("../settings/tabs/workspaces.rs");
+
+    assert!(
+        settings_source.contains("workspace.replace_terminal_layout(tree);"),
+        "模板应用必须通过 WindowSession 的布局替换入口"
+    );
+    assert!(
+        !settings_source.contains("workspace.cwd = first_cwd.display().to_string();"),
+        "子终端 cwd 不得成为新的稳定 workspaceRoot"
+    );
+}
+
+/// 新建、最后窗格补建和显式关闭必须分别经过统一创建与消费式关闭入口。
+#[test]
+fn create_restart_and_close_use_window_session_lifecycle_entries() {
+    let lifecycle_source = include_str!("workspace_lifecycle.rs");
+    let operations_source = include_str!("workspace_ops/mod.rs");
+    let events_source = include_str!("event_handlers.rs");
+
+    assert!(lifecycle_source.contains("fn create_default_terminal_pane("));
+    assert!(
+        operations_source
+            .matches("create_default_terminal_pane(")
+            .count()
+            >= 2,
+        "显式创建与最后窗格补建必须共用默认终端工厂"
+    );
+    assert!(events_source.contains("create_default_terminal_pane(ws_id, cwd, cx)"));
+    assert!(operations_source.contains("let worktrees = workspace.close();"));
+    assert!(operations_source.contains("ws.insert_restored_pane(new_pane.clone(), window, cx);"));
+    assert!(
+        !operations_source.contains("ws.root = Some(LayoutTree::Leaf(new_pane.clone()));"),
+        "撤销关闭也不得绕过 WindowSession 直接改写布局根节点"
+    );
+}
+
 /// A024 的目标态红灯：活动文件/Git 上下文必须从会话派生，不能再保存第二份 root。
 ///
 /// A024 完成后应以真实 ActiveContext API 替换源码检查并移除忽略。
