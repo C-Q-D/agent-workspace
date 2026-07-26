@@ -482,13 +482,17 @@ impl PaneFlowApp {
                         }
                         Err(message) => {
                             if let Some(ReadOnlyEditorState::Ready {
+                                document,
                                 dirty,
                                 saving,
                                 pending_save,
                                 ..
                             }) = app.read_only_editor.as_mut()
                             {
-                                *dirty = true;
+                                // 写盘失败不代表当前缓冲一定仍然脏：用户可能在任务
+                                // 期间已经撤回到磁盘基线；按真实正文重新计算，避免
+                                // 错误 toast 后把关闭入口永久锁死。
+                                *dirty = current_text != document.text();
                                 *saving = false;
                                 *pending_save = None;
                             }
