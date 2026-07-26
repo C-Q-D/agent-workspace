@@ -1282,6 +1282,9 @@ pub(crate) fn install_macos_menu_action_fallbacks(cx: &mut gpui::App) {
 
     cx.on_action(|_: &Quit, cx| {
         with_active_paneflow_window(cx, |app, _window, cx| {
+            if !app.guard_read_only_editor_discard(cx) {
+                return;
+            }
             app.save_session_blocking(cx);
             app.emit_app_exited_and_flush();
             cx.quit();

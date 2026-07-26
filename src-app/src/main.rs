@@ -1824,6 +1824,9 @@ impl Render for PaneFlowApp {
             .on_action(cx.listener(Self::handle_ws9))
             .on_action(
                 cx.listener(|this: &mut Self, _: &CloseWindow, _window, cx| {
+                    if !this.guard_read_only_editor_discard(cx) {
+                        return;
+                    }
                     this.save_session_blocking(cx);
                     this.emit_app_exited_and_flush();
                     cx.quit();
@@ -1836,6 +1839,9 @@ impl Render for PaneFlowApp {
             // keybinding from US-010). `SelectAll` is a no-op until the
             // terminal exposes a select-all action.
             .on_action(cx.listener(|this: &mut Self, _: &Quit, _window, cx| {
+                if !this.guard_read_only_editor_discard(cx) {
+                    return;
+                }
                 this.save_session_blocking(cx);
                 this.emit_app_exited_and_flush();
                 cx.quit();
@@ -2511,14 +2517,18 @@ fn mount_paneflow_app(window: &mut Window, cx: &mut App) -> Entity<PaneFlowApp> 
     window.on_window_should_close(cx, {
         let view = view.clone();
         move |_window, cx| {
-            let app = view.read(cx);
-            app.save_session_blocking(cx);
-            // US-013 AC #2 - final chance to flush `app_exited` when the OS
-            // close button or a keyboard shortcut closes the last window.
-            app.emit_app_exited_and_flush();
-            #[cfg(target_os = "linux")]
-            crate::window_chrome::linux_backdrop::clear_subtle_chrome_material();
-            cx.quit();
+            let _ = view.update(cx, |app, cx| {
+                if !app.guard_read_only_editor_discard(cx) {
+                    return;
+                }
+                app.save_session_blocking(cx);
+                // US-013 AC #2 - final chance to flush `app_exited` when the OS
+                // close button or a keyboard shortcut closes the last window.
+                app.emit_app_exited_and_flush();
+                #[cfg(target_os = "linux")]
+                crate::window_chrome::linux_backdrop::clear_subtle_chrome_material();
+                cx.quit();
+            });
             false
         }
     });

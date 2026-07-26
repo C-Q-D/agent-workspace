@@ -677,6 +677,9 @@ impl PaneFlowApp {
                 match result {
                     Ok(staged) => {
                         let _ = this.update(cx, |app, cx| {
+                            if !app.guard_read_only_editor_discard(cx) {
+                                return;
+                            }
                             app.save_session_blocking(cx);
                             match update::windows::msi::spawn_relay(staged) {
                                 Ok(()) => {

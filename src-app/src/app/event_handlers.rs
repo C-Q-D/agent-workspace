@@ -473,6 +473,9 @@ impl PaneFlowApp {
     ) {
         match event {
             title_bar::TitleBarEvent::CloseRequested => {
+                if !self.guard_read_only_editor_discard(cx) {
+                    return;
+                }
                 self.save_session_blocking(cx);
                 // US-013 AC #2 - flush `app_exited` before the process is
                 // torn down. Bounded to 2 s by the client; if PostHog is

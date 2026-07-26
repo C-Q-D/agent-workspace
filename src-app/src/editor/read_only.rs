@@ -694,11 +694,16 @@ fn write_editor_snapshot(
     text: &str,
     load_path: PathBuf,
 ) -> Result<TextDocumentLoad, String> {
-    if !save_path.is_file() {
-        return Err("保存文件失败（目标文件不存在或已被删除）".to_string());
-    }
-    std::fs::write(save_path, text.as_bytes())
+    // OpenOptions 不带 create，避免 is_file 检查与实际打开之间的 TOCTOU 窗口把已
+    // 删除的目标重新创建；E014 再把同一句柄升级为 Windows 原子替换策略。
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(save_path)
         .map_err(|error| format!("保存文件失败（{error}）"))?;
+    std::io::Write::write_all(&mut file, text.as_bytes())
+        .map_err(|error| format!("保存文件失败（{error}）"))?;
+    drop(file);
     TextDocumentLoad::load(load_path).map_err(|error| error.user_message())
 }
 
