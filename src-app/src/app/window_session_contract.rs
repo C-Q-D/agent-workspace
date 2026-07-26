@@ -192,8 +192,25 @@ fn active_context_must_not_own_a_duplicate_workspace_root() {
     let diff_source = include_str!("diff_view_actions.rs");
     let diff_helpers_source = include_str!("diff_view_helpers.rs");
 
+    // E005 的异步请求 key 可以携带 root 快照，但展示状态本身仍只能保存稳定 ID。
+    // 因此只检查两个状态定义的源码片段，不把合法的 FocusedContextKey 误判为重复所有权。
+    let context_start = focus_source
+        .find("pub(crate) struct FocusedWorkspaceContext")
+        .expect("FocusedWorkspaceContext 定义必须存在");
+    let context_end = focus_source[context_start..]
+        .find("/// 不包含设置覆盖页的工作区展示状态。")
+        .map(|offset| context_start + offset)
+        .expect("FocusedWorkspaceContext 定义必须有明确结束边界");
+    let command_start = focus_source
+        .find("pub(crate) enum DisplayCommand")
+        .expect("DisplayCommand 定义必须存在");
+    let command_end = focus_source[command_start..]
+        .find("/// 一次受控展示转换是否实际改变了状态。")
+        .map(|offset| command_start + offset)
+        .expect("DisplayCommand 定义必须有明确结束边界");
     assert!(
-        !focus_source.contains("workspace_root: PathBuf"),
+        !focus_source[context_start..context_end].contains("workspace_root: PathBuf")
+            && !focus_source[command_start..command_end].contains("workspace_root: PathBuf"),
         "FocusedWorkspaceContext 和 DisplayCommand 都不得复制 workspaceRoot"
     );
     assert!(focus_source.contains("fn active_context_workspace(&self)"));
