@@ -50,3 +50,6 @@ pub mod workspace_ops;
 // A021 的会话所有权契约只在测试构建中存在；生产聚合对象由 A022 引入。
 #[cfg(test)]
 mod window_session_contract;
+// E003 的自用效率契约只在测试构建中存在；它固定后续轻量编辑与右侧上下文的所有权边界。
+#[cfg(test)]
+mod self_use_efficiency_contract;
