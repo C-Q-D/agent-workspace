@@ -13,9 +13,10 @@ use gpui::{
 };
 
 use crate::PaneFlowApp;
+use crate::editor::{MAX_TEXT_DOCUMENT_BYTES, TextDocumentLoad};
 
 /// 只读选择器允许加载的最大文件字节数。
-const MAX_LINE_PICKER_BYTES: u64 = 1024 * 1024;
+const MAX_LINE_PICKER_BYTES: u64 = MAX_TEXT_DOCUMENT_BYTES;
 /// 每页最多创建的行节点数，限制单帧布局成本。
 const LINE_PICKER_PAGE_SIZE: usize = 200;
 
@@ -123,21 +124,8 @@ impl FileLinePickerState {
 
 /// 从磁盘读取并验证一个真实文本文件。
 fn load_file_lines(path: PathBuf) -> Result<FileLineDocument, String> {
-    let metadata =
-        std::fs::metadata(&path).map_err(|error| format!("无法读取文件信息：{error}"))?;
-    if !metadata.is_file() {
-        return Err("目标不是普通文件".to_string());
-    }
-    if metadata.len() > MAX_LINE_PICKER_BYTES {
-        return Err("文件超过 1 MiB 行选择上限".to_string());
-    }
-
-    let initial_stamp = FileLineStamp::from_metadata(&metadata);
-    let bytes = std::fs::read(&path).map_err(|error| format!("无法读取文件：{error}"))?;
-    if bytes.contains(&0) {
-        return Err("二进制文件不支持代码行选择".to_string());
-    }
-    let text = String::from_utf8(bytes).map_err(|_| "文件不是有效 UTF-8 文本".to_string())?;
+    let document = TextDocumentLoad::load(path.clone()).map_err(|error| error.user_message())?;
+    let text = document.text();
     let lines = if text.is_empty() {
         Vec::new()
     } else {
@@ -150,13 +138,15 @@ fn load_file_lines(path: PathBuf) -> Result<FileLineDocument, String> {
         }
         lines
     };
-    let final_metadata =
-        std::fs::metadata(&path).map_err(|error| format!("无法复核文件：{error}"))?;
-    let final_stamp = FileLineStamp::from_metadata(&final_metadata);
-    if final_stamp != initial_stamp {
-        return Err("文件在读取过程中发生变化，请重新打开".to_string());
-    }
-    Ok(FileLineDocument::new(path, lines, final_stamp))
+    let fingerprint = document.fingerprint();
+    Ok(FileLineDocument::new(
+        path,
+        lines,
+        FileLineStamp {
+            len: fingerprint.byte_len,
+            modified: fingerprint.modified,
+        },
+    ))
 }
 
 impl PaneFlowApp {

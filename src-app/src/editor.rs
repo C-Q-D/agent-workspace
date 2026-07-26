@@ -20,6 +20,10 @@
 //!   \Programs\Microsoft VS Code\bin`, which `which` resolves correctly
 //!   when that dir is on `Path`.
 
+// 文本读取模型独立于外部编辑器启动逻辑，供右侧只读 Context 和行引用共同复用。
+mod text_document;
+pub(crate) use text_document::*;
+
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
