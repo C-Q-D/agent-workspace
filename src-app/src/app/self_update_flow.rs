@@ -678,6 +678,10 @@ impl PaneFlowApp {
                     Ok(staged) => {
                         let _ = this.update(cx, |app, cx| {
                             if !app.guard_read_only_editor_discard(cx) {
+                                // 更新阶段已经完成，但用户拒绝丢弃编辑内容；必须回到可重试的空闲状态，避免更新按钮一直显示为忙碌。
+                                app.self_update.self_update_status = update::SelfUpdateStatus::Idle;
+                                app.show_toast("文件有未保存修改，请先保存后重试更新", cx);
+                                cx.notify();
                                 return;
                             }
                             app.save_session_blocking(cx);
