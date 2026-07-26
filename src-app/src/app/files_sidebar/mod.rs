@@ -25,8 +25,8 @@ mod watch;
 use std::path::{Path, PathBuf};
 
 use gpui::{
-    AnyElement, Context, Focusable, InteractiveElement, IntoElement, ParentElement, Pixels, Styled,
-    Window, div, prelude::*, px,
+    AnyElement, Context, CursorStyle, Focusable, InteractiveElement, IntoElement, MouseButton,
+    MouseDownEvent, ParentElement, Pixels, Styled, Window, div, prelude::*, px,
 };
 
 use crate::app::files_tree::{self, FilesTreeState};
@@ -35,10 +35,12 @@ use crate::app::workspace_focus::{DisplaySurface, FocusedContextKind};
 use crate::reference_formatter::{ReferenceFormat, ReferenceRequest, format_reference};
 use crate::{PaneFlowApp, ToggleFilesSidebar};
 
-/// Fixed sidebar width - matches the sessions sidebar (a resizable width is
-/// deferred per the PRD non-goals).
+/// Files Context 首次打开时的默认宽度；用户拖拽后的宽度只保留在本次应用会话。
 pub(crate) const FILES_SIDEBAR_WIDTH: f32 = 300.;
-pub(super) const SIDEBAR_WIDTH: Pixels = px(FILES_SIDEBAR_WIDTH);
+/// 用户拖拽时的最小宽度；默认 300px 仍保留，避免升级后首次打开突然变宽。
+pub(crate) const FILES_SIDEBAR_MIN_WIDTH: f32 = 320.;
+/// 右侧 Context 不得超过当前窗口宽度的 60%。
+const FILES_SIDEBAR_MAX_VIEWPORT_RATIO: f32 = 0.6;
 pub(super) const ROW_HEIGHT: Pixels = px(28.);
 /// Per-depth indentation added to the row's left padding.
 pub(super) const INDENT_STEP: f32 = 12.;
@@ -46,6 +48,57 @@ pub(super) const INDENT_STEP: f32 = 12.;
 pub(super) const DIMMED_OPACITY: f32 = 0.55;
 
 impl PaneFlowApp {
+    /// 根据当前窗口宽度限制右栏可用的最大值。
+    pub(crate) fn max_files_sidebar_width(viewport_width: f32) -> f32 {
+        (viewport_width.max(0.) * FILES_SIDEBAR_MAX_VIEWPORT_RATIO).max(1.)
+    }
+
+    /// 限制窗口变化后的已有宽度；不强制应用拖拽最小值，以保留 300px 默认值。
+    pub(crate) fn clamp_files_sidebar_width(width: f32, viewport_width: f32) -> f32 {
+        width
+            .max(0.)
+            .min(Self::max_files_sidebar_width(viewport_width))
+    }
+
+    /// 限制用户拖拽产生的宽度，确保右栏不会被拖到难以操作的窄条。
+    pub(crate) fn clamp_files_sidebar_drag_width(width: f32, viewport_width: f32) -> f32 {
+        let max_width = Self::max_files_sidebar_width(viewport_width);
+        let min_width = FILES_SIDEBAR_MIN_WIDTH.min(max_width);
+        width.clamp(min_width, max_width)
+    }
+
+    /// 在右栏左边缘建立一次拖拽锚点。
+    pub(crate) fn begin_files_sidebar_resize(&mut self, cursor_x: f32) {
+        if self.files_sidebar_open {
+            self.files_sidebar_resize = Some((cursor_x, self.files_sidebar_width));
+        }
+    }
+
+    /// 根据鼠标横向位移调整右栏宽度；右栏停靠在窗口右侧，向左拖会变宽。
+    pub(crate) fn drag_files_sidebar_resize(
+        &mut self,
+        cursor_x: f32,
+        viewport_width: f32,
+        cx: &mut Context<Self>,
+    ) {
+        if let Some((anchor_x, anchor_width)) = self.files_sidebar_resize {
+            let delta = anchor_x - cursor_x;
+            self.files_sidebar_width =
+                Self::clamp_files_sidebar_drag_width(anchor_width + delta, viewport_width);
+            cx.notify();
+        }
+    }
+
+    /// 结束右栏拖拽；鼠标释放或模式切换都会调用该入口。
+    pub(crate) fn end_files_sidebar_resize(&mut self, cx: &mut Context<Self>) -> bool {
+        if self.files_sidebar_resize.take().is_some() {
+            cx.notify();
+            true
+        } else {
+            false
+        }
+    }
+
     /// 返回当前文件面板所属工作区的引用策略；索引失效时使用公共格式。
     pub(super) fn active_files_reference_format(&self) -> ReferenceFormat {
         self.workspaces
@@ -243,6 +296,7 @@ impl PaneFlowApp {
         self.files_event_rx = None;
         // Close any open row context menu so it can't outlive the tree.
         self.files_menu_open = None;
+        self.files_sidebar_resize = None;
         self.workspace_focus.release_context_kind();
         self.set_files_sidebar_open(false, cx);
     }
@@ -254,6 +308,7 @@ impl PaneFlowApp {
     pub(crate) fn close_files_sidebar_immediate(&mut self, cx: &mut Context<Self>) {
         self.files_sidebar_open = false;
         self.files_sidebar_animation = None;
+        self.files_sidebar_resize = None;
         self.workspace_focus.release_context_kind();
         self.clear_files_sidebar_state();
         cx.notify();
@@ -263,13 +318,17 @@ impl PaneFlowApp {
         if let Some(animation) = self.files_sidebar_animation {
             animation.width_at(now)
         } else if self.files_sidebar_open {
-            FILES_SIDEBAR_WIDTH
+            self.files_sidebar_width
         } else {
             0.
         }
     }
 
     pub(crate) fn rendered_files_sidebar_width(&mut self, window: &mut Window) -> f32 {
+        self.files_sidebar_width = Self::clamp_files_sidebar_width(
+            self.files_sidebar_width,
+            f32::from(window.viewport_size().width),
+        );
         let now = std::time::Instant::now();
         if let Some(animation) = self.files_sidebar_animation {
             if animation.is_finished(now) {
@@ -283,7 +342,7 @@ impl PaneFlowApp {
                 animation.width_at(now)
             }
         } else if self.files_sidebar_open {
-            FILES_SIDEBAR_WIDTH
+            self.files_sidebar_width
         } else {
             0.
         }
@@ -293,7 +352,7 @@ impl PaneFlowApp {
         let now = std::time::Instant::now();
         let from_width = self.files_sidebar_width_at(now);
         self.files_sidebar_open = open;
-        let to_width = if open { FILES_SIDEBAR_WIDTH } else { 0. };
+        let to_width = if open { self.files_sidebar_width } else { 0. };
 
         self.files_sidebar_animation =
             if (from_width - to_width).abs() > crate::PRIMARY_SIDEBAR_MIN_ANIMATION_DELTA {
@@ -318,6 +377,7 @@ impl PaneFlowApp {
         self.files_watcher = None;
         self.files_event_rx = None;
         self.files_menu_open = None;
+        self.files_sidebar_resize = None;
         self.workspace_focus.set_terminal_surface_id(None);
         self.files_selected = 0;
     }
@@ -424,7 +484,8 @@ impl PaneFlowApp {
             .id("files-sidebar")
             .flex()
             .flex_col()
-            .w(SIDEBAR_WIDTH)
+            .relative()
+            .w(px(self.files_sidebar_width))
             .flex_shrink_0()
             .h_full()
             .track_focus(&self.files_focus)
@@ -436,9 +497,65 @@ impl PaneFlowApp {
                 window.is_window_active(),
                 self.cached_config.cockpit_chrome_material_enabled(),
             ))
+            .child(
+                // 细长的左边缘命中区让拖拽不必精准点在 1px 边框上；实际位移由
+                // 主内容的全高 on_mouse_move 捕获，因此光标离开边缘后仍可连续调整。
+                div()
+                    .id("files-sidebar-resize")
+                    .absolute()
+                    .left(px(-3.))
+                    .top_0()
+                    .bottom_0()
+                    .w(px(7.))
+                    .cursor(CursorStyle::ResizeLeftRight)
+                    .on_mouse_down(
+                        MouseButton::Left,
+                        cx.listener(|this, event: &MouseDownEvent, _window, cx| {
+                            this.begin_files_sidebar_resize(f32::from(event.position.x));
+                            cx.stop_propagation();
+                        }),
+                    ),
+            )
             .child(self.files_sidebar_header(ui, cx))
             .child(self.files_reference_format_selector(ui, cx))
             .child(self.files_sidebar_body(ui, cx))
             .into_any_element()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{FILES_SIDEBAR_MIN_WIDTH, PaneFlowApp};
+
+    /// 右栏最大宽度始终按窗口宽度的 60% 计算。
+    #[test]
+    fn files_sidebar_max_width_uses_viewport_ratio() {
+        assert_eq!(PaneFlowApp::max_files_sidebar_width(1200.0), 720.0);
+        assert_eq!(PaneFlowApp::max_files_sidebar_width(0.0), 1.0);
+    }
+
+    /// 窗口变窄只收缩已有宽度；默认 300px 不会被无故升级为拖拽下限。
+    #[test]
+    fn files_sidebar_width_clamps_without_forcing_drag_floor() {
+        assert_eq!(PaneFlowApp::clamp_files_sidebar_width(300.0, 1200.0), 300.0);
+        assert_eq!(PaneFlowApp::clamp_files_sidebar_width(900.0, 1200.0), 720.0);
+    }
+
+    /// 用户拖拽时应用 320px 下限以及 60% 上限；极窄窗口以可用最大值为准。
+    #[test]
+    fn files_sidebar_drag_width_is_bounded() {
+        assert_eq!(
+            PaneFlowApp::clamp_files_sidebar_drag_width(100.0, 1200.0),
+            FILES_SIDEBAR_MIN_WIDTH
+        );
+        assert_eq!(
+            PaneFlowApp::clamp_files_sidebar_drag_width(900.0, 1200.0),
+            720.0
+        );
+        let narrow = PaneFlowApp::clamp_files_sidebar_drag_width(100.0, 400.0);
+        assert!(
+            (narrow - 240.0).abs() < 0.01,
+            "unexpected narrow width: {narrow}"
+        );
     }
 }

@@ -945,6 +945,8 @@ impl PaneFlowApp {
             },
             files_sidebar_open: false,
             files_sidebar_animation: None,
+            files_sidebar_width: crate::app::files_sidebar::FILES_SIDEBAR_WIDTH,
+            files_sidebar_resize: None,
             files_tree: crate::app::files_tree::FilesTreeState::default(),
             files_line_picker: None,
             files_tree_scroll: gpui::ScrollHandle::new(),

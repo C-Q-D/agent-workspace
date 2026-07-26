@@ -1082,6 +1082,10 @@ struct PaneFlowApp {
     /// Width animation for opening/closing the docked Files right sidebar.
     /// Matches the agent-sessions sidebar animation.
     files_sidebar_animation: Option<SidebarWidthAnimation>,
+    /// 当前会话内用户调整后的 Files Context 宽度；不写入用户配置。
+    files_sidebar_width: f32,
+    /// 右栏左边缘拖拽锚点 `(按下时光标 X, 按下时宽度)`。
+    files_sidebar_resize: Option<(f32, f32)>,
     /// In-memory tree state for the open Files sidebar (root + expanded set +
     /// lazily-cached directory listings). Empty when the sidebar is closed.
     files_tree: app::files_tree::FilesTreeState,
@@ -1511,9 +1515,8 @@ impl Render for PaneFlowApp {
         let files_sidebar_width = self.rendered_files_sidebar_width(window);
         let files_sidebar_mounted =
             self.files_sidebar_open || self.files_sidebar_animation.is_some();
-        let files_sidebar_opacity = (files_sidebar_width
-            / crate::app::files_sidebar::FILES_SIDEBAR_WIDTH.max(1.))
-        .clamp(0., 1.);
+        let files_sidebar_opacity =
+            (files_sidebar_width / self.files_sidebar_width.max(1.)).clamp(0., 1.);
         let review_sidebar_mounted = matches!(
             display_surface,
             app::workspace_focus::DisplaySurface::Review
@@ -1871,7 +1874,28 @@ impl Render for PaneFlowApp {
                     cx.stop_propagation();
                 }
             }))
-            .on_mouse_move(|_e, _, cx| cx.stop_propagation())
+            .on_mouse_move(
+                cx.listener(|this, event: &gpui::MouseMoveEvent, window, cx| {
+                    if this.files_sidebar_resize.is_some() {
+                        if event.pressed_button == Some(MouseButton::Left) {
+                            this.drag_files_sidebar_resize(
+                                f32::from(event.position.x),
+                                f32::from(window.viewport_size().width),
+                                cx,
+                            );
+                        } else {
+                            this.end_files_sidebar_resize(cx);
+                        }
+                    }
+                    cx.stop_propagation();
+                }),
+            )
+            .on_mouse_up(
+                MouseButton::Left,
+                cx.listener(|this, _event: &gpui::MouseUpEvent, _window, cx| {
+                    this.end_files_sidebar_resize(cx);
+                }),
+            )
             // Sidebar + main content area. US-008: branch on the
             // top-level UI mode so the CLI sidebar (workspace list)
             // and the Agents sidebar (projects + threads, US-010)
