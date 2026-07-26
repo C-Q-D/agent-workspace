@@ -601,8 +601,13 @@ impl PaneFlowApp {
         {
             self.commit_ai_agent_command_inputs(cx);
         }
-        self.transition_display(DisplayCommand::OpenSettings(section))
-            .expect("切换设置分区只改变已打开的 Settings 表面");
+        if self
+            .transition_display(DisplayCommand::OpenSettings(section))
+            .is_err()
+        {
+            self.show_toast("文件有未保存修改，请先保存", cx);
+            return;
+        }
         self.reset_settings_scroll();
         self.font_dropdown_open = false;
         self.font_search.clear();

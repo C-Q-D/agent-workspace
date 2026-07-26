@@ -240,6 +240,7 @@ impl PaneFlowApp {
             .transition_display(DisplayCommand::FocusWorkspace { workspace_id })
             .is_err()
         {
+            self.show_toast("文件有未保存修改，请先保存", cx);
             return false;
         }
         self.activate_workspace_at(idx, WorkspaceFocusTarget::FirstPane, window, cx)
@@ -261,6 +262,9 @@ impl PaneFlowApp {
             self.transition_display(DisplayCommand::RestoreGrid),
             Ok(DisplayTransition::Changed)
         ) {
+            if self.read_only_editor_has_unsaved_changes() {
+                self.show_toast("文件有未保存修改，请先保存", cx);
+            }
             return;
         }
         if self.files_sidebar_open {
@@ -282,15 +286,23 @@ impl PaneFlowApp {
             .get(self.active_idx)
             .map(|workspace| workspace.id)
         {
-            self.transition_display(DisplayCommand::FocusWorkspace { workspace_id })
-                .expect("工作区生命周期切换在 Settings 返回状态中同样合法");
+            if self
+                .transition_display(DisplayCommand::FocusWorkspace { workspace_id })
+                .is_err()
+            {
+                return;
+            }
             // 文件树只服务直接可见的聚焦终端；Review 或 Settings 关闭后再恢复。
             if matches!(self.workspace_focus.surface(), DisplaySurface::Focused) {
                 self.retarget_files_sidebar_without_window(cx);
             }
         } else {
-            self.transition_display(DisplayCommand::ClearWorkspace)
-                .expect("清空工作区展示上下文对所有表面都合法");
+            if self
+                .transition_display(DisplayCommand::ClearWorkspace)
+                .is_err()
+            {
+                return;
+            }
             if self.files_sidebar_open {
                 self.close_files_sidebar(cx);
             }
@@ -348,14 +360,21 @@ impl PaneFlowApp {
         if idx >= self.workspaces.len() {
             return None;
         }
+        let previous_idx = self.active_idx;
         let changed = idx != self.active_idx;
         self.dismiss_transient_surfaces();
         self.active_idx = idx;
-        if self.workspace_focus.workspace_id().is_some() {
-            self.transition_display(DisplayCommand::FocusWorkspace {
-                workspace_id: self.workspaces[idx].id,
-            })
-            .expect("活动工作区切换在 Settings 返回状态中同样合法");
+        if self.workspace_focus.workspace_id().is_some()
+            && self
+                .transition_display(DisplayCommand::FocusWorkspace {
+                    workspace_id: self.workspaces[idx].id,
+                })
+                .is_err()
+        {
+            // Editor 脏缓冲会拒绝跨工作区切换；恢复索引，避免左侧高亮先于
+            // 展示状态变化而产生“看似切换成功”的错觉。
+            self.active_idx = previous_idx;
+            return None;
         }
         Some(changed)
     }
@@ -715,14 +734,22 @@ impl PaneFlowApp {
 
         // Switch to the workspace where the pane was closed, if it still exists
         if record.workspace_idx < self.workspaces.len() {
+            let previous_idx = self.active_idx;
             self.active_idx = record.workspace_idx;
             // 关闭窗格恢复也可能改变左侧索引；放大状态必须按稳定 ID 同步，不能让
             // 旧 workspace 的 Files/Editor 资源继续服务新的活动工作区。
             if self.workspace_focus.workspace_id().is_some()
                 && let Some(workspace_id) = self.workspaces.get(self.active_idx).map(|ws| ws.id)
             {
-                self.transition_display(DisplayCommand::FocusWorkspace { workspace_id })
-                    .expect("撤销关闭窗格时稳定工作区 ID 必须有效");
+                if self
+                    .transition_display(DisplayCommand::FocusWorkspace { workspace_id })
+                    .is_err()
+                {
+                    self.active_idx = previous_idx;
+                    self.closed_panes.push(record);
+                    self.show_toast("文件有未保存修改，请先保存", cx);
+                    return;
+                }
                 self.reroot_files_tree(cx);
             }
         }
@@ -842,6 +869,12 @@ impl PaneFlowApp {
         if idx >= self.workspaces.len() {
             return;
         }
+        if self.read_only_editor_has_unsaved_changes()
+            && self.workspace_focus.workspace_id() == Some(self.workspaces[idx].id)
+        {
+            self.show_toast("文件有未保存修改，请先保存", cx);
+            return;
+        }
         self.workspace_menu_open = None;
         if workspace_has_running_terminal(&self.workspaces[idx], cx) {
             self.pending_workspace_close = Some(self.workspaces[idx].id);
@@ -862,6 +895,14 @@ impl PaneFlowApp {
         cx: &mut Context<Self>,
     ) {
         if idx >= self.workspaces.len() {
+            return;
+        }
+        // 确认对话框可能在 Editor 变脏后才提交；再次检查稳定 workspace ID，避免
+        // 通过确认路径绕过普通关闭入口的脏缓冲门禁。
+        if self.read_only_editor_has_unsaved_changes()
+            && self.workspace_focus.workspace_id() == Some(self.workspaces[idx].id)
+        {
+            self.show_toast("文件有未保存修改，请先保存", cx);
             return;
         }
         self.pending_workspace_close = None;

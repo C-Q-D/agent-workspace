@@ -163,7 +163,11 @@ impl PaneFlowApp {
             .transition_display(DisplayCommand::EnterReview)
             .is_err()
         {
-            self.show_toast("Close settings before reviewing changes", cx);
+            if self.read_only_editor_has_unsaved_changes() {
+                self.show_toast("文件有未保存修改，请先保存", cx);
+            } else {
+                self.show_toast("Close settings before reviewing changes", cx);
+            }
             return;
         }
 

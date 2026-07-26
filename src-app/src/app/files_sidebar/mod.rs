@@ -290,6 +290,9 @@ impl PaneFlowApp {
     /// per-workspace expansion lives on the `Workspace`, so it is NOT reset
     /// here (US-007) - reopening restores it.
     pub(crate) fn close_files_sidebar(&mut self, cx: &mut Context<Self>) {
+        if !self.guard_read_only_editor_discard(cx) {
+            return;
+        }
         // US-005: drop the watch + its channel while closed.
         self.files_watcher = None;
         self.files_event_rx = None;
@@ -306,6 +309,9 @@ impl PaneFlowApp {
     /// 普通用户关闭保留宽度动画；模式切换不能等待动画结束，否则 Diff 已显示时
     /// 旧目录仍会短暂存在，形成错误的双重工作区归属。
     pub(crate) fn close_files_sidebar_immediate(&mut self, cx: &mut Context<Self>) {
+        if !self.guard_read_only_editor_discard(cx) {
+            return;
+        }
         self.files_sidebar_open = false;
         self.files_sidebar_animation = None;
         self.files_sidebar_resize = None;

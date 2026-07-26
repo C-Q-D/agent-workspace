@@ -27,8 +27,13 @@ impl PaneFlowApp {
         self.profile_menu_open = None;
         self.agents_view.sidebar_actions_menu_open = false;
         self.agents_view.sidebar_mode_picker_open = false;
-        self.transition_display(DisplayCommand::OpenSettings(SettingsSection::General))
-            .expect("打开设置对全部工作区表面都合法");
+        if self
+            .transition_display(DisplayCommand::OpenSettings(SettingsSection::General))
+            .is_err()
+        {
+            self.show_toast("文件有未保存修改，请先保存", cx);
+            return;
+        }
         // Settings 与 Files/Editor/Preview 互斥；切换表面后立即释放旧树、watcher
         // 和动画，避免设置页仍在后台接收旧工作区的文件事件。
         if self.files_sidebar_open {

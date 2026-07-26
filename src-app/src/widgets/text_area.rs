@@ -79,6 +79,7 @@ actions!(
         TaCut,
         TaPaste,
         TaSubmit,
+        TaSave,
         // US-106 (prd-agent-ui-refactor-2026-Q3.md): bypass the queue
         // and send the current draft immediately, interrupting any
         // in-flight turn. Bound to Ctrl+Shift+Enter (Cmd+Shift+Enter
@@ -117,6 +118,7 @@ pub fn register_keybindings(cx: &mut App) {
         // fires `TaSubmit` which the Composer interprets as "send".
         KeyBinding::new("enter", TaSubmit, Some("PaneflowTextArea")),
         KeyBinding::new("shift-enter", TaInsertNewline, Some("PaneflowTextArea")),
+        KeyBinding::new("ctrl-s", TaSave, Some("PaneflowTextArea")),
         // US-019: Escape dismisses the Composer's popups via the
         // registered `on_escape` callback (no-op when none is set).
         KeyBinding::new("escape", TaEscape, Some("PaneflowTextArea")),
@@ -137,6 +139,7 @@ pub fn register_keybindings(cx: &mut App) {
         KeyBinding::new("cmd-c", TaCopy, Some("PaneflowTextArea")),
         KeyBinding::new("cmd-v", TaPaste, Some("PaneflowTextArea")),
         KeyBinding::new("cmd-x", TaCut, Some("PaneflowTextArea")),
+        KeyBinding::new("cmd-s", TaSave, Some("PaneflowTextArea")),
         // US-106: bypass the queue and send immediately.
         KeyBinding::new(
             "cmd-shift-enter",
@@ -154,6 +157,7 @@ pub fn register_keybindings(cx: &mut App) {
         // both so it works regardless of muscle memory.
         KeyBinding::new("ctrl-shift-v", TaPaste, Some("PaneflowTextArea")),
         KeyBinding::new("ctrl-x", TaCut, Some("PaneflowTextArea")),
+        KeyBinding::new("ctrl-s", TaSave, Some("PaneflowTextArea")),
         // US-106: bypass the queue and send immediately.
         KeyBinding::new(
             "ctrl-shift-enter",
@@ -184,6 +188,9 @@ type EscapeFn = Rc<RefCell<dyn FnMut(&mut Window, &mut App)>>;
 /// `send_prompt_immediate`, which interrupts the current turn before
 /// dispatching the new prompt.
 type SubmitImmediateFn = Rc<RefCell<dyn FnMut(String, &mut Window, &mut App)>>;
+
+/// Document 模式保存回调；正文由控件快照传出，宿主负责冲突判断和异步写盘。
+type SaveFn = Rc<RefCell<dyn FnMut(String, &mut Window, &mut App)>>;
 
 /// TextArea 的输入语义；共享同一编辑核心，避免为文件编辑再复制一套控件。
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -237,6 +244,7 @@ pub struct TextArea {
     last_click: Option<(Instant, usize, u8)>,
     placeholder: SharedString,
     on_submit: Option<SubmitFn>,
+    on_save: Option<SaveFn>,
     on_change: Option<ChangeFn>,
     on_escape: Option<EscapeFn>,
     on_submit_immediate: Option<SubmitImmediateFn>,
@@ -268,6 +276,7 @@ impl TextArea {
             last_click: None,
             placeholder: placeholder.into(),
             on_submit: None,
+            on_save: None,
             on_change: None,
             on_escape: None,
             on_submit_immediate: None,
@@ -429,6 +438,14 @@ impl TextArea {
         F: FnMut(String, &mut Window, &mut App) + 'static,
     {
         self.on_submit = Some(Rc::new(RefCell::new(f)));
+    }
+
+    /// 安装 Document 模式保存回调；Composer 模式即使收到 Ctrl+S 也不会调用它。
+    pub fn on_save<F>(&mut self, f: F)
+    where
+        F: FnMut(String, &mut Window, &mut App) + 'static,
+    {
+        self.on_save = Some(Rc::new(RefCell::new(f)));
     }
 
     /// US-019: install a callback that fires after every content
@@ -931,6 +948,20 @@ impl TextArea {
         }
     }
 
+    /// Document 模式的显式保存动作；不直接触碰文件系统，也不向终端注入字符。
+    fn save(&mut self, _: &TaSave, w: &mut Window, cx: &mut Context<Self>) {
+        if self.mode != TextAreaMode::Document {
+            return;
+        }
+        let Some(cb) = self.on_save.clone() else {
+            return;
+        };
+        let content = self.content.clone();
+        if let Ok(mut callback) = cb.try_borrow_mut() {
+            callback(content, w, cx);
+        }
+    }
+
     /// Type a literal character into the area. Routed from the
     /// element's `input_handler` in [`Render::render`].
     pub fn insert_char(&mut self, text: &str, cx: &mut Context<Self>) {
@@ -1154,6 +1185,11 @@ impl Render for TextArea {
             .on_action(cx.listener(Self::submit))
             .on_action(cx.listener(Self::submit_immediate))
             .on_action(cx.listener(Self::escape))
+            // 只在 Document 模式挂载保存 action；Composer 不应因为共享的
+            // Ctrl/Cmd+S 绑定而吞掉宿主原有快捷键或向上冒泡路径。
+            .when(self.mode == TextAreaMode::Document, |area| {
+                area.on_action(cx.listener(Self::save))
+            })
             .text_size(px(13.))
             .text_color(ui.text)
             .min_h(px(20.))

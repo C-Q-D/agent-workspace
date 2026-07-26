@@ -232,6 +232,8 @@ pub(crate) enum DisplayTransitionError {
     SettingsMustCloseFirst,
     /// 应用级入口引用了不存在的稳定工作区 ID；状态保持不变。
     UnknownWorkspace,
+    /// 右侧 Editor 有未保存正文，展示转换必须先保存，避免静默丢失用户修改。
+    UnsavedEditorChanges,
 }
 
 /// 应用级展示状态的单一模型。
@@ -611,6 +613,23 @@ impl PaneFlowApp {
                 .any(|workspace| workspace.id == *workspace_id)
         {
             return Err(DisplayTransitionError::UnknownWorkspace);
+        }
+        if self.read_only_editor_has_unsaved_changes()
+            && matches!(
+                &command,
+                DisplayCommand::RestoreGrid
+                    | DisplayCommand::EnterReview
+                    | DisplayCommand::OpenSettings(_)
+                    | DisplayCommand::ClearWorkspace
+            )
+        {
+            return Err(DisplayTransitionError::UnsavedEditorChanges);
+        }
+        if let DisplayCommand::FocusWorkspace { workspace_id } = &command
+            && self.read_only_editor_has_unsaved_changes()
+            && self.workspace_focus.workspace_id() != Some(*workspace_id)
+        {
+            return Err(DisplayTransitionError::UnsavedEditorChanges);
         }
         let previous_surface = self.workspace_focus.surface();
         let previous_workspace_id = self.workspace_focus.workspace_id();

@@ -1095,6 +1095,12 @@ struct PaneFlowApp {
     read_only_editor: Option<crate::editor::ReadOnlyEditorState>,
     /// 当前只读 Editor 的后台读取任务；离开 Context 时丢弃句柄，避免持续持有旧快照。
     read_only_editor_task: Option<gpui::Task<()>>,
+    /// 当前只读 Editor 的可编辑 TextArea 实体；正文不复制到终端或其他窗口。
+    read_only_editor_input: Option<gpui::Entity<crate::widgets::text_area::TextArea>>,
+    /// 递增保存序列；旧写盘结果不得覆盖较新的编辑或清理后的新 Context。
+    read_only_editor_save_seq: u64,
+    /// 当前只读 Editor 的后台保存任务；关闭/切换时丢弃句柄并依靠 key+序列门禁收尾。
+    read_only_editor_save_task: Option<gpui::Task<()>>,
     /// Scroll state for the Files tree body. Re-created on every open so a
     /// fresh sidebar starts at offset 0.
     files_tree_scroll: gpui::ScrollHandle,
