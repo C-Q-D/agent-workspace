@@ -20,6 +20,9 @@
 //! Composer maps Enter to send and Shift+Enter to insert `\n`) so the
 //! same widget works as a Send-on-Enter input or as a free-typing
 //! textarea.
+//!
+//! 文档编辑模式只改变 Enter、Tab 等输入意图，仍复用同一套光标、选择、IME 和绘制
+//! 核心；Composer 默认模式保持原有提交语义，避免右侧文件编辑影响终端提示词输入。
 
 // Two methods on the public surface (`is_empty`, `set_value`) are
 // not exercised by US-016's Composer but are intentionally part of
@@ -38,10 +41,11 @@ use std::time::{Duration, Instant};
 use gpui::{
     App, AvailableSpace, Bounds, ClipboardItem, Context, DispatchPhase, Element, ElementId,
     ElementInputHandler, EntityInputHandler, FocusHandle, Focusable, Font, GlobalElementId, Hitbox,
-    HitboxBehavior, Hsla, InspectorElementId, IntoElement, KeyBinding, LayoutId, Length,
-    MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, ParentElement, Pixels, Point,
-    Render, SharedString, Size, Style, Styled, TextAlign, TextRun, UTF16Selection, UnderlineStyle,
-    WeakEntity, Window, WrappedLine, actions, div, fill, point, prelude::*, px, relative, size,
+    HitboxBehavior, Hsla, InspectorElementId, IntoElement, KeyBinding, KeyDownEvent, LayoutId,
+    Length, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, ParentElement, Pixels,
+    Point, Render, SharedString, Size, Style, Styled, TextAlign, TextRun, UTF16Selection,
+    UnderlineStyle, WeakEntity, Window, WrappedLine, actions, div, fill, point, prelude::*, px,
+    relative, size,
 };
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -181,6 +185,16 @@ type EscapeFn = Rc<RefCell<dyn FnMut(&mut Window, &mut App)>>;
 /// dispatching the new prompt.
 type SubmitImmediateFn = Rc<RefCell<dyn FnMut(String, &mut Window, &mut App)>>;
 
+/// TextArea 的输入语义；共享同一编辑核心，避免为文件编辑再复制一套控件。
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum TextAreaMode {
+    /// Composer/表单模式：普通 Enter 交给调用方提交，Shift+Enter 插入换行。
+    #[default]
+    Composer,
+    /// 文档模式：Enter 与 Shift+Enter 都插入换行，Tab 插入四个空格。
+    Document,
+}
+
 /// Inline decoration anchored to a byte range in [`TextArea::content`].
 ///
 /// US-108a of `tasks/prd-agent-ui-refactor-2026-Q3.md`. The
@@ -236,6 +250,8 @@ pub struct TextArea {
     /// `content` string still carries the literal bytes the
     /// decoration shadows.
     decorations: Vec<Decoration>,
+    /// 当前输入语义；默认 Composer 以保持既有终端提示词行为。
+    mode: TextAreaMode,
 }
 
 impl TextArea {
@@ -258,7 +274,19 @@ impl TextArea {
             last_bounds: None,
             submit_on_empty: false,
             decorations: Vec::new(),
+            mode: TextAreaMode::Composer,
         }
+    }
+
+    /// 设置输入语义。调用方应在填充文档正文前设置 Document 模式，避免用户首个
+    /// Enter 被误当成 Composer 提交；切换模式不会改写已有文本或选择。
+    pub fn set_mode(&mut self, mode: TextAreaMode) {
+        self.mode = mode;
+    }
+
+    /// 返回当前输入语义，供宿主在创建编辑器和调试状态时确认没有隐式分叉。
+    pub fn mode(&self) -> TextAreaMode {
+        self.mode
     }
 
     /// Opt into firing `on_submit` on an empty buffer (optional form field
@@ -864,6 +892,12 @@ impl TextArea {
     }
 
     fn submit(&mut self, _: &TaSubmit, w: &mut Window, cx: &mut Context<Self>) {
+        if self.mode == TextAreaMode::Document {
+            // Document 模式沿用同一个 action，但把 Enter 解释为正文换行；这样
+            // Composer 的提交回调和空提交规则完全不变。
+            self.replace_selection("\n", cx);
+            return;
+        }
         // PRD AC #2: Enter sends. AC #9 (unhappy path): empty submit is a
         // no-op - unless the consumer opted into empty submits (EP-002
         // Launch Pad: the prompt is OPTIONAL, so Enter in the empty field
@@ -904,6 +938,27 @@ impl TextArea {
             return;
         }
         self.replace_selection(text, cx);
+    }
+
+    /// 仅在 Document 模式消费普通 Tab；Composer 不注册新的 Tab 语义，继续把事件
+    /// 交给 GPUI 原有焦点导航，避免改变提示词输入体验。
+    fn handle_document_key_down(
+        &mut self,
+        event: &KeyDownEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.mode != TextAreaMode::Document
+            || event.keystroke.key != "tab"
+            || event.keystroke.modifiers.shift
+            || event.keystroke.modifiers.control
+            || event.keystroke.modifiers.platform
+            || event.keystroke.modifiers.alt
+        {
+            return;
+        }
+        self.replace_selection("    ", cx);
+        cx.stop_propagation();
     }
 
     pub fn focus_handle_ref(&self) -> &FocusHandle {
@@ -1078,6 +1133,7 @@ impl Render for TextArea {
             .id("paneflow-text-area")
             .key_context("PaneflowTextArea")
             .track_focus(&self.focus_handle)
+            .on_key_down(cx.listener(Self::handle_document_key_down))
             .on_action(cx.listener(Self::backspace))
             .on_action(cx.listener(Self::delete))
             .on_action(cx.listener(Self::left))
@@ -2034,6 +2090,12 @@ impl<'a> LineSlice<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn composer_mode_remains_the_default_and_document_mode_is_explicit() {
+        assert_eq!(TextAreaMode::default(), TextAreaMode::Composer);
+        assert_ne!(TextAreaMode::Composer, TextAreaMode::Document);
+    }
 
     #[test]
     fn prev_grapheme_at_start_returns_zero() {
