@@ -1,6 +1,6 @@
 //! Single Files-tree row render: indent + chevron + icon + name, with the
-//! markdown/greyed styling (US-004), click-to-open / expand (US-003/004),
-//! markdown drag-to-pane (US-008), and the right-click copy-path menu trigger
+//! markdown/greyed styling (US-004), click-to-open / expand (US-003/E008),
+//! markdown drag-to-pane (US-008), and the right-click context-menu trigger
 //! (US-009). Split out of `view.rs` to keep each file under the 250-line budget.
 
 use gpui::{
@@ -24,11 +24,18 @@ impl PaneFlowApp {
         let node = row.node;
         let name: SharedString = files_tree::node_name(node).into();
         let is_md = !node.is_dir && files_tree::is_markdown(&node.path);
-        let actionable = node.is_dir || is_md;
+        // E008：所有普通文件都可以进入右侧只读 Editor；二进制、超大文件和
+        // 无效 UTF-8 会由 E007 的真实加载模型在降级页中明确说明，而不是在树上
+        // 预先猜测扩展名。目录仍然只负责展开/收起。
+        let actionable = true;
         let dimmed = node.is_ignored || node.is_hidden;
         // US-004: directories + markdown read at full text color; every other
         // file is greyed (muted). Ignored/hidden adds an opacity knock-down.
-        let text_color = if actionable { ui.text } else { ui.muted };
+        let text_color = if node.is_dir || is_md {
+            ui.text
+        } else {
+            ui.muted
+        };
         let indent = px(8. + row.depth as f32 * INDENT_STEP);
         let path = node.path.clone();
         let is_dir = node.is_dir;
@@ -105,7 +112,7 @@ impl PaneFlowApp {
         }));
 
         if actionable {
-            // Whole row toggles a directory (US-003) / opens a markdown (US-004).
+            // Whole row toggles a directory (US-003) / opens a read-only file context.
             el = el
                 .cursor_pointer()
                 .hover(|s| s.bg(crate::app::constants::sidebar_tab_hover_background()));
@@ -116,7 +123,7 @@ impl PaneFlowApp {
                 if is_dir {
                     this.toggle_dir(&click_path, cx);
                 } else {
-                    this.open_markdown_in_active_pane(click_path.clone(), window, cx);
+                    this.open_file_in_context(click_path.clone(), cx);
                 }
                 cx.stop_propagation();
             }));

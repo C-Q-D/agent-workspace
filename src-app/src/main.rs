@@ -1091,6 +1091,8 @@ struct PaneFlowApp {
     files_tree: app::files_tree::FilesTreeState,
     /// 文件树内打开的真实文件只读行选择器；关闭文件栏时一并释放。
     files_line_picker: Option<app::files_sidebar::FileLinePickerState>,
+    /// Focused 右侧打开的真实文本只读 Editor；与 Files/行选择器互斥且不保存正文。
+    read_only_editor: Option<crate::editor::ReadOnlyEditorState>,
     /// Scroll state for the Files tree body. Re-created on every open so a
     /// fresh sidebar starts at offset 0.
     files_tree_scroll: gpui::ScrollHandle,

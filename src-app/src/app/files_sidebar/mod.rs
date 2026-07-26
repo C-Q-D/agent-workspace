@@ -4,13 +4,12 @@
 //! `flex_shrink_0` child of the root `flex_row`, toggled by the tab-bar Files
 //! button via `PaneEvent::ToggleFilesSidebar`, mutually exclusive with the
 //! sessions sidebar (one right column). Renders a lazily-expanded,
-//! folders-first tree of the active workspace's `cwd`. Markdown rows are
-//! full-color + click-to-open into the active pane (the WCAG 2.5.7
-//! single-pointer alternative to the EP-003 drag); every other file is greyed
-//! and inert; gitignored/hidden entries are filtered out before rendering.
+//! folders-first tree of the active workspace's `cwd`. Text rows open in the
+//! Focused-only read-only Editor; Markdown keeps its drag-to-pane affordance,
+//! while file/line references remain explicit context-menu actions.
 //!
 //! This module holds the state mutations (open/close, re-root, expand/collapse,
-//! open-markdown) + the container render; the header/body/row rendering lives
+//! open-file) + the container render; the header/body/row rendering lives
 //! in `view.rs`, and the pure tree model + fs helpers in `files_tree.rs`.
 
 mod context_menu;
@@ -22,7 +21,7 @@ mod view;
 pub(crate) use line_picker::FileLinePickerState;
 mod watch;
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use gpui::{
     AnyElement, Context, CursorStyle, Focusable, InteractiveElement, IntoElement, MouseButton,
@@ -30,7 +29,7 @@ use gpui::{
 };
 
 use crate::app::files_tree::{self, FilesTreeState};
-use crate::app::ipc_handler::{find_pane_by_surface_id, find_terminal_by_surface_id};
+use crate::app::ipc_handler::find_terminal_by_surface_id;
 use crate::app::workspace_focus::{DisplaySurface, FocusedContextKind};
 use crate::reference_formatter::{ReferenceFormat, ReferenceRequest, format_reference};
 use crate::{PaneFlowApp, ToggleFilesSidebar};
@@ -294,6 +293,7 @@ impl PaneFlowApp {
         // US-005: drop the watch + its channel while closed.
         self.files_watcher = None;
         self.files_event_rx = None;
+        self.clear_read_only_editor_state();
         // Close any open row context menu so it can't outlive the tree.
         self.files_menu_open = None;
         self.files_sidebar_resize = None;
@@ -309,6 +309,7 @@ impl PaneFlowApp {
         self.files_sidebar_open = false;
         self.files_sidebar_animation = None;
         self.files_sidebar_resize = None;
+        self.clear_read_only_editor_state();
         self.workspace_focus.release_context_kind();
         self.clear_files_sidebar_state();
         cx.notify();
@@ -374,6 +375,7 @@ impl PaneFlowApp {
     fn clear_files_sidebar_state(&mut self) {
         self.files_tree = FilesTreeState::default();
         self.files_line_picker = None;
+        self.clear_read_only_editor_state();
         self.files_watcher = None;
         self.files_event_rx = None;
         self.files_menu_open = None;
@@ -434,44 +436,6 @@ impl PaneFlowApp {
         cx.notify();
     }
 
-    /// Open a markdown file in the active pane - the focused pane of the active
-    /// workspace, falling back to its first leaf. Reuses `MarkdownView::open` +
-    /// `Pane::add_markdown_tab` unchanged; the sidebar stays open.
-    fn open_markdown_in_active_pane(
-        &mut self,
-        path: PathBuf,
-        window: &gpui::Window,
-        cx: &mut Context<Self>,
-    ) {
-        let Some(root) = self
-            .workspaces
-            .get(self.active_idx)
-            .and_then(|ws| ws.root.as_ref())
-        else {
-            return;
-        };
-        let target = self
-            .workspace_focus
-            .terminal_surface_id()
-            .and_then(|surface_id| find_pane_by_surface_id(&self.workspaces, surface_id, cx))
-            .and_then(|(ws_idx, pane, _tab_idx)| {
-                (ws_idx == self.active_idx && root.contains_leaf(&pane)).then_some(pane)
-            })
-            .or_else(|| root.focused_pane(window, cx))
-            .or_else(|| root.collect_leaves().into_iter().next());
-        let Some(target) = target else {
-            return;
-        };
-        let markdown = cx.new(|cx| crate::markdown::MarkdownView::open(path, cx));
-        target.update(cx, |pane, cx| {
-            pane.add_markdown_tab(markdown, cx);
-            cx.notify();
-        });
-        self.pending_pane_focus = Some(target);
-        self.save_session(cx);
-        cx.notify();
-    }
-
     /// Render the docked Files sidebar. Only called when `files_sidebar_open`.
     pub(crate) fn render_files_sidebar(
         &self,
@@ -516,9 +480,15 @@ impl PaneFlowApp {
                         }),
                     ),
             )
-            .child(self.files_sidebar_header(ui, cx))
-            .child(self.files_reference_format_selector(ui, cx))
-            .child(self.files_sidebar_body(ui, cx))
+            .when(self.read_only_editor.is_some(), |panel| {
+                panel.child(self.render_read_only_editor(ui, cx))
+            })
+            .when(self.read_only_editor.is_none(), |panel| {
+                panel
+                    .child(self.files_sidebar_header(ui, cx))
+                    .child(self.files_reference_format_selector(ui, cx))
+                    .child(self.files_sidebar_body(ui, cx))
+            })
             .into_any_element()
     }
 }

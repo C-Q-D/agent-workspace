@@ -16,6 +16,7 @@ use crate::PaneFlowApp;
 use crate::editor::{MAX_TEXT_DOCUMENT_BYTES, TextDocumentLoad};
 
 /// 只读选择器允许加载的最大文件字节数。
+#[allow(dead_code)]
 const MAX_LINE_PICKER_BYTES: u64 = MAX_TEXT_DOCUMENT_BYTES;
 /// 每页最多创建的行节点数，限制单帧布局成本。
 const LINE_PICKER_PAGE_SIZE: usize = 200;

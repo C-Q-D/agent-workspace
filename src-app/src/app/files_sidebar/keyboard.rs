@@ -79,14 +79,16 @@ impl PaneFlowApp {
         &mut self,
         path: std::path::PathBuf,
         is_dir: bool,
-        window: &Window,
+        _window: &Window,
         cx: &mut Context<Self>,
     ) {
         self.select_files_row(&path);
         if is_dir {
             self.toggle_dir(&path, cx);
-        } else if files_tree::is_markdown(&path) {
-            self.open_markdown_in_active_pane(path, window, cx);
+        } else {
+            // 键盘 Enter 与鼠标点击共享同一个只读文件入口；普通文件的失败原因
+            // 由 E007 文本模型显示，不再按扩展名静默忽略。
+            self.open_file_in_context(path, cx);
         }
     }
 }

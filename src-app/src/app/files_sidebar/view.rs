@@ -96,6 +96,9 @@ impl PaneFlowApp {
         ui: crate::theme::UiColors,
         cx: &mut Context<Self>,
     ) -> AnyElement {
+        if self.read_only_editor.is_some() {
+            return div().into_any_element();
+        }
         if self.files_line_picker.is_some() {
             return self.render_file_line_picker_header(ui, cx);
         }
@@ -160,6 +163,9 @@ impl PaneFlowApp {
         ui: crate::theme::UiColors,
         cx: &mut Context<Self>,
     ) -> AnyElement {
+        if self.read_only_editor.is_some() {
+            return div().into_any_element();
+        }
         if self.files_line_picker.is_some() {
             return self.render_file_line_picker_body(ui, cx);
         }

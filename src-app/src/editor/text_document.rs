@@ -100,12 +100,16 @@ pub(crate) struct TextDocumentLoad {
     /// 去除 BOM 后的 UTF-8 展示正文。
     text: Arc<str>,
     /// 读取时的原始字节，供后续保真保存和冲突检测使用。
+    #[allow(dead_code)]
     raw_bytes: Arc<[u8]>,
     /// 解码方式摘要。
+    #[allow(dead_code)]
     encoding: TextEncoding,
     /// 换行风格摘要。
+    #[allow(dead_code)]
     line_ending: LineEnding,
     /// 是否以 LF、CRLF 或单独 CR 结束。
+    #[allow(dead_code)]
     has_final_newline: bool,
     /// 读取完成时的文件指纹。
     fingerprint: TextDocumentFingerprint,
@@ -194,21 +198,25 @@ impl TextDocumentLoad {
     }
 
     /// 返回原始字节；调用方不得把解码失败或 lossy 文本写回磁盘。
+    #[allow(dead_code)]
     pub(crate) fn raw_bytes(&self) -> &[u8] {
         &self.raw_bytes
     }
 
     /// 返回编码摘要。
+    #[allow(dead_code)]
     pub(crate) fn encoding(&self) -> TextEncoding {
         self.encoding
     }
 
     /// 返回换行摘要。
+    #[allow(dead_code)]
     pub(crate) fn line_ending(&self) -> LineEnding {
         self.line_ending
     }
 
     /// 返回是否存在最终换行。
+    #[allow(dead_code)]
     pub(crate) fn has_final_newline(&self) -> bool {
         self.has_final_newline
     }

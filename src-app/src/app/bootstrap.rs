@@ -949,6 +949,7 @@ impl PaneFlowApp {
             files_sidebar_resize: None,
             files_tree: crate::app::files_tree::FilesTreeState::default(),
             files_line_picker: None,
+            read_only_editor: None,
             files_tree_scroll: gpui::ScrollHandle::new(),
             files_selected: 0,
             files_focus: cx.focus_handle(),

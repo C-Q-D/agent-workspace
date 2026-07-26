@@ -23,6 +23,10 @@
 // 文本读取模型独立于外部编辑器启动逻辑，供右侧只读 Context 和行引用共同复用。
 mod text_document;
 pub(crate) use text_document::*;
+// 只读 Editor 的加载生命周期和右侧分页渲染与外部编辑器启动逻辑分离，避免把
+// 文件树交互继续堆回本文件；该模块只依赖 E007 的受控文本快照。
+mod read_only;
+pub(crate) use read_only::ReadOnlyEditorState;
 
 use std::path::{Path, PathBuf};
 use std::process::Command;

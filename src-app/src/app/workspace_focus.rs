@@ -612,8 +612,24 @@ impl PaneFlowApp {
         {
             return Err(DisplayTransitionError::UnknownWorkspace);
         }
+        let previous_surface = self.workspace_focus.surface();
+        let previous_workspace_id = self.workspace_focus.workspace_id();
         let transition = self.workspace_focus.transition(command);
         if transition.is_ok() {
+            // 只读 Editor 是 Focused + workspace ID 的瞬时 Context；离开 Focused 或切换
+            // 稳定 workspace 时必须先丢弃正文快照和 Files watcher，避免旧文件继续占用
+            // 16GB 用户的内存，也避免异步结果在新工作区右栏复活。
+            let surface = self.workspace_focus.surface();
+            let workspace_id = self.workspace_focus.workspace_id();
+            if self.read_only_editor.is_some()
+                && (surface != DisplaySurface::Focused
+                    || previous_surface != DisplaySurface::Focused
+                    || previous_workspace_id != workspace_id)
+            {
+                self.clear_read_only_editor_state();
+                self.files_watcher = None;
+                self.files_event_rx = None;
+            }
             // 展示状态是活动上下文的唯一开关：Grid 解除 Git watcher，Focused/Review
             // 只登记稳定 ID 对应的一个仓库。即使命令幂等也重试，允许 Git 准备在
             // 上一次转换之后才异步回填 `git_dir`。

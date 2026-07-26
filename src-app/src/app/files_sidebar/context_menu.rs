@@ -24,8 +24,9 @@ impl PaneFlowApp {
         window: &mut gpui::Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        // 目录三个条目、文件四个条目；空间不足时沿用工作区菜单规则翻到点击点上方。
-        let menu_height = px(if menu.is_dir { 94. } else { 122. });
+        // 目录三个条目、文件五个条目（增加只读打开）；空间不足时沿用工作区菜单规则
+        // 翻到点击点上方。
+        let menu_height = px(if menu.is_dir { 94. } else { 150. });
         let menu_width = px(220.);
         let menu_pos =
             clamped_context_menu_position(menu.position, menu_width, menu_height, window);
@@ -35,6 +36,7 @@ impl PaneFlowApp {
         let rel_path = menu.path.clone();
         let reference_path = menu.path.clone();
         let reference_is_dir = menu.is_dir;
+        let open_path = menu.path.clone();
 
         let mut context_menu = div()
             .id("files-context-menu")
@@ -56,6 +58,19 @@ impl PaneFlowApp {
             }))
             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
             .on_mouse_down(MouseButton::Right, |_, _, cx| cx.stop_propagation())
+            .when(!menu.is_dir, |menu| {
+                menu.child(self.render_context_menu_item(
+                    "files-context-open-read-only".into(),
+                    "Open Read-only",
+                    None,
+                    ui,
+                    cx.listener(move |this, _: &ClickEvent, _window, cx| {
+                        this.files_menu_open = None;
+                        this.open_file_in_context(open_path.clone(), cx);
+                        cx.stop_propagation();
+                    }),
+                ))
+            })
             .child(self.render_context_menu_item(
                 "files-context-add-reference".into(),
                 "Add Path to Prompt",
