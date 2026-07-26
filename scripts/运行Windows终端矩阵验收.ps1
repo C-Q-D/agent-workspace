@@ -272,6 +272,18 @@ function Measure-ProcessTree {
     <# 按绝对一秒节拍记录应用外壳与真实 PowerShell 子进程，CPU 按逻辑处理器归一化。 #>
     param([Parameter(Mandatory = $true)][int]$RootProcessId, [Parameter(Mandatory = $true)][int]$Seconds)
 
+    function Get-MemorySumMiB {
+        <# Windows PowerShell 严格模式下空集合的 Measure-Object 结果不稳定，显式累加保证 0 值可读。 #>
+        param([object[]]$Items = @(), [Parameter(Mandatory = $true)][string]$PropertyName)
+        $sum = 0.0
+        foreach ($item in $Items) {
+            if ($item.PSObject.Properties.Name -contains $PropertyName) {
+                $sum += [double]$item.$PropertyName
+            }
+        }
+        return $sum / 1MB
+    }
+
     $rows = [Collections.Generic.List[object]]::new()
     $signatures = [Collections.Generic.HashSet[string]]::new()
     $root = Get-Process -Id $RootProcessId -ErrorAction Stop
@@ -308,14 +320,14 @@ function Measure-ProcessTree {
             AppThreads = $root.Threads.Count
             AppHandles = $root.HandleCount
             TreeProcessCount = $tree.Count
-            TreeWorkingSetMiB = [Math]::Round((($tree | Measure-Object WorkingSet64 -Sum).Sum) / 1MB, 3)
-            TreePrivateMiB = [Math]::Round((($tree | Measure-Object PrivateMemorySize64 -Sum).Sum) / 1MB, 3)
+            TreeWorkingSetMiB = [Math]::Round((Get-MemorySumMiB -Items $tree -PropertyName 'WorkingSet64'), 3)
+            TreePrivateMiB = [Math]::Round((Get-MemorySumMiB -Items $tree -PropertyName 'PrivateMemorySize64'), 3)
             PowerShellCount = $powershell.Count
-            PowerShellWorkingSetMiB = [Math]::Round((($powershell | Measure-Object WorkingSet64 -Sum).Sum) / 1MB, 3)
-            PowerShellPrivateMiB = [Math]::Round((($powershell | Measure-Object PrivateMemorySize64 -Sum).Sum) / 1MB, 3)
+            PowerShellWorkingSetMiB = [Math]::Round((Get-MemorySumMiB -Items $powershell -PropertyName 'WorkingSet64'), 3)
+            PowerShellPrivateMiB = [Math]::Round((Get-MemorySumMiB -Items $powershell -PropertyName 'PrivateMemorySize64'), 3)
             ConhostCount = $conhost.Count
-            ConhostWorkingSetMiB = [Math]::Round((($conhost | Measure-Object WorkingSet64 -Sum).Sum) / 1MB, 3)
-            ConhostPrivateMiB = [Math]::Round((($conhost | Measure-Object PrivateMemorySize64 -Sum).Sum) / 1MB, 3)
+            ConhostWorkingSetMiB = [Math]::Round((Get-MemorySumMiB -Items $conhost -PropertyName 'WorkingSet64'), 3)
+            ConhostPrivateMiB = [Math]::Round((Get-MemorySumMiB -Items $conhost -PropertyName 'PrivateMemorySize64'), 3)
         })
     }
     $timestampSpan = if ($rows.Count -gt 1) {

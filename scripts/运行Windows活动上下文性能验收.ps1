@@ -1,9 +1,9 @@
 <#
 .SYNOPSIS
-验证 16 窗格 Grid 为零活动上下文、聚焦与 Review 至多一个上下文。
+验证多窗格 Grid 为零活动上下文、聚焦与 Review 至多一个上下文。
 
 .DESCRIPTION
-脚本创建 16 个互不相同的真实本地 Git 仓库和 16 个 PowerShell/ConPTY 窗口，
+脚本创建多个互不相同的真实本地 Git 仓库和多个 PowerShell/ConPTY 窗口，
 通过真实窗口点击进入聚焦、切换工作区并进入 Review。每个阶段从生产 IPC 读取
 资源快照，采样桌面外壳 CPU/内存，最后验证终端 PID 稳定和进程零残留。
 #>
@@ -13,7 +13,7 @@ param(
     [ValidateScript({ Test-Path -LiteralPath $_ -PathType Leaf })]
     [string]$BinaryPath,
 
-    [ValidateRange(2, 20)]
+    [ValidateRange(1, 20)]
     [int]$WorkspaceCount = 16,
 
     [ValidateRange(3, 30)]
@@ -39,7 +39,7 @@ $sessionBackup = Join-Path $backupDirectory '用户会话.json'
 $pipeName = "agent-workspace-context-$timestamp"
 $pipePath = "\\.\pipe\$pipeName"
 $resultPath = Join-Path $runDirectory '运行结果.json'
-$gridScreenshot = Join-Path $runDirectory '16窗格矩阵.png'
+$gridScreenshot = Join-Path $runDirectory ('{0}窗格矩阵.png' -f $WorkspaceCount)
 $focusedScreenshot = Join-Path $runDirectory '单一聚焦上下文.png'
 $reviewScreenshot = Join-Path $runDirectory '单一Review上下文.png'
 
@@ -238,8 +238,21 @@ function Save-ProductScreenshot {
 }
 
 function Measure-AppShell {
-    <# 按一秒节拍采样桌面外壳 CPU 与内存。 #>
+    <# 按一秒节拍采样桌面外壳与子进程树资源，避免只看主进程而漏掉 PowerShell 成本。 #>
     param([Parameter(Mandatory = $true)][int]$ProcessId, [Parameter(Mandatory = $true)][int]$Seconds)
+
+    function Get-MemorySumMiB {
+        <# Windows PowerShell 严格模式下空集合的 Measure-Object 结果不稳定，显式累加保证 0 值可读。 #>
+        param([object[]]$Items = @(), [Parameter(Mandatory = $true)][string]$PropertyName)
+        $sum = 0.0
+        foreach ($item in $Items) {
+            if ($item.PSObject.Properties.Name -contains $PropertyName) {
+                $sum += [double]$item.$PropertyName
+            }
+        }
+        return $sum / 1MB
+    }
+
     $rows = @()
     $process = Get-Process -Id $ProcessId -ErrorAction Stop
     $previousCpu = $process.TotalProcessorTime.TotalSeconds
@@ -248,13 +261,28 @@ function Measure-AppShell {
         Start-Sleep -Seconds 1
         $now = [DateTimeOffset]::UtcNow
         $process = Get-Process -Id $ProcessId -ErrorAction Stop
+        $tree = @(Get-ProcessTreeIds -RootProcessId $ProcessId | ForEach-Object {
+            Get-Process -Id $_ -ErrorAction SilentlyContinue
+        } | Where-Object { $null -ne $_ })
+        $powerShell = @($tree | Where-Object { $_.ProcessName -in @('pwsh', 'powershell') })
+        $conhost = @($tree | Where-Object { $_.ProcessName -eq 'conhost' })
         $cpu = (($process.TotalProcessorTime.TotalSeconds - $previousCpu) /
             [Math]::Max(0.001, ($now - $previousTime).TotalSeconds) /
             [Environment]::ProcessorCount) * 100
         $rows += [pscustomobject]@{
             Cpu = $cpu
             WorkingSetMiB = $process.WorkingSet64 / 1MB
+            PrivateMiB = $process.PrivateMemorySize64 / 1MB
             Handles = $process.HandleCount
+            TreeProcessCount = $tree.Count
+            TreeWorkingSetMiB = Get-MemorySumMiB -Items $tree -PropertyName 'WorkingSet64'
+            TreePrivateMiB = Get-MemorySumMiB -Items $tree -PropertyName 'PrivateMemorySize64'
+            PowerShellCount = $powerShell.Count
+            PowerShellWorkingSetMiB = Get-MemorySumMiB -Items $powerShell -PropertyName 'WorkingSet64'
+            PowerShellPrivateMiB = Get-MemorySumMiB -Items $powerShell -PropertyName 'PrivateMemorySize64'
+            ConhostCount = $conhost.Count
+            ConhostWorkingSetMiB = Get-MemorySumMiB -Items $conhost -PropertyName 'WorkingSet64'
+            ConhostPrivateMiB = Get-MemorySumMiB -Items $conhost -PropertyName 'PrivateMemorySize64'
         }
         $previousCpu = $process.TotalProcessorTime.TotalSeconds
         $previousTime = $now
@@ -262,7 +290,17 @@ function Measure-AppShell {
     return [ordered]@{
         CpuAveragePercent = [Math]::Round((($rows | Measure-Object Cpu -Average).Average), 4)
         WorkingSetPeakMiB = [Math]::Round((($rows | Measure-Object WorkingSetMiB -Maximum).Maximum), 3)
+        PrivatePeakMiB = [Math]::Round((($rows | Measure-Object PrivateMiB -Maximum).Maximum), 3)
         HandlePeak = [int](($rows | Measure-Object Handles -Maximum).Maximum)
+        TreeProcessCountPeak = [int](($rows | Measure-Object TreeProcessCount -Maximum).Maximum)
+        TreeWorkingSetPeakMiB = [Math]::Round((($rows | Measure-Object TreeWorkingSetMiB -Maximum).Maximum), 3)
+        TreePrivatePeakMiB = [Math]::Round((($rows | Measure-Object TreePrivateMiB -Maximum).Maximum), 3)
+        PowerShellCountPeak = [int](($rows | Measure-Object PowerShellCount -Maximum).Maximum)
+        PowerShellWorkingSetPeakMiB = [Math]::Round((($rows | Measure-Object PowerShellWorkingSetMiB -Maximum).Maximum), 3)
+        PowerShellPrivatePeakMiB = [Math]::Round((($rows | Measure-Object PowerShellPrivateMiB -Maximum).Maximum), 3)
+        ConhostCountPeak = [int](($rows | Measure-Object ConhostCount -Maximum).Maximum)
+        ConhostWorkingSetPeakMiB = [Math]::Round((($rows | Measure-Object ConhostWorkingSetMiB -Maximum).Maximum), 3)
+        ConhostPrivatePeakMiB = [Math]::Round((($rows | Measure-Object ConhostPrivateMiB -Maximum).Maximum), 3)
     }
 }
 
@@ -314,7 +352,7 @@ try {
     if ($grid.surface -ne 'grid' -or [int]$grid.active_contexts -ne 0 -or
         [int]$grid.git_watchers -ne 0 -or [int]$grid.files_watchers -ne 0 -or
         [int]$grid.review_hosts -ne 0) {
-        throw "16 窗格 Grid 不是零活动上下文：$($grid | ConvertTo-Json -Compress)"
+        throw "$WorkspaceCount 窗格 Grid 不是零活动上下文：$($grid | ConvertTo-Json -Compress)"
     }
     $gridResources = Measure-AppShell -ProcessId $process.Id -Seconds $SampleSeconds
     Save-ProductScreenshot -Handle $handle -Path $gridScreenshot
@@ -326,13 +364,19 @@ try {
         [int]$focusedA.review_hosts -ne 0) {
         throw "聚焦 A 未形成单一上下文：$($focusedA | ConvertTo-Json -Compress)"
     }
+    $focusedResources = Measure-AppShell -ProcessId $process.Id -Seconds $SampleSeconds
     Save-ProductScreenshot -Handle $handle -Path $focusedScreenshot
 
-    Invoke-WorkspaceRowClick -Handle $handle -Index 1
-    $focusedB = Invoke-AgentWorkspaceRpc -Method 'workspace.context_resources' -Params @{}
-    if ($focusedB.surface -ne 'focused' -or [int]$focusedB.active_contexts -ne 1 -or
-        [int]$focusedB.git_watchers -ne 1 -or [uint64]$focusedB.workspace_id -eq [uint64]$focusedA.workspace_id) {
-        throw "聚焦 B 未确定性替换 A：$($focusedB | ConvertTo-Json -Compress)"
+    $focusedB = $null
+    $focusedReplacementChecked = $false
+    if ($WorkspaceCount -gt 1) {
+        Invoke-WorkspaceRowClick -Handle $handle -Index 1
+        $focusedB = Invoke-AgentWorkspaceRpc -Method 'workspace.context_resources' -Params @{}
+        if ($focusedB.surface -ne 'focused' -or [int]$focusedB.active_contexts -ne 1 -or
+            [int]$focusedB.git_watchers -ne 1 -or [uint64]$focusedB.workspace_id -eq [uint64]$focusedA.workspace_id) {
+            throw "聚焦 B 未确定性替换 A：$($focusedB | ConvertTo-Json -Compress)"
+        }
+        $focusedReplacementChecked = $true
     }
 
     Invoke-ReviewShortcut
@@ -358,12 +402,16 @@ try {
         FocusedB = $focusedB
         Review = $review
         GridResources = $gridResources
+        FocusedResources = $focusedResources
         ReviewResources = $reviewResources
         PowerShellCount = $powerShellBefore.Count
         PowerShellIdsStable = (($powerShellBefore -join ',') -eq ($powerShellAfter -join ','))
+        FocusedReplacementChecked = $focusedReplacementChecked
         WorkingSetWithin256MiB = ([double]$gridResources.WorkingSetPeakMiB -le 256.0 -and
+            [double]$focusedResources.WorkingSetPeakMiB -le 256.0 -and
             [double]$reviewResources.WorkingSetPeakMiB -le 256.0)
         CpuWithinOnePercent = ([double]$gridResources.CpuAveragePercent -le 1.0 -and
+            [double]$focusedResources.CpuAveragePercent -le 1.0 -and
             [double]$reviewResources.CpuAveragePercent -le 1.0)
         RemainingProcessIds = @($close.Remaining)
         Passed = $false

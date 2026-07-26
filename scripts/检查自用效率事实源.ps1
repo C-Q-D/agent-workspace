@@ -1,8 +1,8 @@
 <#
-文件职责：检查自用效率优先路线的事实源是否已经完成 E001 切换。
+文件职责：检查自用效率优先路线的事实源是否已经完成 BASE-01 阶段切换。
 主要内容：以只读方式核对代码仓库入口、当前状态、外层工作台和阶段记录，避免后续 AI
-继续把旧 Windows v1 的 A027 或“E001 尚未开始”当作当前开发入口。
-重要约束：本脚本不得修改任何文件；旧 v1 计划只做哈希核对，确保 E001 不污染历史计划。
+继续把旧 Windows v1 的 A027 或“E002 尚未执行”当作当前开发入口。
+重要约束：本脚本不得修改任何文件；旧 v1 计划只做哈希核对，确保新路线不污染历史计划。
 #>
 
 [CmdletBinding()]
@@ -20,7 +20,7 @@ if ([string]::IsNullOrWhiteSpace($AppRoot)) {
     $AppRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 }
 
-# 该哈希固定 E001 开始时旧 Windows v1 原子计划的字节内容，防止事实源切换时误改历史计划。
+# 该哈希固定新路线开始时旧 Windows v1 原子计划的字节内容，防止事实源切换时误改历史计划。
 $ExpectedLegacyPlanSha256 = 'ABCE332AA6FC9DE1A4168499551BD980A9FCF5677858A1592AB8C8CA9126F23D'
 
 # 脚本只读检查跨越 app 仓库和外层项目工作台；这里集中计算路径，避免每个检查项重复拼路径。
@@ -36,8 +36,9 @@ $Sources = @(
         Path = Join-Path $AppRoot 'AGENTS.md'
         Required = @(
             'docs/规划/自用效率优先完整代码原子任务方案.md',
-            'E001 已完成',
-            '下一原子为 E002',
+            'E001～E004 的 BASE-01 已完成',
+            '下一原子为',
+            'E005',
             '旧发布计划停在 A027'
         )
         Forbidden = @(
@@ -50,8 +51,9 @@ $Sources = @(
         Name = 'app/docs/当前开发状态.md'
         Path = Join-Path $AppRoot 'docs/当前开发状态.md'
         Required = @(
-            'E001 已完成',
-            '下一原子：E002 复验 A026 代码与测试基线',
+            'E001～E004 已完成',
+            'BASE-01 已关闭',
+            '下一原子：E005 建立 Focused 内唯一 Context 子状态',
             'docs\规划\自用效率优先完整代码原子任务方案.md',
             'E001～E139'
         )
@@ -65,8 +67,8 @@ $Sources = @(
         Name = '外层项目工作台'
         Path = Join-Path $AgentWorkspaceRoot 'docs/ai-project/项目工作台.md'
         Required = @(
-            'E001 已完成',
-            '下一项为 E002',
+            'E001～E004 已完成',
+            '下一项为 E005',
             '旧发布计划完整保留并暂停在 A027',
             '自用效率优先完整代码原子任务方案.md'
         )
@@ -80,8 +82,8 @@ $Sources = @(
         Name = '外层项目阶段记录'
         Path = Join-Path $AgentWorkspaceRoot 'docs/ai-project/项目阶段记录.md'
         Required = @(
-            'E001 已完成',
-            '下一项 E002',
+            'E001—E004 已完成',
+            '下一项 E005',
             '旧 A027 公开入口回归暂停',
             '自用效率优先完整代码原子任务方案.md'
         )
@@ -95,13 +97,15 @@ $Sources = @(
         Name = '仓库内原子计划副本'
         Path = $RepoPlan
         Required = @(
-            '首个未开始原子：`E002`',
+            '首个未开始原子：`E005`',
             'E001：已完成',
+            'E004：建立自用效率性能与进程基线脚本',
             '原 Windows 开源 v1 计划',
             'E001～E139'
         )
         Forbidden = @(
-            '首个未开始原子：`E001`'
+            '首个未开始原子：`E001`',
+            '首个未开始原子：`E002`'
         )
     }
 )
