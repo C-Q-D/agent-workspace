@@ -2052,7 +2052,8 @@ impl Render for PaneFlowApp {
                     .when(
                         files_sidebar_mounted
                             && !sessions_sidebar_mounted
-                            && !review_sidebar_mounted,
+                            && !review_sidebar_mounted
+                            && !settings_open,
                         |row| {
                             row.child(
                                 div()

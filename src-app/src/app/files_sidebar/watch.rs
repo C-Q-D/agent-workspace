@@ -30,7 +30,14 @@ impl PaneFlowApp {
             .cloned()
             .collect();
         expanded.sort();
-        if let Some(ws) = self.workspaces.get_mut(self.active_idx) {
+        let Some(owner_id) = self.files_tree.owner_workspace_id else {
+            return;
+        };
+        if let Some(ws) = self
+            .workspaces
+            .iter_mut()
+            .find(|workspace| workspace.id == owner_id)
+        {
             ws.files_expanded = expanded;
         }
     }
@@ -49,11 +56,17 @@ impl PaneFlowApp {
         persisted: Vec<PathBuf>,
         cx: &mut Context<Self>,
     ) {
+        let Some(context_key) = self.workspace_focus.focused_context_key(&root) else {
+            return;
+        };
+        let workspace_id = context_key.workspace_id;
         // Drop the previous watch + channel immediately (cheap), and show a
         // root shell so the panel paints this frame while the reads run.
         self.files_watcher = None;
         self.files_event_rx = None;
-        self.files_tree = files_tree::FilesTreeState::root_shell(root.clone());
+        let mut shell = files_tree::FilesTreeState::root_shell(root.clone());
+        shell.owner_workspace_id = Some(workspace_id);
+        self.files_tree = shell;
 
         cx.spawn(
             async move |this: gpui::WeakEntity<Self>, cx: &mut gpui::AsyncApp| {
@@ -62,13 +75,21 @@ impl PaneFlowApp {
                 let tree = smol::unblock({
                     let root = root.clone();
                     let persisted = persisted.clone();
-                    move || files_tree::FilesTreeState::hydrated(root, &persisted)
+                    move || {
+                        let mut tree = files_tree::FilesTreeState::hydrated(root, &persisted);
+                        tree.owner_workspace_id = Some(workspace_id);
+                        tree
+                    }
                 })
                 .await;
                 let watch_dirs = tree.expanded.iter().cloned().collect::<Vec<_>>();
                 let still_current = this
                     .update(cx, |app, cx| {
-                        if app.files_sidebar_open && app.files_tree.root == root {
+                        if app.files_sidebar_open
+                            && app.files_tree.root == root
+                            && app.files_tree.owner_workspace_id == Some(workspace_id)
+                            && app.workspace_focus.accepts_context_key(&context_key, &root)
+                        {
                             app.files_tree = tree;
                             app.sync_files_expansion();
                             app.clamp_files_selection();
@@ -94,6 +115,8 @@ impl PaneFlowApp {
                 let _ = this.update(cx, |app, _cx| {
                     if app.files_sidebar_open
                         && app.files_tree.root == root
+                        && app.files_tree.owner_workspace_id == Some(workspace_id)
+                        && app.workspace_focus.accepts_context_key(&context_key, &root)
                         && let Some((watcher, rx)) = built
                     {
                         app.files_watcher = Some(watcher);

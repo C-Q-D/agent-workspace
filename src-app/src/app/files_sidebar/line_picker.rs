@@ -162,6 +162,10 @@ fn load_file_lines(path: PathBuf) -> Result<FileLineDocument, String> {
 impl PaneFlowApp {
     /// 在文件树面板中异步打开真实文件行选择器。
     pub(crate) fn open_file_line_picker(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+        let root = self.files_tree.root.clone();
+        let Some(context_key) = self.workspace_focus.focused_context_key(&root) else {
+            return;
+        };
         self.files_line_picker = Some(FileLinePickerState::Loading { path: path.clone() });
         self.files_tree_scroll = gpui::ScrollHandle::new();
         cx.notify();
@@ -178,7 +182,10 @@ impl PaneFlowApp {
                         .files_line_picker
                         .as_ref()
                         .is_some_and(|state| state.path() == path);
-                    if !app.files_sidebar_open || !still_current {
+                    if !app.files_sidebar_open
+                        || !still_current
+                        || !app.workspace_focus.accepts_context_key(&context_key, &root)
+                    {
                         return;
                     }
                     app.files_line_picker = Some(match result {

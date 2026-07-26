@@ -31,7 +31,7 @@ use gpui::{
 
 use crate::app::files_tree::{self, FilesTreeState};
 use crate::app::ipc_handler::{find_pane_by_surface_id, find_terminal_by_surface_id};
-use crate::app::workspace_focus::DisplaySurface;
+use crate::app::workspace_focus::{DisplaySurface, FocusedContextKind};
 use crate::reference_formatter::{ReferenceFormat, ReferenceRequest, format_reference};
 use crate::{PaneFlowApp, ToggleFilesSidebar};
 
@@ -217,6 +217,14 @@ impl PaneFlowApp {
         self.dismiss_transient_surfaces();
 
         self.set_files_sidebar_open(true, cx);
+        // Files 是 Focused 内唯一的右侧 Context；切换到它会分配新的异步代数。
+        if !self
+            .workspace_focus
+            .activate_context_kind(FocusedContextKind::Files)
+        {
+            self.set_files_sidebar_open(false, cx);
+            return;
+        }
         self.files_tree_scroll = gpui::ScrollHandle::new();
         self.files_selected = 0;
         // US-018: hydrate the tree + install non-recursive watches OFF the
@@ -235,6 +243,7 @@ impl PaneFlowApp {
         self.files_event_rx = None;
         // Close any open row context menu so it can't outlive the tree.
         self.files_menu_open = None;
+        self.workspace_focus.release_context_kind();
         self.set_files_sidebar_open(false, cx);
     }
 
@@ -245,6 +254,7 @@ impl PaneFlowApp {
     pub(crate) fn close_files_sidebar_immediate(&mut self, cx: &mut Context<Self>) {
         self.files_sidebar_open = false;
         self.files_sidebar_animation = None;
+        self.workspace_focus.release_context_kind();
         self.clear_files_sidebar_state();
         cx.notify();
     }
@@ -328,7 +338,8 @@ impl PaneFlowApp {
         }) else {
             return;
         };
-        if self.files_tree.root == root {
+        let workspace_id = self.workspace_focus.workspace_id();
+        if self.files_tree.root == root && self.files_tree.owner_workspace_id == workspace_id {
             return;
         }
         // 行选择状态只属于原 workspaceRoot；切换放大目标时不得保留旧文件视图。

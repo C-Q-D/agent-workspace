@@ -1357,6 +1357,16 @@ impl PaneFlowApp {
 
         if self.active_idx != target_idx {
             self.active_idx = target_idx;
+            // 模板替换同时改变了活动索引；放大状态只能按稳定会话 ID 重新对齐，
+            // 防止右侧文件上下文仍指向旧工作区。
+            if self.workspace_focus.workspace_id().is_some()
+                && let Some(workspace_id) = self.workspaces.get(target_idx).map(|ws| ws.id)
+            {
+                self.transition_display(
+                    crate::app::workspace_focus::DisplayCommand::FocusWorkspace { workspace_id },
+                )
+                .expect("应用工作区模板时稳定工作区 ID 必须有效");
+            }
             self.reroot_files_tree(cx);
         }
         if let Some(pane) = focus_pane {

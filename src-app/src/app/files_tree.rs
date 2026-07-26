@@ -47,6 +47,8 @@ pub(crate) struct VisibleRowRef<'a> {
 /// directory path - a directory is read on first expand and kept thereafter.
 #[derive(Default)]
 pub(crate) struct FilesTreeState {
+    /// 当前树所属的稳定工作区 ID；空值只用于纯模型测试或尚未挂载的默认状态。
+    pub(crate) owner_workspace_id: Option<u64>,
     pub root: PathBuf,
     pub expanded: HashSet<PathBuf>,
     pub children: HashMap<PathBuf, Vec<FileNode>>,
@@ -62,6 +64,7 @@ impl FilesTreeState {
         let mut expanded = HashSet::new();
         expanded.insert(root.clone());
         Self {
+            owner_workspace_id: None,
             root,
             expanded,
             children: HashMap::new(),
@@ -93,6 +96,7 @@ impl FilesTreeState {
             children.insert(dir.clone(), read_dir_sorted(&root, dir));
         }
         Self {
+            owner_workspace_id: None,
             root,
             expanded,
             children,

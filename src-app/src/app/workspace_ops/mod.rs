@@ -716,6 +716,15 @@ impl PaneFlowApp {
         // Switch to the workspace where the pane was closed, if it still exists
         if record.workspace_idx < self.workspaces.len() {
             self.active_idx = record.workspace_idx;
+            // 关闭窗格恢复也可能改变左侧索引；放大状态必须按稳定 ID 同步，不能让
+            // 旧 workspace 的 Files/Editor 资源继续服务新的活动工作区。
+            if self.workspace_focus.workspace_id().is_some()
+                && let Some(workspace_id) = self.workspaces.get(self.active_idx).map(|ws| ws.id)
+            {
+                self.transition_display(DisplayCommand::FocusWorkspace { workspace_id })
+                    .expect("撤销关闭窗格时稳定工作区 ID 必须有效");
+                self.reroot_files_tree(cx);
+            }
         }
 
         let Some(ws_id) = self.active_workspace().map(|ws| ws.id) else {
