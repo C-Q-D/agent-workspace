@@ -32,6 +32,7 @@
 // land.
 #![allow(dead_code)]
 
+use std::borrow::Cow;
 use std::cell::RefCell;
 use std::ops::Range;
 use std::rc::Rc;
@@ -200,6 +201,15 @@ pub enum TextAreaMode {
     Composer,
     /// 文档模式：Enter 与 Shift+Enter 都插入换行，Tab 插入四个空格。
     Document,
+}
+
+/// Document 模式把来自剪贴板、输入法和文本输入事件的 CRLF/CR 统一成 LF，
+/// 让内存正文与文件快照使用同一比较基线；Composer 保留原有输入字节。
+fn normalize_document_input<'a>(text: &'a str, mode: TextAreaMode) -> Cow<'a, str> {
+    if mode != TextAreaMode::Document || !text.contains('\r') {
+        return Cow::Borrowed(text);
+    }
+    Cow::Owned(text.replace("\r\n", "\n").replace('\r', "\n"))
 }
 
 /// Inline decoration anchored to a byte range in [`TextArea::content`].
@@ -622,6 +632,8 @@ impl TextArea {
         selected_range: Option<Range<usize>>,
         cx: &mut Context<Self>,
     ) {
+        let replacement = normalize_document_input(replacement, self.mode);
+        let replacement = replacement.as_ref();
         let start = clamp_to_grapheme(&self.content, range.start);
         let end = clamp_to_grapheme(&self.content, range.end.max(start));
         let range = start..end;
@@ -665,6 +677,8 @@ impl TextArea {
     }
 
     fn replace_selection(&mut self, replacement: &str, cx: &mut Context<Self>) {
+        let replacement = normalize_document_input(replacement, self.mode);
+        let replacement = replacement.as_ref();
         let range = self.selected_range.clone();
         // US-108a: drop any decoration that overlaps the edit and
         // shift every decoration after the edit by the byte delta
@@ -1056,6 +1070,8 @@ impl EntityInputHandler for TextArea {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        let normalized_text = normalize_document_input(new_text, self.mode);
+        let new_text = normalized_text.as_ref();
         let range = self.replacement_range_from_utf16(range_utf16.as_ref());
         let selected_range = new_selected_range_utf16.as_ref().map(|range_utf16| {
             let relative = Self::byte_range_from_utf16_in_text(new_text, range_utf16);
@@ -2131,6 +2147,18 @@ mod tests {
     fn composer_mode_remains_the_default_and_document_mode_is_explicit() {
         assert_eq!(TextAreaMode::default(), TextAreaMode::Composer);
         assert_ne!(TextAreaMode::Composer, TextAreaMode::Document);
+    }
+
+    #[test]
+    fn document_input_normalizes_windows_newlines_but_composer_keeps_input() {
+        assert_eq!(
+            normalize_document_input("one\r\ntwo\rthree", TextAreaMode::Document).as_ref(),
+            "one\ntwo\nthree"
+        );
+        assert_eq!(
+            normalize_document_input("one\r\ntwo", TextAreaMode::Composer).as_ref(),
+            "one\r\ntwo"
+        );
     }
 
     #[test]

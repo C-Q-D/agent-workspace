@@ -1,8 +1,9 @@
-//! 真实文本文件的受控读取模型。
+//! 真实文本文件的受控读取与保真保存模型。
 //!
-//! 本模块只负责把磁盘字节分类并转换为可审查的只读文档，不创建 GPUI 节点、不保存
-//! 文件，也不对非 UTF-8 内容做 lossy 转换。读取上限、原始字节、换行摘要和指纹在
-//! 这里集中定义，右侧行引用与后续只读 Editor 共享同一事实源。
+//! 本模块负责把磁盘字节分类为可编辑的 UTF-8 文档快照，并集中记录原始字节、编码、
+//! 换行摘要和指纹。正文在编辑器内统一使用 LF；保存时再按照原文件的换行风格和 BOM
+//! 重新编码，避免跨平台编辑造成不可见的格式抖动。这里不创建 GPUI 节点，也不对非
+//! UTF-8 内容做 lossy 转换。
 
 use std::collections::hash_map::DefaultHasher;
 use std::fs::File;
@@ -91,13 +92,13 @@ impl TextDocumentLoadError {
     }
 }
 
-/// 成功读取的真实只读文档；原始字节保留在内存中，禁止调用方隐式 lossy 保存。
+/// 成功读取的真实文本文档快照；原始字节保留在内存中，保存必须经过保真编码方法。
 #[derive(Clone, Debug)]
 pub(crate) struct TextDocumentLoad {
     /// 文件绝对路径。
     #[allow(dead_code)]
     path: PathBuf,
-    /// 去除 BOM 后的 UTF-8 展示正文。
+    /// 去除 BOM 且统一为 LF 换行的 UTF-8 编辑正文。
     text: Arc<str>,
     /// 读取时的原始字节，供后续保真保存和冲突检测使用。
     #[allow(dead_code)]
@@ -167,7 +168,8 @@ impl TextDocumentLoad {
             });
         let text = std::str::from_utf8(text_bytes)
             .map_err(|_| TextDocumentLoadError::InvalidUtf8)?
-            .to_string();
+            .to_owned();
+        let text = normalize_line_endings(&text);
         let line_ending = summarize_line_endings(text_bytes);
         let has_final_newline = text_bytes.ends_with(b"\n") || text_bytes.ends_with(b"\r");
         let fingerprint = TextDocumentFingerprint {
@@ -192,9 +194,49 @@ impl TextDocumentLoad {
         &self.path
     }
 
-    /// 返回去除 BOM 后的只读展示正文。
+    /// 返回去除 BOM 且统一为 LF 换行的编辑正文。
     pub(crate) fn text(&self) -> &str {
         &self.text
+    }
+
+    /// 将编辑器中的 LF 正文编码回原文件风格，并保留 UTF-8 BOM。
+    ///
+    /// 未修改的混合换行文件直接返回原始字节；一旦修改混合换行文件则拒绝保存，
+    /// 避免在无法推断用户意图时静默统一整份文件。其他风格只转换换行符，不强行
+    /// 补齐或删除末尾换行，末尾状态完全由当前编辑正文决定。
+    pub(crate) fn encode_text_for_save(&self, text: &str) -> Result<Vec<u8>, String> {
+        if text.contains('\0') {
+            return Err("保存文件失败：正文包含 NUL 字节".to_string());
+        }
+
+        let normalized = normalize_line_endings(text);
+        if normalized.as_str() == self.text.as_ref() {
+            return Ok(self.raw_bytes.to_vec());
+        }
+        if self.line_ending == LineEnding::Mixed {
+            return Err("混合换行文件暂不支持编辑保存，请使用外部编辑器".to_string());
+        }
+
+        let newline = match self.line_ending {
+            LineEnding::CrLf => "\r\n",
+            LineEnding::Cr => "\r",
+            // None 文件在用户新增换行后采用通用 LF；没有新增换行时正文仍不会凭空产生换行。
+            LineEnding::None | LineEnding::Lf => "\n",
+            LineEnding::Mixed => unreachable!("混合换行已在上方返回错误"),
+        };
+        let body = if newline == "\n" {
+            normalized
+        } else {
+            normalized.replace('\n', newline)
+        };
+        let mut encoded = Vec::with_capacity(
+            body.len() + usize::from(self.encoding == TextEncoding::Utf8Bom) * 3,
+        );
+        if self.encoding == TextEncoding::Utf8Bom {
+            encoded.extend_from_slice(&[0xEF, 0xBB, 0xBF]);
+        }
+        encoded.extend_from_slice(body.as_bytes());
+        Ok(encoded)
     }
 
     /// 返回原始字节；调用方不得把解码失败或 lossy 文本写回磁盘。
@@ -244,6 +286,11 @@ fn hash_bytes(bytes: &[u8]) -> u64 {
     let mut hasher = DefaultHasher::new();
     bytes.hash(&mut hasher);
     hasher.finish()
+}
+
+/// 把 CRLF 和单独 CR 统一为编辑器使用的 LF；先处理 CRLF 可避免重复生成换行。
+fn normalize_line_endings(text: &str) -> String {
+    text.replace("\r\n", "\n").replace('\r', "\n")
 }
 
 fn classify_io_error(error: io::Error) -> TextDocumentLoadError {
@@ -311,7 +358,83 @@ mod tests {
         let crlf_doc = TextDocumentLoad::load(crlf).expect("CRLF 文件应可读取");
         assert_eq!(crlf_doc.line_ending(), LineEnding::CrLf);
         assert!(crlf_doc.has_final_newline());
+        assert_eq!(crlf_doc.text(), "one\ntwo\n");
         assert_eq!(crlf_doc.raw_bytes(), b"one\r\ntwo\r\n");
+    }
+
+    #[test]
+    fn encodes_lf_crlf_and_cr_styles_without_changing_final_newline_state() {
+        let directory = tempfile::tempdir().expect("应能创建真实临时目录");
+
+        let lf = directory.path().join("lf-edit.txt");
+        std::fs::write(&lf, b"one\ntwo\n").expect("应能写入 LF 文件");
+        let lf_doc = TextDocumentLoad::load(lf).expect("LF 文件应可读取");
+        assert_eq!(
+            lf_doc.encode_text_for_save("one\nchanged\n").unwrap(),
+            b"one\nchanged\n"
+        );
+
+        let crlf = directory.path().join("crlf-edit.txt");
+        std::fs::write(&crlf, b"one\r\ntwo\r\n").expect("应能写入 CRLF 文件");
+        let crlf_doc = TextDocumentLoad::load(crlf).expect("CRLF 文件应可读取");
+        assert_eq!(
+            crlf_doc.encode_text_for_save("one\nchanged").unwrap(),
+            b"one\r\nchanged"
+        );
+
+        let cr = directory.path().join("cr-edit.txt");
+        std::fs::write(&cr, b"one\rtwo").expect("应能写入 CR 文件");
+        let cr_doc = TextDocumentLoad::load(cr).expect("CR 文件应可读取");
+        assert_eq!(cr_doc.text(), "one\ntwo");
+        assert_eq!(
+            cr_doc.encode_text_for_save("one\nchanged").unwrap(),
+            b"one\rchanged"
+        );
+    }
+
+    #[test]
+    fn preserves_mixed_line_endings_only_when_content_is_unchanged() {
+        let directory = tempfile::tempdir().expect("应能创建真实临时目录");
+        let path = directory.path().join("mixed.txt");
+        let raw = b"one\r\ntwo\nthree\r";
+        std::fs::write(&path, raw).expect("应能写入混合换行文件");
+
+        let document = TextDocumentLoad::load(path).expect("混合换行文件应可读取");
+        assert_eq!(document.line_ending(), LineEnding::Mixed);
+        assert_eq!(document.encode_text_for_save(document.text()).unwrap(), raw);
+        let error = document
+            .encode_text_for_save("one\ntwo\nchanged\n")
+            .expect_err("修改混合换行文件必须明确拒绝");
+        assert!(error.contains("混合换行"));
+    }
+
+    #[test]
+    fn preserves_utf8_bom_and_uses_lf_for_newlines_added_to_single_line_file() {
+        let directory = tempfile::tempdir().expect("应能创建真实临时目录");
+        let bom = directory.path().join("bom-edit.txt");
+        std::fs::write(&bom, b"\xEF\xBB\xBFone\r\ntwo").expect("应能写入带 BOM 的 CRLF 文件");
+        let bom_document = TextDocumentLoad::load(bom).expect("带 BOM 文件应可读取");
+        assert_eq!(
+            bom_document.encode_text_for_save("one\nchanged").unwrap(),
+            b"\xEF\xBB\xBFone\r\nchanged"
+        );
+
+        let single = directory.path().join("single-edit.txt");
+        std::fs::write(&single, b"one").expect("应能写入无换行文件");
+        let single_document = TextDocumentLoad::load(single).expect("无换行文件应可读取");
+        assert_eq!(
+            single_document.encode_text_for_save("one\nnew").unwrap(),
+            b"one\nnew"
+        );
+    }
+
+    #[test]
+    fn rejects_nul_text_before_writing() {
+        let directory = tempfile::tempdir().expect("应能创建真实临时目录");
+        let path = directory.path().join("nul.txt");
+        std::fs::write(&path, b"one").expect("应能写入初始文件");
+        let document = TextDocumentLoad::load(path).expect("初始文件应可读取");
+        assert!(document.encode_text_for_save("one\0two").is_err());
     }
 
     #[test]

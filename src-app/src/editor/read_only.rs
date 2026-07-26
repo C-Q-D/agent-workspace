@@ -344,7 +344,7 @@ impl PaneFlowApp {
         cx: &mut Context<Self>,
     ) {
         let root = self.files_tree.root.clone();
-        let Some((baseline, saving)) =
+        let Some((document_snapshot, baseline, saving)) =
             self.read_only_editor
                 .as_ref()
                 .and_then(|state| match state {
@@ -358,7 +358,7 @@ impl PaneFlowApp {
                         && current_key == &key
                         && self.workspace_focus.accepts_context_key(&key, &root) =>
                     {
-                        Some((document.text().to_owned(), *saving))
+                        Some((document.clone(), document.text().to_owned(), *saving))
                     }
                     _ => None,
                 })
@@ -416,13 +416,15 @@ impl PaneFlowApp {
         let completion_path = path.clone();
         let load_path = path;
         let save_text = text;
+        let save_document = document_snapshot;
         let save_key = key.clone();
         let request_root = root;
         let task = cx.spawn(
             async move |this: gpui::WeakEntity<Self>, cx: &mut gpui::AsyncApp| {
-                let result =
-                    smol::unblock(move || write_editor_snapshot(&save_path, &save_text, load_path))
-                        .await;
+                let result = smol::unblock(move || {
+                    write_editor_snapshot(&save_document, &save_path, &save_text, load_path)
+                })
+                .await;
                 let _ = this.update(cx, |app, cx| {
                     let still_current = app.read_only_editor.as_ref().is_some_and(|state| {
                         matches!(
@@ -690,10 +692,12 @@ impl PaneFlowApp {
 /// 该函数集中承载阻塞文件操作，调用方必须在后台执行器中调用；重新读取而不是直接
 /// 把输入字符串当作基线，能够让保存完成后的指纹、字节长度和错误分类保持一致。
 fn write_editor_snapshot(
+    document: &TextDocumentLoad,
     save_path: &Path,
     text: &str,
     load_path: PathBuf,
 ) -> Result<TextDocumentLoad, String> {
+    let encoded = document.encode_text_for_save(text)?;
     // OpenOptions 不带 create，避免 is_file 检查与实际打开之间的 TOCTOU 窗口把已
     // 删除的目标重新创建；E014 再把同一句柄升级为 Windows 原子替换策略。
     let mut file = std::fs::OpenOptions::new()
@@ -701,7 +705,7 @@ fn write_editor_snapshot(
         .truncate(true)
         .open(save_path)
         .map_err(|error| format!("保存文件失败（{error}）"))?;
-    std::io::Write::write_all(&mut file, text.as_bytes())
+    std::io::Write::write_all(&mut file, &encoded)
         .map_err(|error| format!("保存文件失败（{error}）"))?;
     drop(file);
     TextDocumentLoad::load(load_path).map_err(|error| error.user_message())
@@ -896,7 +900,8 @@ mod tests {
         let path = directory.path().join("editable.txt");
         std::fs::write(&path, b"before").expect("应能写入初始内容");
 
-        let document = write_editor_snapshot(&path, "after\nline", path.clone())
+        let baseline = TextDocumentLoad::load(path.clone()).expect("应能读取保存前基线");
+        let document = write_editor_snapshot(&baseline, &path, "after\nline", path.clone())
             .expect("真实文件保存后应能重新读取");
 
         assert_eq!(
@@ -921,7 +926,10 @@ mod tests {
     fn real_editor_save_keeps_missing_target_as_error() {
         let directory = tempfile::tempdir().expect("应能创建真实临时目录");
         let path = directory.path().join("deleted.txt");
-        let error = write_editor_snapshot(&path, "content", path.clone())
+        std::fs::write(&path, b"before").expect("应能写入保存前文件");
+        let baseline = TextDocumentLoad::load(path.clone()).expect("应能读取保存前基线");
+        std::fs::remove_file(&path).expect("应能删除保存目标");
+        let error = write_editor_snapshot(&baseline, &path, "content", path.clone())
             .expect_err("不存在的目标不应被静默创建");
         assert!(error.contains("保存文件失败"));
     }
