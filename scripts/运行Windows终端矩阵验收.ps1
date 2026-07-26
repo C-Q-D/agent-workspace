@@ -8,8 +8,8 @@
 窗口进入应用级放大，采样主进程和完整进程树，读取实验重绘指标，循环切换稳定
 workspace，最后正常关闭并核对残留进程。
 
-脚本会暂存 Paneflow 的 session.json 和 paneflow.json，并在 finally 中恢复。
-测试期间不要同时启动另一个 Paneflow 实例。
+脚本会暂存 AgentWorkspace 的 settings.json 和 workspaces.json，并在 finally 中恢复。
+测试期间不要同时启动另一个 AgentWorkspace 实例。
 #>
 [CmdletBinding()]
 param(
@@ -40,6 +40,8 @@ $ErrorActionPreference = 'Stop'
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $binary = (Resolve-Path -LiteralPath $BinaryPath).Path
+$appProcessName = [IO.Path]::GetFileNameWithoutExtension($binary)
+$ipcPipeName = 'agent-workspace'
 $workload = (Resolve-Path (Join-Path $PSScriptRoot '持续输出负载.ps1')).Path
 $outputRoot = [IO.Path]::GetFullPath($OutputDirectory)
 $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
@@ -50,8 +52,9 @@ $resultPath = Join-Path $runDirectory '运行结果.json'
 $overviewPath = Join-Path $runDirectory '矩阵总览.png'
 $maximizedPath = Join-Path $runDirectory '单窗口放大.png'
 $stateDirectory = Join-Path $runDirectory '状态备份'
-$actualConfigPath = Join-Path ([Environment]::GetFolderPath('ApplicationData')) 'paneflow\paneflow.json'
-$actualSessionPath = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'paneflow\session.json'
+$agentWorkspaceDataRoot = Join-Path ([Environment]::GetFolderPath('UserProfile')) '.agent-workspace'
+$actualConfigPath = Join-Path $agentWorkspaceDataRoot 'config\settings.json'
+$actualSessionPath = Join-Path $agentWorkspaceDataRoot 'sessions\workspaces.json'
 $configBackupPath = Join-Path $stateDirectory '用户配置.json'
 $sessionBackupPath = Join-Path $stateDirectory '用户会话.json'
 $experimentSessionPath = Join-Path $stateDirectory '实验会话.json'
@@ -59,13 +62,13 @@ $experimentSessionPath = Join-Path $stateDirectory '实验会话.json'
 New-Item -ItemType Directory -Force -Path $runDirectory, $stateDirectory | Out-Null
 
 function Invoke-PaneflowRpc {
-    <# 通过一次一连接协议执行真实 Paneflow JSON-RPC。 #>
+    <# 通过一次一连接协议执行真实 AgentWorkspace JSON-RPC。 #>
     param(
         [Parameter(Mandatory = $true)][string]$Method,
         [Parameter(Mandatory = $true)][object]$Params
     )
 
-    $pipe = [IO.Pipes.NamedPipeClientStream]::new('.', 'paneflow', [IO.Pipes.PipeDirection]::InOut)
+    $pipe = [IO.Pipes.NamedPipeClientStream]::new('.', $ipcPipeName, [IO.Pipes.PipeDirection]::InOut)
     try {
         $pipe.Connect(5000)
         $utf8 = [Text.UTF8Encoding]::new($false)
@@ -81,14 +84,14 @@ function Invoke-PaneflowRpc {
         $writer.WriteLine($request)
         $line = $reader.ReadLine()
         if ([string]::IsNullOrWhiteSpace($line)) {
-            throw "Paneflow IPC 对 $Method 返回空响应。"
+            throw "AgentWorkspace IPC 对 $Method 返回空响应。"
         }
         $response = $line | ConvertFrom-Json
         if ($response.PSObject.Properties.Name -contains 'error') {
-            throw "Paneflow IPC $Method 失败：$($response.error | ConvertTo-Json -Compress)"
+            throw "AgentWorkspace IPC $Method 失败：$($response.error | ConvertTo-Json -Compress)"
         }
         if ($response.PSObject.Properties.Name -notcontains 'result') {
-            throw "Paneflow IPC $Method 响应缺少 result。"
+            throw "AgentWorkspace IPC $Method 响应缺少 result。"
         }
         return $response.result
     }
@@ -109,13 +112,13 @@ function Wait-PaneflowReady {
         }
         Start-Sleep -Milliseconds 500
     }
-    throw 'Paneflow IPC 在 30 秒内未就绪。'
+    throw 'AgentWorkspace IPC 在 30 秒内未就绪。'
 }
 
 function Initialize-IsolatedState {
     <# 暂存真实用户状态，保证容量点从一个空白 workspace 开始。 #>
-    if (Get-Process paneflow -ErrorAction SilentlyContinue) {
-        throw '开始验收前仍存在 Paneflow 进程。'
+    if (Get-Process -Name $appProcessName -ErrorAction SilentlyContinue) {
+        throw "开始验收前仍存在 $appProcessName 进程。"
     }
     $script:hadConfig = Test-Path -LiteralPath $actualConfigPath -PathType Leaf
     $script:hadSession = Test-Path -LiteralPath $actualSessionPath -PathType Leaf
