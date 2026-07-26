@@ -621,7 +621,7 @@ impl PaneFlowApp {
             // 16GB 用户的内存，也避免异步结果在新工作区右栏复活。
             let surface = self.workspace_focus.surface();
             let workspace_id = self.workspace_focus.workspace_id();
-            if self.read_only_editor.is_some()
+            if (self.read_only_editor.is_some() || self.read_only_editor_task.is_some())
                 && (surface != DisplaySurface::Focused
                     || previous_surface != DisplaySurface::Focused
                     || previous_workspace_id != workspace_id)

@@ -68,6 +68,19 @@ impl ReadOnlyEditorState {
             Self::Loading { key, .. } | Self::Ready { key, .. } | Self::Failed { key, .. } => key,
         }
     }
+
+    /// 只有仍处于同一路径、同一 Context key 的 Loading 状态才能接收后台结果。
+    /// 该门禁与 `PaneFlowApp` 的状态清理分开，保证即使旧任务因系统调度延迟返回，
+    /// 也不会把正文写入新的工作区或新的 Editor 请求。
+    fn accepts_load_result(&self, path: &Path, key: &FocusedContextKey) -> bool {
+        matches!(
+            self,
+            Self::Loading {
+                path: current_path,
+                key: current_key,
+            } if current_path == path && current_key == key
+        )
+    }
 }
 
 impl PaneFlowApp {
@@ -110,20 +123,22 @@ impl PaneFlowApp {
             path: path.clone(),
             key: editor_key.clone(),
         });
+        // 新请求会丢弃旧句柄；旧 future 即使已经排队，完成回调仍必须通过下面的
+        // path + key 门禁，不能依赖任务取消的时序保证正确性。
+        self.read_only_editor_task = None;
         cx.notify();
 
         let load_path = path.clone();
         let result_path = path.clone();
         let request_root = root.clone();
-        cx.spawn(
+        let task = cx.spawn(
             async move |this: gpui::WeakEntity<Self>, cx: &mut gpui::AsyncApp| {
                 let result = smol::unblock(move || TextDocumentLoad::load(load_path)).await;
                 let _ = this.update(cx, |app, cx| {
-                    let still_loading = matches!(
-                        app.read_only_editor.as_ref(),
-                        Some(ReadOnlyEditorState::Loading { path, key })
-                            if path == &result_path && key == &editor_key
-                    );
+                    let still_loading = app
+                        .read_only_editor
+                        .as_ref()
+                        .is_some_and(|state| state.accepts_load_result(&result_path, &editor_key));
                     if !app.files_sidebar_open
                         || !still_loading
                         || !app
@@ -145,20 +160,19 @@ impl PaneFlowApp {
                             message: error.user_message(),
                         },
                     });
+                    // 只有当前请求完成时才清空句柄；旧请求的迟到回调不能误清空新请求。
+                    app.read_only_editor_task = None;
                     cx.notify();
                 });
             },
-        )
-        .detach();
+        );
+        self.read_only_editor_task = Some(task);
     }
 
     /// 返回文件树并恢复 Files Context；恢复时重新建立 watcher/hydration，避免使用
     /// 已经被 Editor 代数失效的旧异步资源。
     pub(crate) fn close_read_only_editor(&mut self, cx: &mut Context<Self>) {
-        if self.read_only_editor.is_none() {
-            return;
-        }
-        self.read_only_editor = None;
+        self.clear_read_only_editor_state();
         self.files_tree_scroll = gpui::ScrollHandle::new();
         self.files_menu_open = None;
         if self.files_sidebar_open
@@ -182,6 +196,7 @@ impl PaneFlowApp {
     /// 右栏等生命周期边界，实际 Context 代数由统一展示状态转换负责推进。
     pub(crate) fn clear_read_only_editor_state(&mut self) {
         self.read_only_editor = None;
+        self.read_only_editor_task = None;
     }
 
     /// 在用户明确点击降级页面的外部打开按钮时复用现有编辑器探测链；不会自动把正文
@@ -485,8 +500,10 @@ fn editor_message(message: &str, ui: crate::theme::UiColors) -> AnyElement {
 
 #[cfg(test)]
 mod tests {
-    use super::{READ_ONLY_EDITOR_PAGE_SIZE, document_page_count};
+    use super::{READ_ONLY_EDITOR_PAGE_SIZE, ReadOnlyEditorState, document_page_count};
+    use crate::app::workspace_focus::{FocusedContextKey, FocusedContextKind};
     use crate::editor::TextDocumentLoad;
+    use std::path::PathBuf;
 
     /// 使用真实临时文本验证 Editor 的分页上限，不构造 mock 文档或伪造正文。
     #[test]
@@ -501,5 +518,29 @@ mod tests {
         let document = TextDocumentLoad::load(path).expect("真实文本应能加载");
 
         assert_eq!(document_page_count(&document), 3);
+    }
+
+    /// 过期请求必须在状态层被拒绝；不构造 PaneFlowApp 或 mock 文件内容，直接验证
+    /// 生产回调使用的精确 path + Context key 合同。
+    #[test]
+    fn loading_result_requires_exact_path_and_context_key() {
+        let path = PathBuf::from("C:/workspace/a.txt");
+        let key = FocusedContextKey {
+            workspace_id: 7,
+            workspace_root: PathBuf::from("C:/workspace"),
+            generation: 11,
+            kind: FocusedContextKind::Editor,
+        };
+        let state = ReadOnlyEditorState::Loading {
+            path: path.clone(),
+            key: key.clone(),
+        };
+
+        assert!(state.accepts_load_result(&path, &key));
+        assert!(!state.accepts_load_result(PathBuf::from("C:/workspace/b.txt").as_path(), &key));
+
+        let mut other_key = key.clone();
+        other_key.generation += 1;
+        assert!(!state.accepts_load_result(&path, &other_key));
     }
 }

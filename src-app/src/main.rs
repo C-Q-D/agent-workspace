@@ -1093,6 +1093,8 @@ struct PaneFlowApp {
     files_line_picker: Option<app::files_sidebar::FileLinePickerState>,
     /// Focused 右侧打开的真实文本只读 Editor；与 Files/行选择器互斥且不保存正文。
     read_only_editor: Option<crate::editor::ReadOnlyEditorState>,
+    /// 当前只读 Editor 的后台读取任务；离开 Context 时丢弃句柄，避免持续持有旧快照。
+    read_only_editor_task: Option<gpui::Task<()>>,
     /// Scroll state for the Files tree body. Re-created on every open so a
     /// fresh sidebar starts at offset 0.
     files_tree_scroll: gpui::ScrollHandle,
